@@ -1,0 +1,148 @@
+{% extends "base.html" %}
+
+{% block title %}Login - MzansiServe{% endblock %}
+
+{% block extra_head %}
+<style>
+    .login-container {
+        animation: fadeInFromTop 0.8s ease-out;
+    }
+    
+    @keyframes fadeInFromTop {
+        from {
+            opacity: 0;
+            transform: translateY(-30px);
+        }
+        to {
+            opacity: 1;
+            transform: translateY(0);
+        }
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="max-w-md mx-auto mt-8 login-container">
+    <h2 class="text-2xl font-bold mb-4">Login</h2>
+    <form id="loginForm" class="space-y-4">
+        <div>
+            <label for="email" class="block text-sm font-medium mb-1">Email</label>
+            <input type="email" id="email" name="email" required 
+                   class="w-full px-3 py-2 border rounded-md">
+        </div>
+        <div>
+            <label for="role" class="block text-sm font-medium mb-1">Log in as</label>
+            <select id="role" name="role" required class="w-full px-3 py-2 border rounded-md">
+                <option value="">Select role (enter email first)</option>
+                <option value="client">Client</option>
+                <option value="driver">Driver</option>
+                <option value="professional">Professional</option>
+                <option value="service-provider">Service Provider</option>
+            </select>
+            <p class="text-sm text-gray-500 mt-1">Select the role you registered with. You can only log in if you have an account for this email and role.</p>
+        </div>
+        <div>
+            <label for="password" class="block text-sm font-medium mb-1">Password</label>
+            <input type="password" id="password" name="password" required 
+                   class="w-full px-3 py-2 border rounded-md">
+        </div>
+        <div>
+            <button type="submit" class="w-full bg-blue-500 text-white py-2 rounded hover:bg-blue-600">
+                Login
+            </button>
+        </div>
+    </form>
+    <div class="mt-4 text-center space-y-2">
+        <div>
+            <a href="/forgot-password" class="text-blue-500 hover:underline">Forgot Password?</a>
+        </div>
+        <div>
+            <span class="text-gray-600">Don't have an account? </span>
+            <a href="/register" class="text-blue-500 hover:underline font-medium">Register here</a>
+        </div>
+    </div>
+</div>
+
+<script>
+const ROLE_OPTIONS = {
+    'client': 'Client',
+    'driver': 'Driver',
+    'professional': 'Professional',
+    'service-provider': 'Service Provider'
+};
+
+// Fetch and filter role options when email is entered
+document.getElementById('email').addEventListener('blur', async function() {
+    const email = this.value.trim();
+    const roleSelect = document.getElementById('role');
+    if (!email || !email.includes('@')) {
+        roleSelect.innerHTML = '<option value="">Select role (enter email first)</option>' +
+            Object.entries(ROLE_OPTIONS).map(([v, l]) => `<option value="${v}">${l}</option>`).join('');
+        return;
+    }
+    try {
+        const res = await fetch('/api/auth/roles-for-email?email=' + encodeURIComponent(email));
+        const data = await res.json();
+        const roles = (data.data && data.data.roles) || [];
+        roleSelect.innerHTML = '<option value="">Select role</option>';
+        if (roles.length > 0) {
+            roles.forEach(r => {
+                if (ROLE_OPTIONS[r]) roleSelect.innerHTML += `<option value="${r}">${ROLE_OPTIONS[r]}</option>`;
+            });
+        } else {
+            Object.entries(ROLE_OPTIONS).forEach(([v, l]) => {
+                roleSelect.innerHTML += `<option value="${v}">${l}</option>`;
+            });
+        }
+    } catch (e) {
+        Object.entries(ROLE_OPTIONS).forEach(([v, l]) => {
+            if (!roleSelect.querySelector('option[value="' + v + '"]')) {
+                roleSelect.innerHTML += `<option value="${v}">${l}</option>`;
+            }
+        });
+    }
+});
+
+document.getElementById('loginForm').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const formData = new FormData(e.target);
+    const data = Object.fromEntries(formData);
+    if (!data.role) {
+        alert('Please select a role');
+        return;
+    }
+    
+    try {
+        const response = await fetch('/api/auth/login', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify(data)
+        });
+        
+        const result = await response.json();
+        if (result.success) {
+            localStorage.setItem('token', result.data.token);
+            // Trigger recon check on login (month-end earnings transfer)
+            fetch('/api/dashboard/recon-check', {
+                headers: { 'Authorization': 'Bearer ' + result.data.token }
+            }).catch(function() {});
+            const role = result.data.user && result.data.user.role;
+            let redirectUrl = '/dashboard';
+            if (role === 'driver') {
+                redirectUrl = '/driver-dashboard';
+            } else if (role === 'professional') {
+                redirectUrl = '/professional-dashboard';
+            } else if (role === 'service-provider') {
+                redirectUrl = '/service-provider-dashboard';
+            }
+            window.location.href = redirectUrl;
+        } else {
+            alert(result.error?.message || 'Login failed');
+        }
+    } catch (error) {
+        alert('Error: ' + error.message);
+    }
+});
+</script>
+{% endblock %}
+

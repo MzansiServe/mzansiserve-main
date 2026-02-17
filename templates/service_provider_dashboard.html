@@ -1,0 +1,133 @@
+{% extends "base.html" %}
+
+{% block title %}Service Provider Dashboard - MzansiServe{% endblock %}
+
+{% block extra_head %}
+<style>
+    @keyframes fadeIn {
+        from {
+            opacity: 0;
+            transform: translateY(20px);
+        }
+        to {
+            opacity: 1;
+            transform: translateY(0);
+        }
+    }
+    .fade-in {
+        animation: fadeIn 0.6s ease-out forwards;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="max-w-6xl mx-auto fade-in">
+    <h1 class="text-3xl font-bold mb-6">Service Provider Dashboard</h1>
+
+    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
+        <!-- Wallet -->
+        <div class="bg-white p-6 rounded-lg shadow">
+            <h3 class="text-lg font-semibold mb-2">Wallet Balance</h3>
+            <p class="text-2xl font-bold" id="walletBalance">R0.00</p>
+            <a href="/wallet" class="text-blue-500 hover:underline mt-2 block">View Wallet</a>
+        </div>
+        <!-- Earnings -->
+        <div class="bg-white p-6 rounded-lg shadow">
+            <h3 class="text-lg font-semibold mb-2">Total Earnings This Month</h3>
+            <p class="text-2xl font-bold text-green-600" id="serviceProviderEarnings">R0.00</p>
+            <p class="text-sm text-gray-500 mt-1">From completed services</p>
+        </div>
+        <!-- Service history -->
+        <div class="bg-white p-6 rounded-lg shadow">
+            <h3 class="text-lg font-semibold mb-2">Service History</h3>
+            <p class="text-gray-600 mb-2">View all services you've completed</p>
+            <a href="/requested-services?type=provider" class="inline-block bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600 font-medium">View Services</a>
+        </div>
+        <!-- Profile & documents -->
+        <div class="bg-white p-6 rounded-lg shadow">
+            <h3 class="text-lg font-semibold mb-2">Profile & Documents</h3>
+            <p class="text-gray-600 mb-2">Manage your profile and documents</p>
+            <a href="/profile" class="inline-block bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600 font-medium">Profile</a>
+        </div>
+    </div>
+
+    <!-- Available Service Provider Requests -->
+    <div class="bg-white p-6 rounded-lg shadow mt-8">
+        <h2 class="text-2xl font-bold mb-4">Available Service Requests</h2>
+        <div id="availableServiceProviderRequestsList" class="space-y-4">
+            <p>Loading...</p>
+        </div>
+    </div>
+</div>
+
+<script>
+async function loadServiceProviderDashboard() {
+    const token = localStorage.getItem('token');
+    if (!token) {
+        window.location.href = '/login';
+        return;
+    }
+    try {
+        const response = await fetch('/api/dashboard', {
+            headers: { 'Authorization': `Bearer ${token}` }
+        });
+        const result = await response.json();
+        if (!result.success) {
+            window.location.href = '/login';
+            return;
+        }
+        if (result.data.current_user.role !== 'service-provider') {
+            window.location.href = '/dashboard';
+            return;
+        }
+        document.getElementById('walletBalance').textContent =
+            `R${(result.data.wallet.balance || 0).toFixed(2)}`;
+        document.getElementById('serviceProviderEarnings').textContent =
+            `R${(result.data.service_provider_earnings || 0).toFixed(2)}`;
+        loadAvailableServiceProviderRequests(result.data.available_service_provider_requests || []);
+    } catch (error) {
+        console.error('Error loading service provider dashboard:', error);
+        window.location.href = '/login';
+    }
+}
+
+function loadAvailableServiceProviderRequests(requests) {
+    const container = document.getElementById('availableServiceProviderRequestsList');
+    if (!requests || requests.length === 0) {
+        container.innerHTML = '<p class="text-gray-500">No available service requests at the moment.</p>';
+        return;
+    }
+    container.innerHTML = requests.map(request => {
+        const locationData = request.location_data || {};
+        const location = locationData.location || {};
+        const locationAddress = location.address || 'Location not specified';
+        const scheduledDate = request.scheduled_date || 'N/A';
+        const scheduledTime = request.scheduled_time || 'N/A';
+        const details = request.details || {};
+        const notes = details.notes || 'No additional notes';
+        const serviceType = details.service_type || 'N/A';
+        
+        return `
+            <div class="border rounded-lg p-4 hover:shadow-md transition-shadow">
+                <div class="flex justify-between items-start mb-3">
+                    <div class="flex-1">
+                        <h4 class="font-semibold text-lg mb-2">Service Request ${request.id}</h4>
+                        <div class="space-y-1 text-sm text-gray-600">
+                            <p><strong>Service Type:</strong> ${serviceType}</p>
+                            <p><strong>Location:</strong> ${locationAddress}</p>
+                            <p><strong>Scheduled:</strong> ${scheduledDate} at ${scheduledTime}</p>
+                            <p><strong>Notes:</strong> ${notes}</p>
+                        </div>
+                    </div>
+                    <div class="ml-4 flex gap-2">
+                        <a href="/requested-services?id=${request.id}" class="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600 font-medium">View & Quote</a>
+                    </div>
+                </div>
+            </div>
+        `;
+    }).join('');
+}
+
+loadServiceProviderDashboard();
+</script>
+{% endblock %}

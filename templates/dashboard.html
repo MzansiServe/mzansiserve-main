@@ -1,0 +1,276 @@
+{% extends "base.html" %}
+
+{% block title %}Dashboard - MzansiServe{% endblock %}
+
+{% block extra_head %}
+<style>
+    @keyframes fadeIn {
+        from {
+            opacity: 0;
+            transform: translateY(20px);
+        }
+        to {
+            opacity: 1;
+            transform: translateY(0);
+        }
+    }
+    
+    .fade-in {
+        animation: fadeIn 0.6s ease-out forwards;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-8 fade-in">
+    <!-- Wallet Card -->
+    <div class="bg-white p-6 rounded-lg shadow">
+        <h3 class="text-lg font-semibold mb-2">Wallet Balance</h3>
+        <p class="text-2xl font-bold" id="walletBalance">R0.00</p>
+        <a href="/wallet" class="text-blue-500 hover:underline mt-2 block">View Wallet</a>
+    </div>
+    
+    <!-- Recent Orders -->
+    <div class="bg-white p-6 rounded-lg shadow">
+        <h3 class="text-lg font-semibold mb-2">Recent Shop Orders</h3>
+        <div id="recentOrders">Loading...</div>
+        <a href="/shopping-history" class="text-blue-500 hover:underline mt-2 block">See More</a>
+    </div>
+    
+    <!-- Recent Requests -->
+    <div class="bg-white p-6 rounded-lg shadow driver-rides-card">
+        <h3 class="text-lg font-semibold mb-2">Rides You've Made</h3>
+        <div id="recentRides">Loading...</div>
+        <a href="/rides-made" class="text-blue-500 hover:underline mt-2 block">See More</a>
+    </div>
+
+    <!-- Recent Requests -->
+    <div class="bg-white p-6 rounded-lg shadow">
+        <h3 class="text-lg font-semibold mb-2">Recent Requests</h3>
+        <div id="recentRequests">Loading...</div>
+        <a href="/requested-services" class="text-blue-500 hover:underline mt-2 block">See More</a>
+    </div>
+</div>
+
+<!-- Recent Ride Requests Section (for drivers only) -->
+<div id="recentRideRequestsSection" class="hidden mt-8 fade-in">
+    <div class="bg-white p-6 rounded-lg shadow">
+        <h2 class="text-2xl font-bold mb-4">Recent Ride Requests</h2>
+        <div id="recentRideRequestsList" class="space-y-4">
+            <p>Loading...</p>
+        </div>
+    </div>
+</div>
+    
+    <!-- Quick Actions -->
+    <div class="bg-white p-6 rounded-lg shadow">
+        <h3 class="text-lg font-semibold mb-2">Quick Actions</h3>
+        <div class="space-y-2">
+            <a href="/request-driver" class="block text-blue-500 hover:underline">Request a Cab</a>
+            <a href="/request-professional" class="block text-blue-500 hover:underline">Request a Professional</a>
+            <a href="/request-service-provider" class="block text-blue-500 hover:underline">Request a Service Provider</a>
+        </div>
+    </div>
+</div>
+
+<script>
+async function loadDashboard() {
+    const token = localStorage.getItem('token');
+    if (!token) {
+        window.location.href = '/login';
+        return;
+    }
+    
+    try {
+        const response = await fetch('/api/dashboard', {
+            headers: {
+                'Authorization': `Bearer ${token}`
+            }
+        });
+        
+        const result = await response.json();
+        if (result.success) {
+            // Redirect providers to their dedicated dashboards
+            const role = result.data.current_user && result.data.current_user.role;
+            if (role === 'driver') {
+                window.location.href = '/driver-dashboard';
+                return;
+            } else if (role === 'professional') {
+                window.location.href = '/professional-dashboard';
+                return;
+            } else if (role === 'service-provider') {
+                window.location.href = '/service-provider-dashboard';
+                return;
+            }
+            // Update wallet balance
+            document.getElementById('walletBalance').textContent = 
+                `R${result.data.wallet.balance.toFixed(2)}`;
+            
+            // Update recent orders
+            const ordersHtml = result.data.recent_orders.length > 0
+                ? result.data.recent_orders.map(o => {
+                    const statusColor = o.status === 'paid' ? 'text-green-600' : 
+                                      o.status === 'pending' ? 'text-yellow-600' : 'text-gray-600';
+                    return `<p><a href="/order/${o.id}" class="text-blue-500 hover:underline">Order ${o.id}</a> <span class="${statusColor}">(${o.status})</span></p>`;
+                  }).join('')
+                : '<p>No recent orders</p>';
+            document.getElementById('recentOrders').innerHTML = ordersHtml;
+            
+            // Update recent requests (show date and request type only; request ID only on requested-services page)
+            const formatRequestDate = (d) => {
+                if (!d) return '—';
+                try {
+                    const date = new Date(d);
+                    return isNaN(date.getTime()) ? d : date.toLocaleDateString(undefined, { day: 'numeric', month: 'short', year: 'numeric' });
+                } catch (_) { return d; }
+            };
+            const formatRequestType = (t) => {
+                if (t === 'cab') return 'Cab';
+                if (t === 'professional') return 'Professional';
+                if (t === 'provider') return 'Service Provider';
+                return t || '—';
+            };
+            const requestsHtml = result.data.recent_requests.length > 0
+                ? result.data.recent_requests.map(r => {
+                    const dateStr = formatRequestDate(r.scheduled_date || r.created_at);
+                    const typeStr = formatRequestType(r.request_type);
+                    return `<p><a href="/requested-services" class="text-blue-500 hover:underline">${dateStr} – ${typeStr}</a></p>`;
+                }).join('')
+                : '<p>No recent requests</p>';
+            document.getElementById('recentRequests').innerHTML = requestsHtml;
+
+            // Update recent rides
+            const recentRidesCard = document.querySelector('.driver-rides-card');
+
+            let ridesHtml = []
+
+            if (result.data.current_user.role === 'driver') {
+                if (result.data.recent_rides.length > 0) {
+                    ridesHtml = result.data.recent_rides.map(r => `<p>Ride ${r.id}</p>`).join('');
+                    document.getElementById('recentRides').innerHTML = ridesHtml;
+                }
+                else {
+                    ridesHtml.push('<p>No recent rides</p>');
+                    document.getElementById('recentRides').innerHTML = ridesHtml.join('');
+                }
+                
+                // Show Recent Ride Requests section for drivers (always visible, empty or not)
+                document.getElementById('recentRideRequestsSection').classList.remove('hidden');
+                loadAvailableRideRequests(result.data.available_ride_requests || []);
+            }
+            else {
+                recentRidesCard.style.display = 'none';
+                document.getElementById('recentRideRequestsSection').classList.add('hidden');
+            }
+        }
+    } catch (error) {
+        console.error('Error loading dashboard:', error);
+    }
+}
+
+// Load and display available ride requests
+function loadAvailableRideRequests(requests) {
+    const container = document.getElementById('recentRideRequestsList');
+    
+    if (!requests || requests.length === 0) {
+        container.innerHTML = '<p class="text-gray-500">No available ride requests at the moment.</p>';
+        return;
+    }
+    
+    container.innerHTML = requests.map(request => {
+        const locationData = request.location_data || {};
+        const pickup = locationData.pickup || {};
+        const dropoff = locationData.dropoff || {};
+        const pickupAddress = pickup.address || 'Pickup location';
+        const dropoffAddress = dropoff.address || 'Drop-off location';
+        const distance = request.distance_km ? `${parseFloat(request.distance_km).toFixed(1)} km` : 'N/A';
+        const fare = request.payment_amount ? `R${parseFloat(request.payment_amount).toFixed(2)}` : 'N/A';
+        const scheduledDate = request.scheduled_date || 'N/A';
+        const scheduledTime = request.scheduled_time || 'N/A';
+        
+        return `
+            <div class="border rounded-lg p-4 hover:shadow-md transition-shadow">
+                <div class="flex justify-between items-start mb-3">
+                    <div class="flex-1">
+                        <h4 class="font-semibold text-lg mb-2">Ride Request ${request.id}</h4>
+                        <div class="space-y-1 text-sm text-gray-600">
+                            <p><strong>Pickup:</strong> ${pickupAddress}</p>
+                            <p><strong>Drop-off:</strong> ${dropoffAddress}</p>
+                            <p><strong>Distance:</strong> ${distance}</p>
+                            <p><strong>Estimated Fare:</strong> ${fare}</p>
+                            <p><strong>Scheduled:</strong> ${scheduledDate} at ${scheduledTime}</p>
+                        </div>
+                    </div>
+                    <div class="ml-4 flex gap-2">
+                        <button onclick="acceptRideRequest('${request.id}')" 
+                                class="bg-green-500 text-white px-4 py-2 rounded hover:bg-green-600 font-medium">
+                            Accept
+                        </button>
+                        <button onclick="rejectRideRequest('${request.id}')" 
+                                class="bg-red-500 text-white px-4 py-2 rounded hover:bg-red-600 font-medium">
+                            Reject
+                        </button>
+                    </div>
+                </div>
+            </div>
+        `;
+    }).join('');
+}
+
+// Accept ride request
+async function acceptRideRequest(requestId) {
+    const token = localStorage.getItem('token');
+    if (!token) {
+        window.location.href = '/login';
+        return;
+    }
+    
+    if (!confirm('Are you sure you want to accept this ride request?')) {
+        return;
+    }
+    
+    try {
+        const response = await fetch(`/api/requests/${requestId}/accept`, {
+            method: 'POST',
+            headers: {
+                'Authorization': `Bearer ${token}`,
+                'Content-Type': 'application/json'
+            }
+        });
+        
+        const result = await response.json();
+        if (result.success) {
+            alert('Ride request accepted successfully!');
+            loadDashboard(); // Reload dashboard to update lists
+        } else {
+            alert('Error: ' + (result.error?.message || 'Failed to accept ride request'));
+        }
+    } catch (error) {
+        console.error('Error accepting ride request:', error);
+        alert('Error accepting ride request: ' + error.message);
+    }
+}
+
+// Reject ride request (simply remove from available list - no backend action needed for rejection)
+function rejectRideRequest(requestId) {
+    if (!confirm('Are you sure you want to reject this ride request? It will be removed from your available requests.')) {
+        return;
+    }
+    
+    // Remove the request from the UI
+    const container = document.getElementById('recentRideRequestsList');
+    const requestElement = container.querySelector(`button[onclick="acceptRideRequest('${requestId}')"]`)?.closest('.border');
+    if (requestElement) {
+        requestElement.remove();
+    }
+    
+    // If no more requests, show message
+    if (container.children.length === 0) {
+        container.innerHTML = '<p class="text-gray-500">No available ride requests at the moment.</p>';
+    }
+}
+
+loadDashboard();
+</script>
+{% endblock %}
+

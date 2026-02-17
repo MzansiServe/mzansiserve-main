@@ -1,0 +1,263 @@
+{% extends "base.html" %}
+
+{% block title %}Driver Dashboard - MzansiServe{% endblock %}
+
+{% block extra_head %}
+<style>
+    @keyframes fadeIn {
+        from {
+            opacity: 0;
+            transform: translateY(20px);
+        }
+        to {
+            opacity: 1;
+            transform: translateY(0);
+        }
+    }
+    .fade-in {
+        animation: fadeIn 0.6s ease-out forwards;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="max-w-6xl mx-auto fade-in">
+    <h1 class="text-3xl font-bold mb-6">Driver Dashboard</h1>
+
+    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
+        <!-- Wallet -->
+        <div class="bg-white p-6 rounded-lg shadow">
+            <h3 class="text-lg font-semibold mb-2">Wallet Balance</h3>
+            <p class="text-2xl font-bold" id="walletBalance">R0.00</p>
+            <a href="/wallet" class="text-blue-500 hover:underline mt-2 block">View Wallet</a>
+        </div>
+        <!-- Earnings -->
+        <div class="bg-white p-6 rounded-lg shadow">
+            <h3 class="text-lg font-semibold mb-2">Total Earnings This Month</h3>
+            <p class="text-2xl font-bold text-green-600" id="driverEarnings">R0.00</p>
+            <p class="text-sm text-gray-500 mt-1">From completed rides</p>
+        </div>
+        <!-- Ride history -->
+        <div class="bg-white p-6 rounded-lg shadow">
+            <h3 class="text-lg font-semibold mb-2">Ride History</h3>
+            <p class="text-gray-600 mb-2">View all rides you've completed</p>
+            <a href="/rides-made" class="inline-block bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600 font-medium">View Rides</a>
+        </div>
+        <!-- Profile & documents -->
+        <div class="bg-white p-6 rounded-lg shadow">
+            <h3 class="text-lg font-semibold mb-2">Profile & Documents</h3>
+            <p class="text-gray-600 mb-2">Manage your profile and ID documents</p>
+            <a href="/profile" class="inline-block bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600 font-medium">Profile</a>
+        </div>
+    </div>
+
+    <!-- Ride Requests -->
+    <div class="bg-white p-6 rounded-lg shadow mt-8">
+        <h2 class="text-2xl font-bold mb-4">Available Ride Requests</h2>
+        <div id="recentRideRequestsList" class="space-y-4">
+            <p>Loading...</p>
+        </div>
+    </div>
+</div>
+
+<!-- Client Info Modal (available rides: view client before accepting) -->
+<div id="clientInfoModal" class="hidden fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50" onclick="if(event.target === this) closeClientModal()">
+    <div class="bg-white rounded-lg shadow-xl max-w-md w-full mx-4 p-6 relative">
+        <button type="button" onclick="closeClientModal()" class="absolute top-3 right-3 text-gray-400 hover:text-gray-600 text-2xl">&times;</button>
+        <div id="clientInfoLoading" class="text-center py-8 text-gray-500">Loading client info...</div>
+        <div id="clientInfoContent" class="hidden">
+            <div class="flex items-center gap-4 mb-4">
+                <div id="clientInfoPhoto" class="w-20 h-20 rounded-full bg-gray-200 flex items-center justify-center overflow-hidden shrink-0">
+                    <img id="clientInfoPhotoImg" src="" alt="Client" class="w-full h-full object-cover hidden">
+                    <span id="clientInfoPhotoPlaceholder" class="text-gray-400 text-2xl">—</span>
+                </div>
+                <div>
+                    <h3 id="clientInfoName" class="text-xl font-bold text-gray-900"></h3>
+                    <p id="clientInfoRating" class="text-sm text-gray-600"></p>
+                    <a id="clientInfoReviewsLink" href="#" class="text-blue-600 hover:underline text-sm hidden">View all reviews</a>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+async function loadDriverDashboard() {
+    const token = localStorage.getItem('token');
+    if (!token) {
+        window.location.href = '/login';
+        return;
+    }
+    try {
+        const response = await fetch('/api/dashboard', {
+            headers: { 'Authorization': `Bearer ${token}` }
+        });
+        const result = await response.json();
+        if (!result.success) {
+            window.location.href = '/login';
+            return;
+        }
+        if (result.data.current_user.role !== 'driver') {
+            window.location.href = '/dashboard';
+            return;
+        }
+        document.getElementById('walletBalance').textContent =
+            `R${(result.data.wallet.balance || 0).toFixed(2)}`;
+        document.getElementById('driverEarnings').textContent =
+            `R${(result.data.driver_earnings || 0).toFixed(2)}`;
+        loadAvailableRideRequests(result.data.available_ride_requests || []);
+    } catch (error) {
+        console.error('Error loading driver dashboard:', error);
+        window.location.href = '/login';
+    }
+}
+
+function formatCarType(carType) {
+    if (!carType) return '';
+    const labels = {
+        'small_hatchback': 'Small Hatchback',
+        'sedan': 'Sedan',
+        'suv': 'SUV',
+        'bakkie': 'Bakkie',
+        'luxury': 'Luxury',
+        'hybrid': 'Hybrid',
+        'electric': 'Electric'
+    };
+    return labels[carType.toLowerCase()] || carType.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
+}
+
+function loadAvailableRideRequests(requests) {
+    const container = document.getElementById('recentRideRequestsList');
+    if (!requests || requests.length === 0) {
+        container.innerHTML = '<p class="text-gray-500">No available ride requests at the moment.</p>';
+        return;
+    }
+    container.innerHTML = requests.map(request => {
+        const locationData = request.location_data || {};
+        const pickup = locationData.pickup || {};
+        const dropoff = locationData.dropoff || {};
+        const details = request.details || {};
+        const pickupAddress = pickup.address || 'Pickup location';
+        const dropoffAddress = dropoff.address || 'Drop-off location';
+        const isCab = request.request_type === 'cab';
+        const distance = request.distance_km != null ? `${parseFloat(request.distance_km).toFixed(1)} km` : 'N/A';
+        const fare = request.payment_amount ? `R${parseFloat(request.payment_amount).toFixed(2)}` : 'N/A';
+        const scheduledDate = request.scheduled_date || 'N/A';
+        const scheduledTime = request.scheduled_time || 'N/A';
+        const distanceLine = isCab ? `<p><strong>Distance:</strong> ${distance}</p>` : '';
+        const carType = details.car_type;
+        const carTypeLine = isCab && carType ? `<p><strong>Car type:</strong> ${formatCarType(carType)}</p>` : '';
+        const clientName = request.client_name;
+        const clientLine = clientName
+            ? `<p><strong>Client:</strong> <button type="button" class="text-blue-600 underline hover:no-underline font-medium" onclick="openClientModal('${request.id}')">${clientName}</button></p>`
+            : '';
+        return `
+            <div class="border rounded-lg p-4 hover:shadow-md transition-shadow">
+                <div class="flex justify-between items-start mb-3">
+                    <div class="flex-1">
+                        <h4 class="font-semibold text-lg mb-2">Ride Request ${request.id}</h4>
+                        <div class="space-y-1 text-sm text-gray-600">
+                            ${clientLine}
+                            <p><strong>Pickup:</strong> ${pickupAddress}</p>
+                            <p><strong>Drop-off:</strong> ${dropoffAddress}</p>
+                            ${distanceLine}
+                            ${carTypeLine}
+                            <p><strong>Estimated Fare:</strong> ${fare}</p>
+                            <p><strong>Scheduled:</strong> ${scheduledDate} at ${scheduledTime}</p>
+                        </div>
+                    </div>
+                    <div class="ml-4 flex gap-2">
+                        <button onclick="acceptRideRequest('${request.id}')" 
+                                class="bg-green-500 text-white px-4 py-2 rounded hover:bg-green-600 font-medium">Accept</button>
+                        <button onclick="rejectRideRequest('${request.id}')" 
+                                class="bg-red-500 text-white px-4 py-2 rounded hover:bg-red-600 font-medium">Reject</button>
+                    </div>
+                </div>
+            </div>
+        `;
+    }).join('');
+}
+
+async function acceptRideRequest(requestId) {
+    const token = localStorage.getItem('token');
+    if (!token) { window.location.href = '/login'; return; }
+    if (!confirm('Are you sure you want to accept this ride request?')) return;
+    try {
+        const response = await fetch(`/api/requests/${requestId}/accept`, {
+            method: 'POST',
+            headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' }
+        });
+        const result = await response.json();
+        if (result.success) {
+            alert('Ride request accepted successfully!');
+            loadDriverDashboard();
+        } else {
+            alert('Error: ' + (result.error?.message || 'Failed to accept ride request'));
+        }
+    } catch (error) {
+        console.error('Error accepting ride request:', error);
+        alert('Error accepting ride request: ' + error.message);
+    }
+}
+
+function rejectRideRequest(requestId) {
+    if (!confirm('Are you sure you want to reject this ride request? It will be removed from your available requests.')) return;
+    const container = document.getElementById('recentRideRequestsList');
+    const requestElement = container.querySelector(`button[onclick="acceptRideRequest('${requestId}')"]`)?.closest('.border');
+    if (requestElement) requestElement.remove();
+    if (container.children.length === 0) {
+        container.innerHTML = '<p class="text-gray-500">No available ride requests at the moment.</p>';
+    }
+}
+
+async function openClientModal(requestId) {
+    document.getElementById('clientInfoModal').classList.remove('hidden');
+    document.getElementById('clientInfoLoading').classList.remove('hidden');
+    document.getElementById('clientInfoContent').classList.add('hidden');
+    try {
+        const token = localStorage.getItem('token');
+        const response = await fetch(`/api/requests/${requestId}/client-info`, {
+            headers: { 'Authorization': `Bearer ${token}` }
+        });
+        const res = await response.json();
+        document.getElementById('clientInfoLoading').classList.add('hidden');
+        if (!res.success) {
+            alert(res.error?.message || 'Failed to load client info');
+            closeClientModal();
+            return;
+        }
+        const client = res.data.client;
+        document.getElementById('clientInfoName').textContent = client.name || 'Client';
+        if (client.profile_image_url) {
+            const url = client.profile_image_url.startsWith('http') ? client.profile_image_url : (client.profile_image_url.startsWith('/') ? window.location.origin + client.profile_image_url : window.location.origin + '/' + client.profile_image_url);
+            document.getElementById('clientInfoPhotoImg').src = url;
+            document.getElementById('clientInfoPhotoImg').classList.remove('hidden');
+            document.getElementById('clientInfoPhotoPlaceholder').classList.add('hidden');
+        } else {
+            document.getElementById('clientInfoPhotoImg').classList.add('hidden');
+            document.getElementById('clientInfoPhotoPlaceholder').classList.remove('hidden');
+        }
+        const ratingText = client.average_rating != null ? `${client.average_rating} ★ (${client.reviews_count || 0} review${(client.reviews_count || 0) !== 1 ? 's' : ''})` : 'No ratings yet';
+        document.getElementById('clientInfoRating').textContent = ratingText;
+        const reviewsLink = document.getElementById('clientInfoReviewsLink');
+        if (client.id && (client.reviews_count || 0) > 0) {
+            reviewsLink.href = `/client-reviews/${client.id}`;
+            reviewsLink.classList.remove('hidden');
+        } else {
+            reviewsLink.classList.add('hidden');
+        }
+        document.getElementById('clientInfoContent').classList.remove('hidden');
+    } catch (e) {
+        document.getElementById('clientInfoLoading').classList.add('hidden');
+        alert('Error loading client info: ' + e.message);
+        closeClientModal();
+    }
+}
+
+function closeClientModal() {
+    document.getElementById('clientInfoModal').classList.add('hidden');
+}
+
+loadDriverDashboard();
+</script>
+{% endblock %}

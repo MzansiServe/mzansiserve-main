@@ -1,0 +1,407 @@
+{% extends "base.html" %}
+
+{% block title %}Request a Cab - MzansiServe{% endblock %}
+
+{% block extra_head %}
+<script src="https://maps.googleapis.com/maps/api/js?key={{ google_maps_api_key }}&libraries=places"></script>
+<style>
+    #pickupMap, #dropoffMap {
+        height: 300px;
+        width: 100%;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="max-w-4xl mx-auto mt-8 p-6">
+    <h2 class="text-3xl font-bold mb-6">Request a Cab</h2>
+
+    <!-- Step 1: Location Selection -->
+    <div id="step1" class="bg-white p-6 rounded-lg shadow mb-6">
+        <h3 class="text-xl font-semibold mb-4">1. Select Pick-up and Drop-off Locations</h3>
+        
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+            <div>
+                <label for="pickupInput" class="block text-sm font-medium mb-2">Pick-up Location</label>
+                <input type="text" id="pickupInput" placeholder="Search for pick-up point" 
+                       class="w-full px-4 py-2 border rounded-md mb-2">
+                <div id="pickupMap" class="border rounded"></div>
+                <input type="hidden" id="pickupLat">
+                <input type="hidden" id="pickupLng">
+                <input type="hidden" id="pickupAddress">
+            </div>
+            
+            <div>
+                <label for="dropoffInput" class="block text-sm font-medium mb-2">Drop-off Location</label>
+                <input type="text" id="dropoffInput" placeholder="Search for drop-off point" 
+                       class="w-full px-4 py-2 border rounded-md mb-2">
+                <div id="dropoffMap" class="border rounded"></div>
+                <input type="hidden" id="dropoffLat">
+                <input type="hidden" id="dropoffLng">
+                <input type="hidden" id="dropoffAddress">
+            </div>
+        </div>
+        
+        <button onclick="calculateDistance()" class="bg-blue-500 text-white px-6 py-2 rounded hover:bg-blue-600">
+            Calculate Distance & Get Quote
+        </button>
+    </div>
+
+    <!-- Step 2: Preferences -->
+    <div id="step2" class="bg-white p-6 rounded-lg shadow mb-6 hidden">
+        <h3 class="text-xl font-semibold mb-4">2. Service Preferences</h3>
+        
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+                <label for="carType" class="block text-sm font-medium mb-2">Car Type</label>
+                <select id="carType" class="w-full px-4 py-2 border rounded-md" onchange="handleCarTypeChange(event)">
+                    <option value="">Select Car Type</option>
+                    <option value="small_hatchback">Small Hatchback</option>
+                    <option value="sedan">Sedan</option>
+                    <option value="suv">SUV</option>
+                    <option value="bakkie">Bakkie</option>
+                    <option value="luxury">Luxury</option>
+                    <option value="hybrid">Hybrid</option>
+                    <option value="electric">Electric</option>
+                </select>
+                <script>
+                    function handleCarTypeChange(event) {
+                        // Access the selected value with event.target.value
+                        const selectedCarType = event.target.value;
+                        // Add your logic here, such as updating a quote, displaying info, etc.
+                        console.log('Selected car type:', selectedCarType);
+                        // Example: call getQuote() or update UI as needed
+
+                        const carType = document.getElementById('carType').value;
+
+                        if (!carType) {
+                            document.getElementById('quoteDistance').textContent = '-';
+                            document.getElementById('quoteRate').textContent = '-';
+                            document.getElementById('quoteAmount').textContent = '-';
+                            return
+                        }
+                        
+                        getQuote();
+                    }
+                </script>
+            </div>
+            
+            <div>
+                <label for="driverGender" class="block text-sm font-medium mb-2">Driver Gender Preference</label>
+                <select id="driverGender" class="w-full px-4 py-2 border rounded-md">
+                    <option value="">No Preference</option>
+                    <option value="male">Male</option>
+                    <option value="female">Female</option>
+                </select>
+            </div>
+            
+            <div class="md:col-span-2">
+                <label class="block text-sm font-medium mb-2">Schedule</label>
+                <div class="space-y-3">
+                    <label class="flex items-center">
+                        <input type="radio" name="scheduleType" value="now" id="scheduleNow" class="mr-2" checked>
+                        <span>Request for now</span>
+                    </label>
+                    <label class="flex items-center">
+                        <input type="radio" name="scheduleType" value="later" id="scheduleLater" class="mr-2">
+                        <span>Schedule for later</span>
+                    </label>
+                </div>
+            </div>
+            
+            <div id="dateTimeFields" class="md:col-span-2 hidden">
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                        <label for="scheduledDate" class="block text-sm font-medium mb-2">Date</label>
+                        <input type="date" id="scheduledDate" class="w-full px-4 py-2 border rounded-md">
+                    </div>
+                    
+                    <div>
+                        <label for="scheduledTime" class="block text-sm font-medium mb-2">Time</label>
+                        <input type="time" id="scheduledTime" class="w-full px-4 py-2 border rounded-md">
+                    </div>
+                </div>
+            </div>
+        </div>
+
+    </div>
+
+    <!-- Step 3: Quote & Payment -->
+    <div id="step3" class="bg-white p-6 rounded-lg shadow mb-6 hidden">
+        <h3 class="text-xl font-semibold mb-4">3. Review Quote & Pay</h3>
+        
+        <div id="quoteDetails" class="mb-4 p-4 bg-gray-50 rounded">
+            <p><strong>Distance:</strong> <span id="quoteDistance">-</span> km</p>
+            <p><strong>Rate per km:</strong> R<span id="quoteRate">-</span></p>
+            <p class="text-xl font-bold"><strong>Total Price:</strong> R<span id="quoteAmount">-</span></p>
+        </div>
+        
+        <div id="quoteError" class="hidden text-red-600 mb-4"></div>
+        
+        <button onclick="submitRequest()" class="bg-green-500 text-white px-6 py-2 rounded hover:bg-green-600">
+            Accept Quote & Request
+        </button>
+    </div>
+
+    <!-- Loading indicator -->
+    <div id="loading" class="hidden text-center p-4">
+        <p>Processing...</p>
+    </div>
+
+    <!-- Success message -->
+    <div id="successMessage" class="hidden bg-green-100 border border-green-400 text-green-700 px-4 py-3 rounded mb-4">
+        <p>Request created successfully! Redirecting to payment...</p>
+    </div>
+</div>
+
+<script>
+let pickupAutocomplete, dropoffAutocomplete;
+let pickupMarker, dropoffMarker;
+let pickupMap, dropoffMap;
+let currentQuote = null;
+let distanceKm = null;
+
+// Initialize Google Maps
+function initMaps() {
+    // Pickup map
+    pickupMap = new google.maps.Map(document.getElementById('pickupMap'), {
+        center: { lat: -26.2041, lng: 28.0473 }, // Johannesburg
+        zoom: 13
+    });
+    
+    pickupAutocomplete = new google.maps.places.Autocomplete(document.getElementById('pickupInput'));
+    pickupAutocomplete.bindTo('bounds', pickupMap);
+    
+    pickupAutocomplete.addListener('place_changed', function() {
+        const place = pickupAutocomplete.getPlace();
+        if (!place.geometry) return;
+        
+        document.getElementById('pickupLat').value = place.geometry.location.lat();
+        document.getElementById('pickupLng').value = place.geometry.location.lng();
+        document.getElementById('pickupAddress').value = place.formatted_address || place.name;
+        
+        if (pickupMarker) pickupMarker.setMap(null);
+        pickupMarker = new google.maps.Marker({
+            map: pickupMap,
+            position: place.geometry.location
+        });
+        pickupMap.setCenter(place.geometry.location);
+    });
+    
+    // Dropoff map
+    dropoffMap = new google.maps.Map(document.getElementById('dropoffMap'), {
+        center: { lat: -26.2041, lng: 28.0473 },
+        zoom: 13
+    });
+    
+    dropoffAutocomplete = new google.maps.places.Autocomplete(document.getElementById('dropoffInput'));
+    dropoffAutocomplete.bindTo('bounds', dropoffMap);
+    
+    dropoffAutocomplete.addListener('place_changed', function() {
+        const place = dropoffAutocomplete.getPlace();
+        if (!place.geometry) return;
+        
+        document.getElementById('dropoffLat').value = place.geometry.location.lat();
+        document.getElementById('dropoffLng').value = place.geometry.location.lng();
+        document.getElementById('dropoffAddress').value = place.formatted_address || place.name;
+        
+        if (dropoffMarker) dropoffMarker.setMap(null);
+        dropoffMarker = new google.maps.Marker({
+            map: dropoffMap,
+            position: place.geometry.location
+        });
+        dropoffMap.setCenter(place.geometry.location);
+    });
+}
+
+// Calculate distance using Google Maps Distance Matrix
+async function calculateDistance() {
+    const pickupLat = document.getElementById('pickupLat').value;
+    const pickupLng = document.getElementById('pickupLng').value;
+    const dropoffLat = document.getElementById('dropoffLat').value;
+    const dropoffLng = document.getElementById('dropoffLng').value;
+    
+    if (!pickupLat || !pickupLng || !dropoffLat || !dropoffLng) {
+        alert('Please select both pick-up and drop-off locations');
+        return;
+    }
+    
+    // Use Google Maps Distance Matrix API
+    const service = new google.maps.DistanceMatrixService();
+    service.getDistanceMatrix({
+        origins: [{ lat: parseFloat(pickupLat), lng: parseFloat(pickupLng) }],
+        destinations: [{ lat: parseFloat(dropoffLat), lng: parseFloat(dropoffLng) }],
+        travelMode: 'DRIVING',
+        unitSystem: google.maps.UnitSystem.METRIC
+    }, (response, status) => {
+        if (status === 'OK' && response.rows[0].elements[0].status === 'OK') {
+            distanceKm = response.rows[0].elements[0].distance.value / 1000; // Convert meters to km
+            document.getElementById('step2').classList.remove('hidden');
+        } else {
+            alert('Could not calculate distance. Please try again.');
+        }
+    });
+}
+
+// Get quote from API
+async function getQuote() {
+    const pickupLat = document.getElementById('pickupLat').value;
+    const pickupLng = document.getElementById('pickupLng').value;
+    const dropoffLat = document.getElementById('dropoffLat').value;
+    const dropoffLng = document.getElementById('dropoffLng').value;
+    const carType = document.getElementById('carType').value;
+    const driverGender = document.getElementById('driverGender').value;
+    
+    if (!pickupLat || !pickupLng || !dropoffLat || !dropoffLng) {
+        alert('Please select both locations first');
+        return;
+    }
+    
+    document.getElementById('loading').classList.remove('hidden');
+    
+    try {
+        const response = await apiCall('/requests/quote', {
+            method: 'POST',
+            body: JSON.stringify({
+                type: 'cab',
+                pickup: { lat: parseFloat(pickupLat), lng: parseFloat(pickupLng) },
+                dropoff: { lat: parseFloat(dropoffLat), lng: parseFloat(dropoffLng) },
+                distance_km: distanceKm,
+                preferences: {
+                    car_type: carType,
+                    driver_gender: driverGender || null
+                }
+            })
+        });
+        
+        if (response.success) {
+            currentQuote = response.data;
+            document.getElementById('quoteDistance').textContent = response.data.distance_km.toFixed(2);
+            document.getElementById('quoteRate').textContent = response.data.rate_per_km.toFixed(2);
+            document.getElementById('quoteAmount').textContent = response.data.payment_amount.toFixed(2);
+            document.getElementById('step3').classList.remove('hidden');
+            document.getElementById('quoteError').classList.add('hidden');
+        } else {
+            document.getElementById('quoteError').textContent = response.error?.message || 'Failed to get quote';
+            document.getElementById('quoteError').classList.remove('hidden');
+        }
+    } catch (error) {
+        document.getElementById('quoteError').textContent = 'Error getting quote: ' + error.message;
+        document.getElementById('quoteError').classList.remove('hidden');
+    } finally {
+        document.getElementById('loading').classList.add('hidden');
+    }
+}
+
+// Submit request: create cab request + start Yoco checkout
+async function submitRequest() {
+    if (!currentQuote) {
+        alert('Please get a quote first');
+        return;
+    }
+    
+    const scheduleNow = document.getElementById('scheduleNow').checked;
+    const scheduledDate = document.getElementById('scheduledDate').value;
+    const scheduledTime = document.getElementById('scheduledTime').value;
+    const driverGender = document.getElementById('driverGender').value;
+    const carType = document.getElementById('carType').value;
+
+    if (!carType) {
+        alert('Please select a car type');
+        return;
+    }
+
+    // Validate date/time only if scheduling for later
+    if (!scheduleNow && (!scheduledDate || !scheduledTime)) {
+        alert('Please select date and time');
+        return;
+    }
+    
+    document.getElementById('loading').classList.remove('hidden');
+    
+    try {
+        // If "Request for now", set date/time to current date/time
+        let requestDate = scheduledDate;
+        let requestTime = scheduledTime;
+        
+        if (scheduleNow) {
+            const now = new Date();
+            requestDate = now.toISOString().split('T')[0]; // YYYY-MM-DD format
+            requestTime = now.toTimeString().slice(0, 5); // HH:MM format
+        }
+        
+        const response = await apiCall('/requests/cab-checkout', {
+            method: 'POST',
+            body: JSON.stringify({
+                pickup: {
+                    lat: parseFloat(document.getElementById('pickupLat').value),
+                    lng: parseFloat(document.getElementById('pickupLng').value),
+                    address: document.getElementById('pickupAddress').value
+                },
+                dropoff: {
+                    lat: parseFloat(document.getElementById('dropoffLat').value),
+                    lng: parseFloat(document.getElementById('dropoffLng').value),
+                    address: document.getElementById('dropoffAddress').value
+                },
+                date: requestDate,
+                time: requestTime,
+                preferences: {
+                    car_type: carType,
+                    driver_gender: driverGender || null
+                },
+                payment_amount: currentQuote.payment_amount,
+                distance_km: currentQuote.distance_km != null ? currentQuote.distance_km : undefined
+            })
+        });
+        
+        if (response.success && response.data.redirect_url) {
+            // Redirect user to Yoco checkout
+            window.location.href = response.data.redirect_url;
+        } else {
+            alert('Failed to start payment: ' + (response.error?.message || 'Unknown error'));
+        }
+    } catch (error) {
+        alert('Error starting payment: ' + error.message);
+    } finally {
+        document.getElementById('loading').classList.add('hidden');
+    }
+}
+
+// Handle schedule type toggle
+function handleScheduleTypeChange() {
+    const scheduleNow = document.getElementById('scheduleNow');
+    const scheduleLater = document.getElementById('scheduleLater');
+    const dateTimeFields = document.getElementById('dateTimeFields');
+    const scheduledDate = document.getElementById('scheduledDate');
+    const scheduledTime = document.getElementById('scheduledTime');
+    
+    if (scheduleNow.checked) {
+        dateTimeFields.classList.add('hidden');
+        scheduledDate.removeAttribute('required');
+        scheduledTime.removeAttribute('required');
+    } else if (scheduleLater.checked) {
+        dateTimeFields.classList.remove('hidden');
+        scheduledDate.setAttribute('required', 'required');
+        scheduledTime.setAttribute('required', 'required');
+    }
+}
+
+// Initialize on page load
+document.addEventListener('DOMContentLoaded', function() {
+    if (!localStorage.getItem('token')) {
+        window.location.href = '/login';
+        return;
+    }
+    
+    // Add event listeners for schedule type radio buttons
+    document.getElementById('scheduleNow').addEventListener('change', handleScheduleTypeChange);
+    document.getElementById('scheduleLater').addEventListener('change', handleScheduleTypeChange);
+    
+    if (typeof google !== 'undefined' && google.maps) {
+        initMaps();
+    } else {
+        alert('Google Maps API not loaded. Please check API key configuration.');
+    }
+});
+</script>
+{% endblock %}

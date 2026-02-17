@@ -1,0 +1,345 @@
+{% extends "base.html" %}
+
+{% block title %}Recent Rides Made - MzansiServe{% endblock %}
+
+{% block extra_head %}
+<style>
+    @keyframes fadeIn {
+        from {
+            opacity: 0;
+            transform: translateY(20px);
+        }
+        to {
+            opacity: 1;
+            transform: translateY(0);
+        }
+    }
+    
+    .fade-in {
+        animation: fadeIn 0.6s ease-out forwards;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="mt-8 max-w-6xl mx-auto fade-in">
+    <h2 class="text-2xl font-bold mb-4">Rides You've Made</h2>
+    <div id="ridesContainer">
+        <div id="ridesLoading" class="p-8 text-center text-gray-600">Loading rides...</div>
+        <div id="ridesError" class="hidden p-4 text-red-600 bg-red-50 rounded-lg mb-4"></div>
+        <div id="ridesCards" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 hidden"></div>
+        <span id="ridesMeta" class="text-sm text-gray-600 ml-auto"></span>
+    </div>
+</div>
+
+<!-- Client Info Modal (rides made: view client + rate client) -->
+<div id="clientInfoModal" class="hidden fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50" onclick="if(event.target === this) closeClientModal()">
+    <div class="bg-white rounded-lg shadow-xl max-w-md w-full mx-4 p-6 relative max-h-[90vh] overflow-y-auto">
+        <button type="button" onclick="closeClientModal()" class="absolute top-3 right-3 text-gray-400 hover:text-gray-600 text-2xl">&times;</button>
+        <div id="clientInfoLoading" class="text-center py-8 text-gray-500">Loading client info...</div>
+        <div id="clientInfoContent" class="hidden">
+            <div class="flex items-center gap-4 mb-4">
+                <div id="clientInfoPhoto" class="w-20 h-20 rounded-full bg-gray-200 flex items-center justify-center overflow-hidden shrink-0">
+                    <img id="clientInfoPhotoImg" src="" alt="Client" class="w-full h-full object-cover hidden">
+                    <span id="clientInfoPhotoPlaceholder" class="text-gray-400 text-2xl">—</span>
+                </div>
+                <div>
+                    <h3 id="clientInfoName" class="text-xl font-bold text-gray-900"></h3>
+                    <p id="clientInfoRating" class="text-sm text-gray-600"></p>
+                    <a id="clientInfoReviewsLink" href="#" class="text-blue-600 hover:underline text-sm hidden">View all reviews</a>
+                </div>
+            </div>
+            <div id="clientRateSection" class="border-t pt-4 mt-4">
+                <h4 class="font-semibold mb-2">Rate this client</h4>
+                <form id="rateClientForm" onsubmit="submitRateClient(event)" class="space-y-3">
+                    <input type="hidden" id="rateClientRequestId" value="">
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Rating (stars)</label>
+                        <div class="flex gap-1" id="rateClientStars">
+                            <button type="button" class="text-2xl text-gray-300 hover:text-yellow-400 focus:outline-none" data-rating="1">★</button>
+                            <button type="button" class="text-2xl text-gray-300 hover:text-yellow-400 focus:outline-none" data-rating="2">★</button>
+                            <button type="button" class="text-2xl text-gray-300 hover:text-yellow-400 focus:outline-none" data-rating="3">★</button>
+                            <button type="button" class="text-2xl text-gray-300 hover:text-yellow-400 focus:outline-none" data-rating="4">★</button>
+                            <button type="button" class="text-2xl text-gray-300 hover:text-yellow-400 focus:outline-none" data-rating="5">★</button>
+                        </div>
+                        <input type="hidden" id="rateClientRatingValue" value="0" required>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Review (optional)</label>
+                        <textarea id="rateClientReview" rows="3" class="w-full px-3 py-2 border rounded-md" placeholder="How was the client?"></textarea>
+                    </div>
+                    <button type="submit" id="rateClientSubmitBtn" class="bg-green-500 text-white py-2 px-4 rounded hover:bg-green-600 font-medium w-full">Submit rating</button>
+                </form>
+                <p id="clientAlreadyRated" class="hidden text-gray-600 font-medium">Already rated this client.</p>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+// Helper functions for formatting
+function formatDateTime(dateStr, timeStr) {
+    if (!dateStr && !timeStr) return '-';
+    if (!dateStr) return timeStr;
+    if (!timeStr) return dateStr;
+    return `${dateStr} ${timeStr}`;
+}
+
+function formatPrice(amount, currency) {
+    if (amount == null) return '-';
+    const val = parseFloat(amount);
+    if (isNaN(val)) return '-';
+    return `${currency || 'ZAR'} ${val.toFixed(2)}`;
+}
+
+function getStatusColor(status) {
+    const colors = {
+        'pending': 'bg-yellow-100 text-yellow-800',
+        'accepted': 'bg-blue-100 text-blue-800',
+        'completed': 'bg-green-100 text-green-800',
+        'cancelled': 'bg-gray-100 text-gray-800'
+    };
+    return colors[status] || 'bg-gray-100 text-gray-800';
+}
+
+function getTypeIcon(type) {
+    const icons = {
+        'cab': `<svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4"></path></svg>`,
+    };
+    return icons[type] || `<svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10" /></svg>`;
+}
+
+function formatCarType(carType) {
+    if (!carType) return '';
+    const labels = {
+        'small_hatchback': 'Small Hatchback',
+        'sedan': 'Sedan',
+        'suv': 'SUV',
+        'bakkie': 'Bakkie',
+        'luxury': 'Luxury',
+        'hybrid': 'Hybrid',
+        'electric': 'Electric'
+    };
+    return labels[carType.toLowerCase()] || carType.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
+}
+
+function buildCabDetails(ride) {
+    const pickup = ride.pickup || (ride.location_data && ride.location_data.pickup && ride.location_data.pickup.address) || "—";
+    const dropoff = ride.dropoff || (ride.location_data && ride.location_data.dropoff && ride.location_data.dropoff.address) || "—";
+    const details = ride.details || {};
+    const carType = details.car_type;
+    let carTypeHtml = '';
+    if (carType) {
+        carTypeHtml = `<div><strong>Car type:</strong> ${formatCarType(carType)}</div>`;
+    }
+    const clientName = ride.client_name;
+    const clientLine = clientName
+        ? `<div><strong>Client:</strong> <button type="button" class="text-blue-600 underline hover:no-underline font-medium" onclick="openClientModal('${ride.id}', ${ride.has_client_rating ? 'true' : 'false'})">${clientName}</button></div>`
+        : '';
+    return `
+        <div class="space-y-1">
+            ${clientLine}
+            <div><strong>Pickup:</strong> ${pickup}</div>
+            <div><strong>Drop-off:</strong> ${dropoff}</div>
+            ${carTypeHtml}
+        </div>
+    `;
+}
+
+// Load recent rides for driver
+async function loadRecentRides() {
+    const loadingEl = document.getElementById('ridesLoading');
+    const errorEl = document.getElementById('ridesError');
+    const cardsEl = document.getElementById('ridesCards');
+    const metaEl = document.getElementById('ridesMeta');
+
+    loadingEl.classList.remove('hidden');
+    errorEl.classList.add('hidden');
+    cardsEl.classList.add('hidden');
+    cardsEl.innerHTML = '';
+    metaEl.textContent = '';
+
+    try {
+        const res = await apiCall('/requests/recent-rides-made?limit=20&offset=0');
+        if (!res.success) {
+            errorEl.textContent = res.error?.message || 'Failed to load rides';
+            errorEl.classList.remove('hidden');
+            return;
+        }
+
+        const rides = res.data.rides || [];
+        if (rides.length === 0) {
+            loadingEl.textContent = 'No rides made yet.';
+            return;
+        }
+
+        loadingEl.classList.add('hidden');
+        cardsEl.classList.remove('hidden');
+        metaEl.textContent = `Showing ${rides.length} ride(s)`;
+
+        cardsEl.innerHTML = rides.map(ride => {
+            const statusColor = getStatusColor(ride.status);
+            const typeIcon = getTypeIcon(ride.type || ride.request_type || 'cab');
+
+            return `
+                <div class="bg-white rounded-lg shadow-md hover:shadow-lg transition-shadow p-6">
+                    <div class="flex items-start justify-between mb-4">
+                        <div class="flex items-center space-x-3">
+                            <div class="text-blue-600">
+                                ${typeIcon}
+                            </div>
+                            <div>
+                                <h3 class="text-lg font-semibold text-gray-900">${ride.type ? ride.type.charAt(0).toUpperCase() + ride.type.slice(1) : 'Cab'}</h3>
+                                <p class="text-sm text-gray-500">ID: ${ride.id}</p>
+                            </div>
+                        </div>
+                        <span class="px-3 py-1 rounded-full text-xs font-medium capitalize ${statusColor}">
+                            ${ride.status}
+                        </span>
+                    </div>
+                    
+                    <div class="space-y-3 mb-4">
+                        <div>
+                            <p class="text-xs text-gray-500 uppercase tracking-wide mb-1">Scheduled</p>
+                            <p class="text-sm text-gray-700">${formatDateTime(ride.scheduled_date, ride.scheduled_time)}</p>
+                        </div>
+                        <div>
+                            <p class="text-xs text-gray-500 uppercase tracking-wide mb-1">Route Details</p>
+                            <div class="text-sm text-gray-700">${buildCabDetails(ride)}</div>
+                        </div>
+                        <div>
+                            <p class="text-xs text-gray-500 uppercase tracking-wide mb-1">Price</p>
+                            <p class="text-lg font-bold text-gray-900">${formatPrice(ride.payment_amount, ride.payment_currency)}</p>
+                        </div>
+                    </div>
+                </div>
+            `;
+        }).join('');
+    } catch (err) {
+        console.error('Error loading rides', err);
+        errorEl.textContent = 'Error loading rides: ' + err.message;
+        errorEl.classList.remove('hidden');
+    } finally {
+        if (!cardsEl.classList.contains('hidden') && loadingEl.textContent === 'Loading rides...') {
+            loadingEl.classList.add('hidden');
+        }
+    }
+}
+
+let currentClientModalRequestId = null;
+let currentClientModalHasRated = false;
+let rateClientSelectedRating = 0;
+
+async function openClientModal(requestId, hasClientRating) {
+    currentClientModalRequestId = requestId;
+    currentClientModalHasRated = !!hasClientRating;
+    document.getElementById('clientInfoModal').classList.remove('hidden');
+    document.getElementById('clientInfoLoading').classList.remove('hidden');
+    document.getElementById('clientInfoContent').classList.add('hidden');
+    document.getElementById('rateClientRequestId').value = requestId;
+    document.getElementById('rateClientRatingValue').value = '0';
+    document.getElementById('rateClientReview').value = '';
+    rateClientSelectedRating = 0;
+    updateRateClientStars(0);
+    if (currentClientModalHasRated) {
+        document.getElementById('rateClientForm').classList.add('hidden');
+        document.getElementById('clientAlreadyRated').classList.remove('hidden');
+    } else {
+        document.getElementById('rateClientForm').classList.remove('hidden');
+        document.getElementById('clientAlreadyRated').classList.add('hidden');
+    }
+    try {
+        const res = await apiCall(`/requests/${requestId}/client-info`);
+        document.getElementById('clientInfoLoading').classList.add('hidden');
+        if (!res.success) {
+            alert(res.error?.message || 'Failed to load client info');
+            closeClientModal();
+            return;
+        }
+        const client = res.data.client;
+        document.getElementById('clientInfoName').textContent = client.name || 'Client';
+        if (client.profile_image_url) {
+            const url = client.profile_image_url.startsWith('http') ? client.profile_image_url : (client.profile_image_url.startsWith('/') ? window.location.origin + client.profile_image_url : window.location.origin + '/' + client.profile_image_url);
+            document.getElementById('clientInfoPhotoImg').src = url;
+            document.getElementById('clientInfoPhotoImg').classList.remove('hidden');
+            document.getElementById('clientInfoPhotoPlaceholder').classList.add('hidden');
+        } else {
+            document.getElementById('clientInfoPhotoImg').classList.add('hidden');
+            document.getElementById('clientInfoPhotoPlaceholder').classList.remove('hidden');
+        }
+        const ratingText = client.average_rating != null ? `${client.average_rating} ★ (${client.reviews_count || 0} review${(client.reviews_count || 0) !== 1 ? 's' : ''})` : 'No ratings yet';
+        document.getElementById('clientInfoRating').textContent = ratingText;
+        const reviewsLink = document.getElementById('clientInfoReviewsLink');
+        if (client.id && (client.reviews_count || 0) > 0) {
+            reviewsLink.href = `/client-reviews/${client.id}`;
+            reviewsLink.classList.remove('hidden');
+        } else {
+            reviewsLink.classList.add('hidden');
+        }
+        document.getElementById('clientInfoContent').classList.remove('hidden');
+        document.querySelectorAll('#rateClientStars button').forEach((btn, i) => {
+            btn.onclick = () => {
+                if (currentClientModalHasRated) return;
+                rateClientSelectedRating = i + 1;
+                document.getElementById('rateClientRatingValue').value = rateClientSelectedRating;
+                updateRateClientStars(rateClientSelectedRating);
+            };
+        });
+    } catch (e) {
+        document.getElementById('clientInfoLoading').classList.add('hidden');
+        alert('Error loading client info: ' + e.message);
+        closeClientModal();
+    }
+}
+
+function updateRateClientStars(n) {
+    document.querySelectorAll('#rateClientStars button').forEach((btn, i) => {
+        btn.classList.toggle('text-yellow-400', i < n);
+        btn.classList.toggle('text-gray-300', i >= n);
+    });
+}
+
+function closeClientModal() {
+    currentClientModalRequestId = null;
+    document.getElementById('clientInfoModal').classList.add('hidden');
+}
+
+async function submitRateClient(event) {
+    event.preventDefault();
+    if (!currentClientModalRequestId || currentClientModalHasRated) return;
+    const rating = parseInt(document.getElementById('rateClientRatingValue').value, 10);
+    const reviewText = document.getElementById('rateClientReview').value.trim() || null;
+    if (!rating || rating < 1 || rating > 5) {
+        alert('Please select a star rating (1-5).');
+        return;
+    }
+    try {
+        const res = await apiCall(`/requests/${currentClientModalRequestId}/rate-client`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ rating, review_text: reviewText })
+        });
+        if (!res.success) {
+            alert(res.error?.message || 'Failed to submit rating');
+            return;
+        }
+        alert('Thank you for your rating.');
+        closeClientModal();
+        loadRecentRides();
+    } catch (e) {
+        alert('Error: ' + e.message);
+    }
+}
+
+// On page load, check auth and load rides
+document.addEventListener('DOMContentLoaded', function () {
+    const token = localStorage.getItem('token');
+    if (!token) {
+        window.location.href = '/login';
+        return;
+    }
+    loadRecentRides();
+});
+</script>
+{% endblock %}
+

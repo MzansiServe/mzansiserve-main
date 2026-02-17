@@ -1,0 +1,289 @@
+{% extends "base.html" %}
+
+{% block title %}Shopping History - MzansiServe{% endblock %}
+
+{% block extra_head %}
+<style>
+    @keyframes fadeIn {
+        from {
+            opacity: 0;
+            transform: translateY(20px);
+        }
+        to {
+            opacity: 1;
+            transform: translateY(0);
+        }
+    }
+    
+    .fade-in {
+        animation: fadeIn 0.6s ease-out forwards;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="mt-8 fade-in">
+    <h2 class="text-2xl font-bold mb-6">Shopping History</h2>
+    
+    <!-- Payment Status Messages -->
+    <div id="paymentStatusMessages" class="mb-4">
+        <!-- Messages will be shown here based on URL params -->
+    </div>
+    
+    <!-- Filters -->
+    <div class="mb-6 bg-white p-4 rounded-lg shadow">
+        <div class="flex flex-wrap gap-4 items-center">
+            <label class="font-medium">Filter by Status:</label>
+            <button onclick="filterOrders('all')" id="filterAll" class="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600">
+                All
+            </button>
+            <button onclick="filterOrders('pending')" id="filterPending" class="px-4 py-2 bg-yellow-500 text-white rounded hover:bg-yellow-600">
+                Pending
+            </button>
+            <button onclick="filterOrders('paid')" id="filterSuccess" class="px-4 py-2 bg-green-500 text-white rounded hover:bg-green-600">
+                Success (Paid)
+            </button>
+            <button onclick="filterOrders('cancelled')" id="filterCancelled" class="px-4 py-2 bg-gray-500 text-white rounded hover:bg-gray-600">
+                Cancelled
+            </button>
+            <button onclick="filterOrders('failed')" id="filterFailed" class="px-4 py-2 bg-red-500 text-white rounded hover:bg-red-600">
+                Failed
+            </button>
+        </div>
+    </div>
+    
+    <!-- Orders List -->
+    <div id="ordersList" class="space-y-4">
+        <div class="text-center py-8 text-gray-600">Loading orders...</div>
+    </div>
+    
+    <!-- Empty State -->
+    <div id="emptyState" class="hidden text-center py-12">
+        <svg class="mx-auto h-24 w-24 text-gray-400 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z"></path>
+        </svg>
+        <p class="text-xl text-gray-600 mb-2">No orders found</p>
+        <a href="/shop" class="inline-block bg-blue-500 text-white px-6 py-2 rounded hover:bg-blue-600 mt-4">
+            Start Shopping
+        </a>
+    </div>
+</div>
+
+<script>
+let allOrders = [];
+let currentFilter = 'all';
+
+document.addEventListener('DOMContentLoaded', function() {
+    checkPaymentStatus();
+    loadOrders();
+});
+
+function checkPaymentStatus() {
+    const urlParams = new URLSearchParams(window.location.search);
+    const paymentStatus = urlParams.get('payment');
+    const messagesDiv = document.getElementById('paymentStatusMessages');
+    
+    if (paymentStatus === 'success') {
+        messagesDiv.innerHTML = '<div class="bg-green-100 border-l-4 border-green-500 text-green-700 p-4 rounded mb-4">Payment successful! Your order has been completed.</div>';
+        // Remove payment param from URL
+        window.history.replaceState({}, document.title, window.location.pathname);
+    } else if (paymentStatus === 'cancelled') {
+        messagesDiv.innerHTML = '<div class="bg-yellow-100 border-l-4 border-yellow-500 text-yellow-700 p-4 rounded mb-4">Payment was cancelled. You can complete the order from the pending orders section.</div>';
+        window.history.replaceState({}, document.title, window.location.pathname);
+    } else if (paymentStatus === 'error') {
+        messagesDiv.innerHTML = '<div class="bg-red-100 border-l-4 border-red-500 text-red-700 p-4 rounded mb-4">Payment failed. Please try again or contact support.</div>';
+        window.history.replaceState({}, document.title, window.location.pathname);
+    } else {
+        messagesDiv.innerHTML = '';
+    }
+}
+
+async function loadOrders() {
+    const token = localStorage.getItem('token');
+    if (!token) {
+        window.location.href = '/login?redirect=/shopping-history';
+        return;
+    }
+    
+    try {
+        const response = await fetch('/api/shop/orders', {
+            headers: {
+                'Authorization': `Bearer ${token}`
+            }
+        });
+        
+        const result = await response.json();
+        if (result.success) {
+            allOrders = result.data.orders;
+            applyFilter();
+        } else {
+            document.getElementById('ordersList').innerHTML = '<div class="text-center py-8 text-red-600">Error loading orders</div>';
+        }
+    } catch (error) {
+        console.error('Error loading orders:', error);
+        document.getElementById('ordersList').innerHTML = '<div class="text-center py-8 text-red-600">Error loading orders</div>';
+    }
+}
+
+function filterOrders(status) {
+    currentFilter = status;
+    applyFilter();
+    updateFilterButtons();
+}
+
+function updateFilterButtons() {
+    // Reset all buttons
+    document.querySelectorAll('[id^="filter"]').forEach(btn => {
+        btn.classList.remove('ring-2', 'ring-offset-2', 'ring-gray-800');
+    });
+    
+    // Highlight active filter
+    const activeBtn = document.getElementById('filter' + (currentFilter.charAt(0).toUpperCase() + currentFilter.slice(1)));
+    if (activeBtn) {
+        activeBtn.classList.add('ring-2', 'ring-offset-2', 'ring-gray-800');
+    }
+}
+
+function applyFilter() {
+    let filteredOrders = allOrders;
+    
+    if (currentFilter === 'pending') {
+        filteredOrders = allOrders.filter(o => o.status === 'pending');
+    } else if (currentFilter === 'paid' || currentFilter === 'success') {
+        filteredOrders = allOrders.filter(o => o.status === 'paid');
+    } else if (currentFilter === 'cancelled') {
+        filteredOrders = allOrders.filter(o => o.status === 'cancelled');
+    } else if (currentFilter === 'failed') {
+        // Filter for orders with failed payment (pending status with payment_id indicates attempted but failed payment)
+        filteredOrders = allOrders.filter(o => o.status === 'pending' && o.payment_id);
+    }
+    
+    displayOrders(filteredOrders);
+}
+
+function displayOrders(orders) {
+    const ordersList = document.getElementById('ordersList');
+    const emptyState = document.getElementById('emptyState');
+    
+    if (orders.length === 0) {
+        ordersList.innerHTML = '';
+        emptyState.classList.remove('hidden');
+        return;
+    }
+    
+    emptyState.classList.add('hidden');
+    
+    ordersList.innerHTML = orders.map(order => {
+        const statusColors = {
+            'pending': 'bg-yellow-100 text-yellow-800',
+            'paid': 'bg-green-100 text-green-800',
+            'shipped': 'bg-blue-100 text-blue-800',
+            'delivered': 'bg-purple-100 text-purple-800',
+            'cancelled': 'bg-gray-100 text-gray-800'
+        };
+        
+        const statusColor = statusColors[order.status] || 'bg-gray-100 text-gray-800';
+        const placedDate = new Date(order.placed_at).toLocaleDateString('en-ZA', {
+            year: 'numeric',
+            month: 'long',
+            day: 'numeric',
+            hour: '2-digit',
+            minute: '2-digit'
+        });
+        
+        // Get delivery address
+        let deliveryAddress = 'N/A';
+        if (order.shipping && order.shipping.delivery_address) {
+            const addr = order.shipping.delivery_address;
+            const parts = [];
+            if (addr.unit_number) parts.push(addr.unit_number);
+            if (addr.building_name) parts.push(addr.building_name);
+            if (addr.street_address) parts.push(addr.street_address);
+            if (addr.city) parts.push(addr.city);
+            deliveryAddress = parts.join(', ') || 'N/A';
+        }
+        
+        // Format items
+        const itemsList = (order.items || []).map(item => 
+            `${item.product_name} x${item.quantity} (R${parseFloat(item.price).toFixed(2)} each)`
+        ).join(', ');
+        
+        return `
+            <div class="bg-white rounded-lg shadow p-6">
+                <div class="flex justify-between items-start mb-4">
+                    <div>
+                        <h3 class="text-lg font-semibold">Order ${order.id}</h3>
+                        <p class="text-sm text-gray-600">Placed on ${placedDate}</p>
+                    </div>
+                    <div class="text-right">
+                        <span class="px-3 py-1 rounded-full text-sm font-medium ${statusColor}">
+                            ${order.status.charAt(0).toUpperCase() + order.status.slice(1)}
+                        </span>
+                        <p class="text-lg font-bold mt-2">R${parseFloat(order.total).toFixed(2)}</p>
+                    </div>
+                </div>
+                
+                <div class="border-t pt-4 space-y-2">
+                    <div>
+                        <span class="font-medium">Items:</span>
+                        <p class="text-gray-600 text-sm mt-1">${itemsList || 'No items'}</p>
+                    </div>
+                    <div>
+                        <span class="font-medium">Delivery Address:</span>
+                        <p class="text-gray-600 text-sm mt-1">${deliveryAddress}</p>
+                    </div>
+                    ${order.payment_id ? `
+                    <div>
+                        <span class="font-medium">Payment ID:</span>
+                        <p class="text-gray-600 text-sm mt-1">${order.payment_id}</p>
+                    </div>
+                    ` : ''}
+                </div>
+                
+                ${order.status === 'pending' ? `
+                <div class="border-t pt-4 mt-4 flex justify-end">
+                    <button onclick="completeOrder('${order.id}')" class="bg-green-500 text-white px-6 py-2 rounded hover:bg-green-600">
+                        Complete Order
+                    </button>
+                </div>
+                ` : ''}
+            </div>
+        `;
+    }).join('');
+}
+
+async function completeOrder(orderId) {
+    if (!confirm('You will be redirected to complete payment for this order. Continue?')) {
+        return;
+    }
+    
+    const token = localStorage.getItem('token');
+    if (!token) {
+        window.location.href = '/login';
+        return;
+    }
+    
+    try {
+        // Initiate Yoco checkout payment
+        const response = await fetch(`/api/shop/orders/${orderId}/pay`, {
+            method: 'POST',
+            headers: {
+                'Authorization': `Bearer ${token}`
+            }
+        });
+        
+        const result = await response.json();
+        
+        if (result.success && result.data.redirect_url) {
+            // Redirect to Yoco checkout
+            window.location.href = result.data.redirect_url;
+        } else {
+            alert('Error: ' + (result.error?.message || 'Failed to initiate payment'));
+        }
+    } catch (error) {
+        console.error('Error initiating payment:', error);
+        alert('Error initiating payment: ' + error.message);
+    }
+}
+</script>
+{% endblock %}

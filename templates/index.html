@@ -1,0 +1,630 @@
+{% extends "base.html" %}
+
+{% block title %}Home - MzansiServe{% endblock %}
+
+{% block extra_head %}
+<style>
+    .carousel-container {
+        position: relative;
+        height: 400px;
+        overflow: hidden;
+    }
+    
+    @media (max-width: 768px) {
+        .carousel-container {
+            height: 350px;
+        }
+    }
+    
+    .carousel-slide {
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        opacity: 0;
+        transform: translateY(-30px);
+        transition: opacity 0.8s ease-out, transform 0.8s ease-out;
+        pointer-events: none;
+        overflow: hidden;
+    }
+    
+    .carousel-slide::before {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        z-index: 0;
+    }
+    
+    .carousel-slide-bg {
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background-size: cover;
+        background-position: center;
+        z-index: 0;
+    }
+    
+    .moving-sphere {
+        position: absolute;
+        border-radius: 50%;
+        background: rgba(255, 255, 255, 0.1);
+        backdrop-filter: blur(40px);
+        z-index: 0;
+        pointer-events: none;
+    }
+    
+    .sphere-1 {
+        width: 150px;
+        height: 150px;
+        top: 10%;
+        left: 10%;
+        animation: moveSphere1 20s infinite ease-in-out;
+    }
+    
+    .sphere-2 {
+        width: 120px;
+        height: 120px;
+        top: 60%;
+        right: 15%;
+        animation: moveSphere2 25s infinite ease-in-out;
+    }
+    
+    .sphere-3 {
+        width: 140px;
+        height: 140px;
+        bottom: 20%;
+        left: 20%;
+        animation: moveSphere3 30s infinite ease-in-out;
+    }
+    
+    .sphere-4 {
+        width: 100px;
+        height: 100px;
+        top: 30%;
+        right: 30%;
+        animation: moveSphere4 18s infinite ease-in-out;
+    }
+    
+    .sphere-5 {
+        width: 80px;
+        height: 80px;
+        bottom: 40%;
+        right: 10%;
+        animation: moveSphere5 22s infinite ease-in-out;
+    }
+    
+    @media (max-width: 768px) {
+        .sphere-1 { width: 100px; height: 100px; }
+        .sphere-2 { width: 80px; height: 80px; }
+        .sphere-3 { width: 90px; height: 90px; }
+        .sphere-4 { width: 70px; height: 70px; }
+        .sphere-5 { width: 60px; height: 60px; }
+    }
+    
+    @keyframes moveSphere1 {
+        0%, 100% {
+            transform: translate(0, 0) scale(1);
+        }
+        25% {
+            transform: translate(75px, 100px) scale(1.2);
+        }
+        50% {
+            transform: translate(150px, 40px) scale(0.8);
+        }
+        75% {
+            transform: translate(40px, 130px) scale(1.1);
+        }
+    }
+    
+    @keyframes moveSphere2 {
+        0%, 100% {
+            transform: translate(0, 0) scale(1);
+        }
+        33% {
+            transform: translate(-100px, -70px) scale(1.3);
+        }
+        66% {
+            transform: translate(-40px, 100px) scale(0.9);
+        }
+    }
+    
+    @keyframes moveSphere3 {
+        0%, 100% {
+            transform: translate(0, 0) scale(1);
+        }
+        25% {
+            transform: translate(100px, -60px) scale(1.1);
+        }
+        50% {
+            transform: translate(-70px, -100px) scale(0.9);
+        }
+        75% {
+            transform: translate(60px, 70px) scale(1.2);
+        }
+    }
+    
+    @keyframes moveSphere4 {
+        0%, 100% {
+            transform: translate(0, 0) scale(1);
+        }
+        50% {
+            transform: translate(-80px, 80px) scale(1.15);
+        }
+    }
+    
+    @keyframes moveSphere5 {
+        0%, 100% {
+            transform: translate(0, 0) scale(1);
+        }
+        30% {
+            transform: translate(60px, -70px) scale(1.2);
+        }
+        60% {
+            transform: translate(-40px, 60px) scale(0.85);
+        }
+    }
+    
+    .carousel-slide.active {
+        opacity: 1;
+        transform: translateY(0);
+        pointer-events: auto;
+    }
+    
+    .carousel-content {
+        text-align: center;
+        max-width: 800px;
+        padding: 1.5rem;
+        position: relative;
+        z-index: 1;
+        transform: scale(0.85);
+        transform-origin: center;
+    }
+    
+    @media (max-width: 768px) {
+        .carousel-content {
+            padding: 1rem;
+            transform: scale(0.75);
+        }
+    }
+    
+    @media (min-width: 1200px) {
+        .carousel-content {
+            transform: scale(0.95);
+        }
+    }
+    
+    .carousel-indicators {
+        position: absolute;
+        bottom: 15px;
+        left: 50%;
+        transform: translateX(-50%);
+        display: flex;
+        gap: 10px;
+        z-index: 10;
+    }
+    
+    @media (max-width: 768px) {
+        .carousel-indicators {
+            bottom: 10px;
+        }
+    }
+    
+    .carousel-indicator {
+        width: 12px;
+        height: 12px;
+        border-radius: 50%;
+        background-color: rgba(255, 255, 255, 0.5);
+        cursor: pointer;
+        transition: background-color 0.3s;
+    }
+    
+    .carousel-indicator.active {
+        background-color: white;
+    }
+    
+    .carousel-nav {
+        position: absolute;
+        top: 50%;
+        transform: translateY(-50%);
+        background-color: rgba(255, 255, 255, 0.2);
+        color: white;
+        border: none;
+        padding: 0.75rem;
+        cursor: pointer;
+        font-size: 1.25rem;
+        z-index: 10;
+        transition: background-color 0.3s;
+    }
+    
+    @media (max-width: 768px) {
+        .carousel-nav {
+            padding: 0.5rem;
+            font-size: 1rem;
+        }
+        
+        .carousel-nav.prev {
+            left: 10px;
+        }
+        
+        .carousel-nav.next {
+            right: 10px;
+        }
+    }
+    
+    .carousel-nav:hover {
+        background-color: rgba(255, 255, 255, 0.3);
+    }
+    
+    .carousel-nav.prev {
+        left: 20px;
+    }
+    
+    .carousel-nav.next {
+        right: 20px;
+    }
+    
+    .service-features {
+        display: grid;
+        grid-template-columns: repeat(2, 1fr);
+        gap: 0.75rem;
+        margin-top: 1.5rem;
+    }
+    
+    @media (max-width: 768px) {
+        .service-features {
+            grid-template-columns: repeat(2, 1fr);
+            gap: 0.5rem;
+            margin-top: 1rem;
+        }
+    }
+    
+    .service-feature {
+        background-color: rgba(255, 255, 255, 0.1);
+        padding: 0.75rem;
+        border-radius: 8px;
+        backdrop-filter: blur(10px);
+    }
+    
+    @media (max-width: 768px) {
+        .service-feature {
+            padding: 0.5rem;
+        }
+        
+        .service-feature h3 {
+            font-size: 0.875rem;
+        }
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="carousel-container bg-gradient-to-br from-blue-500 via-purple-500 to-pink-500" id="homeCarousel" data-interval-ms="5000">
+    {% if carousel_items %}
+    <!-- Data-driven carousel (admin-managed items) -->
+    {% for item in carousel_items %}
+    <div class="carousel-slide {{ 'active' if loop.first else '' }}" data-slide-index="{{ loop.index0 }}">
+        {% if item.image_url %}
+        <div class="carousel-slide-bg" style="background-image: url('{{ item.image_url }}');"></div>
+        {% else %}
+        <div class="moving-sphere sphere-1"></div>
+        <div class="moving-sphere sphere-2"></div>
+        <div class="moving-sphere sphere-3"></div>
+        <div class="moving-sphere sphere-4"></div>
+        <div class="moving-sphere sphere-5"></div>
+        {% endif %}
+        <div class="carousel-content text-white">
+            {% if item.cta_link %}
+            <a href="{{ item.cta_link }}" class="inline-block bg-white text-blue-600 px-6 py-2 md:px-8 md:py-3 rounded-lg hover:bg-gray-100 font-semibold transition text-sm md:text-base">{{ item.cta_text or 'Learn more' }}</a>
+            {% elif item.cta_text %}
+            <span class="text-xl md:text-2xl font-semibold">{{ item.cta_text }}</span>
+            {% endif %}
+        </div>
+    </div>
+    {% endfor %}
+    {% else %}
+    <!-- Fallback static slides -->
+    <div class="carousel-slide active">
+        <div class="moving-sphere sphere-1"></div>
+        <div class="moving-sphere sphere-2"></div>
+        <div class="moving-sphere sphere-3"></div>
+        <div class="moving-sphere sphere-4"></div>
+        <div class="moving-sphere sphere-5"></div>
+        <div class="carousel-content text-white">
+            <h1 class="text-4xl md:text-5xl font-bold mb-3 md:mb-4">Welcome to MzansiServe</h1>
+            <p class="text-xl md:text-2xl mb-6 md:mb-8">Your trusted service marketplace</p>
+            <div class="space-x-4">
+                <a href="/dashboard" id="getStartedLink" class="bg-white text-blue-600 px-6 py-2 md:px-8 md:py-3 rounded-lg hover:bg-gray-100 font-semibold transition text-sm md:text-base">Get Started</a>
+                <a href="/shop" class="bg-yellow-400 text-gray-900 px-6 py-2 md:px-8 md:py-3 rounded-lg hover:bg-yellow-300 font-semibold transition text-sm md:text-base">Visit Shop</a>
+            </div>
+        </div>
+    </div>
+    <div class="carousel-slide">
+        <div class="moving-sphere sphere-1"></div>
+        <div class="moving-sphere sphere-2"></div>
+        <div class="moving-sphere sphere-3"></div>
+        <div class="moving-sphere sphere-4"></div>
+        <div class="moving-sphere sphere-5"></div>
+        <div class="carousel-content text-white">
+            <h2 class="text-3xl md:text-4xl font-bold mb-4 md:mb-6">Driver Services</h2>
+            <div class="service-features">
+                <div class="service-feature"><h3 class="font-semibold mb-2">Sedan & Luxury Cars</h3></div>
+                <div class="service-feature"><h3 class="font-semibold mb-2">Vans & Trucks</h3></div>
+                <div class="service-feature"><h3 class="font-semibold mb-2">Distance-based Pricing</h3></div>
+                <div class="service-feature"><h3 class="font-semibold mb-2">Verified Drivers</h3></div>
+                <div class="service-feature"><h3 class="font-semibold mb-2">Insurance Covered</h3></div>
+            </div>
+            <div class="mt-4 md:mt-6">
+                <a href="/request-driver" class="hide-for-drivers bg-white text-blue-600 px-6 py-2 md:px-8 md:py-3 rounded-lg hover:bg-gray-100 font-semibold transition text-sm md:text-base">Request a Cab</a>
+            </div>
+        </div>
+    </div>
+    <div class="carousel-slide">
+        <div class="moving-sphere sphere-1"></div>
+        <div class="moving-sphere sphere-2"></div>
+        <div class="moving-sphere sphere-3"></div>
+        <div class="moving-sphere sphere-4"></div>
+        <div class="moving-sphere sphere-5"></div>
+        <div class="carousel-content text-white">
+            <h2 class="text-3xl md:text-4xl font-bold mb-4 md:mb-6">Professional Services</h2>
+            <div class="service-features">
+                <div class="service-feature"><h3 class="font-semibold mb-2">Accountants & Lawyers</h3></div>
+                <div class="service-feature"><h3 class="font-semibold mb-2">Doctors & Nurses</h3></div>
+                <div class="service-feature"><h3 class="font-semibold mb-2">Engineers & Architects</h3></div>
+                <div class="service-feature"><h3 class="font-semibold mb-2">IT Consultants</h3></div>
+                <div class="service-feature"><h3 class="font-semibold mb-2">25+ Professions</h3></div>
+            </div>
+            <div class="mt-4 md:mt-6">
+                <a href="/request-professional" class="bg-white text-blue-600 px-6 py-2 md:px-8 md:py-3 rounded-lg hover:bg-gray-100 font-semibold transition text-sm md:text-base">Request Professional</a>
+            </div>
+        </div>
+    </div>
+    <div class="carousel-slide">
+        <div class="moving-sphere sphere-1"></div>
+        <div class="moving-sphere sphere-2"></div>
+        <div class="moving-sphere sphere-3"></div>
+        <div class="moving-sphere sphere-4"></div>
+        <div class="moving-sphere sphere-5"></div>
+        <div class="carousel-content text-white">
+            <h2 class="text-3xl md:text-4xl font-bold mb-4 md:mb-6 pt-2">Service Providers</h2>
+            <div class="service-features">
+                <div class="service-feature"><h3 class="font-semibold mb-2">Home & Garden Services</h3></div>
+                <div class="service-feature"><h3 class="font-semibold mb-2">Event Management & DJ</h3></div>
+                <div class="service-feature"><h3 class="font-semibold mb-2">Cleaning & Maintenance</h3></div>
+                <div class="service-feature"><h3 class="font-semibold mb-2">Health & Beauty</h3></div>
+                <div class="service-feature"><h3 class="font-semibold mb-2">20+ Service Types</h3></div>
+            </div>
+            <div class="mt-4 md:mt-6">
+                <a href="/request-service-provider" class="bg-white text-blue-600 px-6 py-2 md:px-8 md:py-3 rounded-lg hover:bg-gray-100 font-semibold transition text-sm md:text-base">Request Service Provider</a>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+    
+    <button class="carousel-nav prev" onclick="previousSlide()">‹</button>
+    <button class="carousel-nav next" onclick="nextSlide()">›</button>
+    
+    <div class="carousel-indicators" id="carouselIndicators">
+        {% if carousel_items %}
+        {% for item in carousel_items %}
+        <span class="carousel-indicator {{ 'active' if loop.first else '' }}" onclick="goToSlide({{ loop.index0 }})"></span>
+        {% endfor %}
+        {% else %}
+        <span class="carousel-indicator active" onclick="goToSlide(0)"></span>
+        <span class="carousel-indicator" onclick="goToSlide(1)"></span>
+        <span class="carousel-indicator" onclick="goToSlide(2)"></span>
+        <span class="carousel-indicator" onclick="goToSlide(3)"></span>
+        {% endif %}
+    </div>
+</div>
+
+<script>
+let currentSlide = 0;
+const slides = document.querySelectorAll('.carousel-slide');
+const indicators = document.querySelectorAll('.carousel-indicator');
+const totalSlides = slides.length;
+
+function showSlide(index) {
+    // Remove active class from all slides and indicators
+    slides.forEach(slide => slide.classList.remove('active'));
+    indicators.forEach(indicator => indicator.classList.remove('active'));
+    
+    // Add active class to current slide and indicator
+    slides[index].classList.add('active');
+    indicators[index].classList.add('active');
+    
+    currentSlide = index;
+}
+
+function nextSlide() {
+    const next = (currentSlide + 1) % totalSlides;
+    showSlide(next);
+}
+
+function previousSlide() {
+    const prev = (currentSlide - 1 + totalSlides) % totalSlides;
+    showSlide(prev);
+}
+
+function goToSlide(index) {
+    showSlide(index);
+}
+
+// Auto-rotate carousel every 5 seconds
+const carouselIntervalMs = parseInt(document.getElementById('homeCarousel')?.getAttribute('data-interval-ms') || '5000', 10);
+let carouselInterval = setInterval(nextSlide, carouselIntervalMs);
+
+// Pause on hover
+const carouselContainer = document.querySelector('.carousel-container');
+carouselContainer.addEventListener('mouseenter', () => {
+    clearInterval(carouselInterval);
+});
+
+carouselContainer.addEventListener('mouseleave', () => {
+    carouselInterval = setInterval(nextSlide, carouselIntervalMs);
+});
+
+// Payment Status Modal
+function showPaymentStatusModal(title, message, redirectUrl = null) {
+    const modal = document.createElement('div');
+    modal.className = 'fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50';
+    modal.innerHTML = `
+        <div class="bg-white p-8 rounded-lg max-w-md w-full mx-4">
+            <h3 class="text-2xl font-bold mb-4">${title}</h3>
+            <p class="mb-6">${message}</p>
+            <button onclick="this.parentElement.parentElement.remove(); ${redirectUrl ? `window.location.href='${redirectUrl}';` : ''}" 
+                    class="w-full bg-blue-500 text-white py-2 rounded hover:bg-blue-600">
+                OK
+            </button>
+        </div>
+    `;
+    document.body.appendChild(modal);
+}
+
+// Handle payment callback
+function handlePaymentCallback() {
+    const urlParams = new URLSearchParams(window.location.search);
+    const paymentStatus = urlParams.get('payment');
+    const externalId = urlParams.get('external_id');
+
+    if (paymentStatus && externalId) {
+        if (paymentStatus === 'success') {
+            // Complete registration
+            completeRegistrationAfterPayment(externalId);
+        } else {
+            // Payment failed or cancelled
+            showPaymentStatusModal(
+                'Payment Failed',
+                'Payment was cancelled or failed. Please try registering again.',
+                '/register'
+            );
+            // Clean URL
+            window.history.replaceState({}, document.title, window.location.pathname);
+        }
+    }
+}
+
+// Complete registration after payment (login user)
+async function completeRegistrationAfterPayment(externalId) {
+    try {
+        // Extract user_id from external_id to login
+        if (externalId && externalId.startsWith('reg_fee_')) {
+            const parts = externalId.split('_');
+            if (parts.length >= 4) {
+                const user_id_hex = parts.slice(2, -1).join('_');
+                const user_id_hex_clean = user_id_hex.replace(/-/g, '');
+                if (user_id_hex_clean.length === 32) {
+                    const user_id_str = `${user_id_hex_clean.slice(0, 8)}-${user_id_hex_clean.slice(8, 12)}-${user_id_hex_clean.slice(12, 16)}-${user_id_hex_clean.slice(16, 20)}-${user_id_hex_clean.slice(20, 32)}`;
+                    
+                    // Get saved registration data to get email/password for login
+                    const savedData = localStorage.getItem('pendingRegistration');
+                    if (savedData) {
+                        const registrationData = JSON.parse(savedData);
+                        
+                        // Login with saved credentials
+                        const loginResponse = await fetch('/api/auth/login', {
+                            method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/json'
+                            },
+                            body: JSON.stringify({
+                                email: registrationData.email,
+                                password: registrationData.password,
+                                role: registrationData.role
+                            })
+                        });
+                        
+                        const loginResult = await loginResponse.json();
+                        if (loginResult.success) {
+                            // Clear saved data
+                            localStorage.removeItem('pendingRegistration');
+                            
+                            // Store token
+                            localStorage.setItem('token', loginResult.data.token);
+                            
+                            // Show success message and redirect
+                            showPaymentStatusModal(
+                                'Registration Successful',
+                                'Your registration has been completed. You will be redirected to your profile.',
+                                '/profile'
+                            );
+                            
+                            setTimeout(() => {
+                                window.location.href = '/profile';
+                            }, 2000);
+                            return;
+                        }
+                    }
+                }
+            }
+        }
+        
+        // Fallback: try to get token from complete-registration endpoint
+        const savedData = localStorage.getItem('pendingRegistration');
+        if (savedData) {
+            const registrationData = JSON.parse(savedData);
+            const response = await fetch('/api/auth/complete-registration', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    external_id: externalId,
+                    registration_data: registrationData
+                })
+            });
+            
+            const result = await response.json();
+            if (result.success) {
+                localStorage.removeItem('pendingRegistration');
+                localStorage.setItem('token', result.data.token);
+                showPaymentStatusModal(
+                    'Registration Successful',
+                    'Your registration has been completed. You will be redirected to your profile.',
+                    '/profile'
+                );
+                setTimeout(() => {
+                    window.location.href = '/profile';
+                }, 2000);
+                return;
+            }
+        }
+        
+        showPaymentStatusModal('Error', 'Failed to complete registration. Please try logging in.', '/login');
+    } catch (error) {
+        console.error('Error completing registration:', error);
+        showPaymentStatusModal(
+            'Error',
+            'Error completing registration: ' + error.message,
+            '/register'
+        );
+    }
+}
+
+// Update "Get Started" link based on authentication status
+document.addEventListener('DOMContentLoaded', function() {
+    // Check for payment callback first
+    handlePaymentCallback();
+    
+    const token = localStorage.getItem('token');
+    const getStartedLink = document.getElementById('getStartedLink');
+    
+    if (token) {
+        // User is logged in - link to dashboard
+        getStartedLink.href = '/dashboard';
+    } else {
+        // User is logged out - link to register
+        getStartedLink.href = '/register';
+    }
+});
+</script>
+{% endblock %}
+

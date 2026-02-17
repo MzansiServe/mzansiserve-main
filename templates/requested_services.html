@@ -1,0 +1,860 @@
+{% extends "base.html" %}
+
+{% block title %}Requested Services - MzansiServe{% endblock %}
+
+{% block extra_head %}
+<style>
+    @keyframes fadeIn {
+        from {
+            opacity: 0;
+            transform: translateY(20px);
+        }
+        to {
+            opacity: 1;
+            transform: translateY(0);
+        }
+    }
+    
+    .fade-in {
+        animation: fadeIn 0.6s ease-out forwards;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="mt-8 max-w-6xl mx-auto fade-in">
+    <h2 class="text-2xl font-bold mb-4">Requested Services</h2>
+
+    <!-- Filters -->
+    <div class="bg-white p-4 rounded-lg shadow mb-4 flex flex-wrap gap-4 items-end">
+        <div>
+            <label for="filterType" class="block text-sm font-medium mb-1">Request Type</label>
+            <select id="filterType" class="px-3 py-2 border rounded-md">
+                <option value="">All</option>
+                <option value="cab">Cab</option>
+                <option value="professional">Professional</option>
+                <option value="provider">Service Provider</option>
+            </select>
+        </div>
+        <div>
+            <label for="filterStatus" class="block text-sm font-medium mb-1">Status</label>
+            <select id="filterStatus" class="px-3 py-2 border rounded-md">
+                <option value="">All</option>
+                <option value="pending">Pending</option>
+                <option value="accepted">Accepted</option>
+                <option value="completed">Completed</option>
+                <option value="cancelled">Cancelled</option>
+            </select>
+        </div>
+        <button onclick="loadRequests()" class="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600">
+            Apply Filters
+        </button>
+        <span id="requestsMeta" class="text-sm text-gray-600 ml-auto"></span>
+    </div>
+
+    <!-- Requests list -->
+    <div id="requestsContainer">
+        <div id="requestsLoading" class="p-8 text-center text-gray-600">Loading requests...</div>
+        <div id="requestsError" class="hidden p-4 text-red-600 bg-red-50 rounded-lg mb-4"></div>
+        <div id="requestsCards" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 hidden"></div>
+    </div>
+</div>
+
+<!-- Rate Driver Modal -->
+<div id="rateDriverModal" class="hidden fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50" onclick="if(event.target === this) closeRateDriverModal()">
+    <div class="bg-white rounded-lg shadow-xl max-w-md w-full mx-4 p-6 relative">
+        <button type="button" onclick="closeRateDriverModal()" class="absolute top-3 right-3 text-gray-400 hover:text-gray-600 text-2xl">&times;</button>
+        <h3 class="text-xl font-bold mb-4">Rate your driver</h3>
+        <form id="rateDriverForm" onsubmit="submitRateDriver(event)" class="space-y-4">
+            <input type="hidden" id="rateDriverRequestId" value="">
+            <div>
+                <label class="block text-sm font-medium text-gray-700 mb-2">Rating (stars)</label>
+                <div class="flex gap-1" id="rateDriverStars">
+                    <button type="button" class="text-2xl text-gray-300 hover:text-yellow-400 focus:outline-none" data-rating="1" aria-label="1 star">★</button>
+                    <button type="button" class="text-2xl text-gray-300 hover:text-yellow-400 focus:outline-none" data-rating="2" aria-label="2 stars">★</button>
+                    <button type="button" class="text-2xl text-gray-300 hover:text-yellow-400 focus:outline-none" data-rating="3" aria-label="3 stars">★</button>
+                    <button type="button" class="text-2xl text-gray-300 hover:text-yellow-400 focus:outline-none" data-rating="4" aria-label="4 stars">★</button>
+                    <button type="button" class="text-2xl text-gray-300 hover:text-yellow-400 focus:outline-none" data-rating="5" aria-label="5 stars">★</button>
+                </div>
+                <input type="hidden" id="rateDriverRatingValue" name="rating" value="0" required>
+            </div>
+            <div>
+                <label class="block text-sm font-medium text-gray-700 mb-1">Review (optional)</label>
+                <textarea id="rateDriverReview" name="review_text" rows="4" class="w-full px-3 py-2 border rounded-md" placeholder="How was your ride?"></textarea>
+            </div>
+            <div class="flex gap-2">
+                <button type="submit" class="flex-1 bg-green-500 text-white py-2 px-4 rounded hover:bg-green-600 font-medium">Submit</button>
+                <button type="button" onclick="closeRateDriverModal()" class="flex-1 bg-gray-300 text-gray-700 py-2 px-4 rounded hover:bg-gray-400">Cancel</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Driver Info Modal -->
+<div id="driverInfoModal" class="hidden fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50" onclick="if(event.target === this) closeDriverModal()">
+    <div class="bg-white rounded-lg shadow-xl max-w-md w-full mx-4 p-6 relative">
+        <button type="button" onclick="closeDriverModal()" class="absolute top-3 right-3 text-gray-400 hover:text-gray-600 text-2xl">&times;</button>
+        <div id="driverInfoLoading" class="text-center py-8 text-gray-500">Loading driver info...</div>
+        <div id="driverInfoContent" class="hidden">
+            <div class="flex items-center gap-4 mb-4">
+                <div id="driverInfoPhoto" class="w-20 h-20 rounded-full bg-gray-200 flex items-center justify-center overflow-hidden shrink-0">
+                    <img id="driverInfoPhotoImg" src="" alt="Driver" class="w-full h-full object-cover hidden">
+                    <span id="driverInfoPhotoPlaceholder" class="text-gray-400 text-2xl">—</span>
+                </div>
+                <div>
+                    <h3 id="driverInfoName" class="text-xl font-bold text-gray-900"></h3>
+                    <p id="driverInfoRating" class="text-sm text-gray-600"></p>
+                    <a id="driverInfoReviewsLink" href="#" class="text-blue-600 hover:underline text-sm hidden">View all reviews</a>
+                </div>
+            </div>
+            <div class="flex flex-col gap-2">
+                <button type="button" id="driverInfoRequestAnotherBtn" onclick="openRequestAnotherDriverForm()" class="w-full bg-amber-500 text-white py-2 px-4 rounded hover:bg-amber-600 font-medium">Request another driver</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Request Another Driver Modal (reason form) -->
+<div id="requestAnotherDriverModal" class="hidden fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[60]" onclick="if(event.target === this) closeRequestAnotherDriverModal()">
+    <div class="bg-white rounded-lg shadow-xl max-w-md w-full mx-4 p-6 relative">
+        <button type="button" onclick="closeRequestAnotherDriverModal()" class="absolute top-3 right-3 text-gray-400 hover:text-gray-600 text-2xl">&times;</button>
+        <h3 class="text-xl font-bold mb-4">Request another driver</h3>
+        <p class="text-sm text-gray-600 mb-4">Your current driver will be removed and the request will be available for another driver to accept.</p>
+        <form id="requestAnotherDriverForm" onsubmit="submitRequestAnotherDriver(event)" class="space-y-4">
+            <div>
+                <label class="block text-sm font-medium text-gray-700 mb-1">Reason for requesting driver change (optional)</label>
+                <textarea id="requestAnotherDriverReason" name="reason" rows="4" class="w-full px-3 py-2 border rounded-md" placeholder="e.g. Need a different car type, running late..."></textarea>
+            </div>
+            <div class="flex gap-2">
+                <button type="submit" class="flex-1 bg-amber-500 text-white py-2 px-4 rounded hover:bg-amber-600 font-medium">Submit</button>
+                <button type="button" onclick="closeRequestAnotherDriverModal()" class="flex-1 bg-gray-300 text-gray-700 py-2 px-4 rounded hover:bg-gray-400">Cancel</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Rate Professional Modal -->
+<div id="rateProfessionalModal" class="hidden fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50" onclick="if(event.target === this) closeRateProfessionalModal()">
+    <div class="bg-white rounded-lg shadow-xl max-w-md w-full mx-4 p-6 relative">
+        <button type="button" onclick="closeRateProfessionalModal()" class="absolute top-3 right-3 text-gray-400 hover:text-gray-600 text-2xl">&times;</button>
+        <h3 class="text-xl font-bold mb-4">Rate your service</h3>
+        <form id="rateProfessionalForm" onsubmit="submitRateProfessional(event)" class="space-y-4">
+            <input type="hidden" id="rateProfessionalRequestId" value="">
+            <div>
+                <label class="block text-sm font-medium text-gray-700 mb-2">Rating (stars)</label>
+                <div class="flex gap-1" id="rateProfessionalStars">
+                    <button type="button" class="text-2xl text-gray-300 hover:text-yellow-400 focus:outline-none" data-rating="1">★</button>
+                    <button type="button" class="text-2xl text-gray-300 hover:text-yellow-400 focus:outline-none" data-rating="2">★</button>
+                    <button type="button" class="text-2xl text-gray-300 hover:text-yellow-400 focus:outline-none" data-rating="3">★</button>
+                    <button type="button" class="text-2xl text-gray-300 hover:text-yellow-400 focus:outline-none" data-rating="4">★</button>
+                    <button type="button" class="text-2xl text-gray-300 hover:text-yellow-400 focus:outline-none" data-rating="5">★</button>
+                </div>
+                <input type="hidden" id="rateProfessionalRatingValue" name="rating" value="0" required>
+            </div>
+            <div>
+                <label class="block text-sm font-medium text-gray-700 mb-1">Review (optional)</label>
+                <textarea id="rateProfessionalReview" name="review_text" rows="4" class="w-full px-3 py-2 border rounded-md" placeholder="How was the service?"></textarea>
+            </div>
+            <div class="flex gap-2">
+                <button type="submit" class="flex-1 bg-green-500 text-white py-2 px-4 rounded hover:bg-green-600 font-medium">Submit</button>
+                <button type="button" onclick="closeRateProfessionalModal()" class="flex-1 bg-gray-300 text-gray-700 py-2 px-4 rounded hover:bg-gray-400">Cancel</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Rate Service Provider Modal -->
+<div id="rateProviderModal" class="hidden fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50" onclick="if(event.target === this) closeRateProviderModal()">
+    <div class="bg-white rounded-lg shadow-xl max-w-md w-full mx-4 p-6 relative">
+        <button type="button" onclick="closeRateProviderModal()" class="absolute top-3 right-3 text-gray-400 hover:text-gray-600 text-2xl">&times;</button>
+        <h3 class="text-xl font-bold mb-4">Rate your service</h3>
+        <form id="rateProviderForm" onsubmit="submitRateProvider(event)" class="space-y-4">
+            <input type="hidden" id="rateProviderRequestId" value="">
+            <div>
+                <label class="block text-sm font-medium text-gray-700 mb-2">Rating (stars)</label>
+                <div class="flex gap-1" id="rateProviderStars">
+                    <button type="button" class="text-2xl text-gray-300 hover:text-yellow-400 focus:outline-none" data-rating="1">★</button>
+                    <button type="button" class="text-2xl text-gray-300 hover:text-yellow-400 focus:outline-none" data-rating="2">★</button>
+                    <button type="button" class="text-2xl text-gray-300 hover:text-yellow-400 focus:outline-none" data-rating="3">★</button>
+                    <button type="button" class="text-2xl text-gray-300 hover:text-yellow-400 focus:outline-none" data-rating="4">★</button>
+                    <button type="button" class="text-2xl text-gray-300 hover:text-yellow-400 focus:outline-none" data-rating="5">★</button>
+                </div>
+                <input type="hidden" id="rateProviderRatingValue" name="rating" value="0" required>
+            </div>
+            <div>
+                <label class="block text-sm font-medium text-gray-700 mb-1">Review (optional)</label>
+                <textarea id="rateProviderReview" name="review_text" rows="4" class="w-full px-3 py-2 border rounded-md" placeholder="How was the service?"></textarea>
+            </div>
+            <div class="flex gap-2">
+                <button type="submit" class="flex-1 bg-green-500 text-white py-2 px-4 rounded hover:bg-green-600 font-medium">Submit</button>
+                <button type="button" onclick="closeRateProviderModal()" class="flex-1 bg-gray-300 text-gray-700 py-2 px-4 rounded hover:bg-gray-400">Cancel</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<script>
+let currentUserRole = null;
+let currentUserId = null;
+
+async function getCurrentUserRole() {
+    if (currentUserRole != null) return currentUserRole;
+    try {
+        const result = await apiCall('/profile');
+        if (result.success && result.data.user) {
+            currentUserRole = result.data.user.role;
+            currentUserId = result.data.user.id != null ? String(result.data.user.id) : null;
+            return currentUserRole;
+        }
+    } catch (e) {
+        console.error('Failed to load user role', e);
+    }
+    return null;
+}
+
+function formatDateTime(dateStr, timeStr) {
+    if (!dateStr && !timeStr) return '-';
+    if (!dateStr) return timeStr;
+    if (!timeStr) return dateStr;
+    return `${dateStr} ${timeStr}`;
+}
+
+function formatType(type) {
+    if (type === 'cab') return 'Cab';
+    if (type === 'professional') return 'Professional';
+    if (type === 'provider') return 'Service Provider';
+    return type || '-';
+}
+
+function formatPrice(amount, currency) {
+    if (amount == null) return '-';
+    const val = parseFloat(amount);
+    if (isNaN(val)) return '-';
+    return `${currency || 'ZAR'} ${val.toFixed(2)}`;
+}
+
+function formatCarType(carType) {
+    if (!carType) return '';
+    const labels = {
+        'small_hatchback': 'Small Hatchback',
+        'sedan': 'Sedan',
+        'suv': 'SUV',
+        'bakkie': 'Bakkie',
+        'luxury': 'Luxury',
+        'hybrid': 'Hybrid',
+        'electric': 'Electric'
+    };
+    return labels[carType.toLowerCase()] || carType.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
+}
+
+function buildDetails(req) {
+    const type = req.request_type;
+    const loc = req.location_data || {};
+    const details = req.details || {};
+
+    if (type === 'cab') {
+        const pickup = loc.pickup?.address || 'Pickup: (coords)';
+        const dropoff = loc.dropoff?.address || 'Drop-off: (coords)';
+        const carType = details.car_type;
+        const driverName = req.driver_name;
+        const requestId = req.id;
+        let content = `<div class="space-y-1"><div><strong>Pickup:</strong> ${pickup}</div><div><strong>Drop-off:</strong> ${dropoff}</div>`;
+        if (driverName) {
+            content += `<div class="mt-1"><strong>Driver:</strong> <button type="button" class="text-blue-600 underline hover:no-underline font-medium" onclick="openDriverModal('${requestId}')">${driverName}</button></div>`;
+        }
+        if (carType) {
+            content += `<div class="mt-1"><strong>Car type:</strong> ${formatCarType(carType)}</div>`;
+        }
+        content += '</div>';
+        return {
+            title: 'Route Details',
+            content: content
+        };
+    }
+    if (type === 'professional' || type === 'provider') {
+        const addr = loc.location?.address || 'Location set';
+        let content = `<div><strong>Location:</strong> ${addr}</div>`;
+        if (details.service_name) {
+            content += `<div class="mt-1"><strong>Service:</strong> ${details.service_name}</div>`;
+        }
+        return {
+            title: 'Service Details',
+            content: content
+        };
+    }
+    return {
+        title: 'Details',
+        content: '—'
+    };
+}
+
+function getStatusColor(status) {
+    const colors = {
+        'pending': 'bg-yellow-100 text-yellow-800',
+        'accepted': 'bg-blue-100 text-blue-800',
+        'completed': 'bg-green-100 text-green-800',
+        'cancelled': 'bg-gray-100 text-gray-800'
+    };
+    return colors[status] || 'bg-gray-100 text-gray-800';
+}
+
+function getTypeIcon(type) {
+    const icons = {
+        'cab': `<svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4"></path></svg>`,
+        'professional': `<svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 13.255A23.931 23.931 0 0112 15c-3.183 0-6.22-.62-9-1.745M16 6V4a2 2 0 00-2-2h-4a2 2 0 00-2 2v2m4 6h.01M5 20h14a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"></path></svg>`,
+        'provider': `<svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"></path></svg>`
+    };
+    return icons[type] || `<svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"></path></svg>`;
+}
+
+async function loadRequests() {
+    const loadingEl = document.getElementById('requestsLoading');
+    const errorEl = document.getElementById('requestsError');
+    const cardsEl = document.getElementById('requestsCards');
+    const metaEl = document.getElementById('requestsMeta');
+
+    loadingEl.classList.remove('hidden');
+    errorEl.classList.add('hidden');
+    cardsEl.classList.add('hidden');
+    cardsEl.innerHTML = '';
+    metaEl.textContent = '';
+
+    const type = document.getElementById('filterType').value;
+    const status = document.getElementById('filterStatus').value;
+
+    const params = new URLSearchParams();
+    if (type) params.append('type', type);
+    if (status) params.append('status', status);
+
+    try {
+        const role = await getCurrentUserRole();
+        const res = await apiCall(`/requests?${params.toString()}`);
+        if (!res.success) {
+            errorEl.textContent = res.error?.message || 'Failed to load requests';
+            errorEl.classList.remove('hidden');
+            return;
+        }
+
+        const items = res.data.requests || [];
+        if (items.length === 0) {
+            loadingEl.textContent = 'No requests found for the selected filters.';
+            return;
+        }
+
+        loadingEl.classList.add('hidden');
+        cardsEl.classList.remove('hidden');
+        metaEl.textContent = `Showing ${items.length} of ${res.data.total || items.length} request(s)`;
+
+        cardsEl.innerHTML = items.map(req => {
+            const canCancel =
+                role === 'client' &&
+                req.status === 'pending';
+
+            const canAccept =
+                (role === 'driver' || role === 'professional' || role === 'service-provider') &&
+                req.status === 'pending' &&
+                !req.provider_id;
+
+            const reqDetails = req.details || {};
+            const isCabAcceptedByRequester = role === 'client' && req.request_type === 'cab' && req.status === 'accepted' && currentUserId && String(req.requester_id) === currentUserId;
+            const isCabCompletedByRequester = role === 'client' && req.request_type === 'cab' && req.status === 'completed' && currentUserId && String(req.requester_id) === currentUserId;
+
+            let cabActionsHtml = '';
+            if (isCabAcceptedByRequester) {
+                if (!reqDetails.cab_driver_arrived) {
+                    cabActionsHtml = `<button type="button" class="bg-orange-500 text-white px-4 py-2 rounded hover:bg-orange-600 text-sm font-medium" onclick="cabMarkNoShow('${req.id}')">Mark driver as no-show</button>
+                            <button type="button" class="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600 text-sm font-medium" onclick="cabDriverArrived('${req.id}')">Driver has arrived</button>`;
+                } else if (!reqDetails.cab_arrived_at_location) {
+                    cabActionsHtml = `<button type="button" class="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600 text-sm font-medium" onclick="cabArrivedAtLocation('${req.id}')">Arrived at location</button>`;
+                } else {
+                    const rateDisabled = req.has_driver_rating ? ' disabled' : '';
+                    const rateOnclick = req.has_driver_rating ? '' : `onclick="openRateDriverModal('${req.id}')"`;
+                    const rateClass = req.has_driver_rating ? 'bg-gray-400 cursor-not-allowed' : 'bg-green-500 hover:bg-green-600';
+                    cabActionsHtml = `<button type="button" class="${rateClass} text-white px-4 py-2 rounded text-sm font-medium" ${rateOnclick}${rateDisabled}>${req.has_driver_rating ? 'Already rated' : 'Rate your driver'}</button>`;
+                }
+            } else if (isCabCompletedByRequester) {
+                const rateDisabled = req.has_driver_rating ? ' disabled' : '';
+                const rateOnclick = req.has_driver_rating ? '' : `onclick="openRateDriverModal('${req.id}')"`;
+                const rateClass = req.has_driver_rating ? 'bg-gray-400 cursor-not-allowed' : 'bg-green-500 hover:bg-green-600';
+                cabActionsHtml = `<button type="button" class="${rateClass} text-white px-4 py-2 rounded text-sm font-medium" ${rateOnclick}${rateDisabled}>${req.has_driver_rating ? 'Already rated' : 'Rate your driver'}</button>`;
+            }
+
+            const isProfessionalAcceptedByRequester = role === 'client' && req.request_type === 'professional' && req.status === 'accepted' && currentUserId && String(req.requester_id) === currentUserId;
+            const isProfessionalCompletedByRequester = role === 'client' && req.request_type === 'professional' && req.status === 'completed' && currentUserId && String(req.requester_id) === currentUserId;
+            let professionalActionsHtml = '';
+            if (isProfessionalAcceptedByRequester) {
+                if (!reqDetails.professional_has_arrived) {
+                    professionalActionsHtml = `<button type="button" class="bg-orange-500 text-white px-4 py-2 rounded hover:bg-orange-600 text-sm font-medium" onclick="professionalMarkNoShow('${req.id}')">Mark as no-show</button>
+                            <button type="button" class="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600 text-sm font-medium" onclick="professionalHasArrived('${req.id}')">Professional has arrived</button>`;
+                } else {
+                    const rateDisabled = req.has_professional_rating ? ' disabled' : '';
+                    const rateOnclick = req.has_professional_rating ? '' : `onclick="openRateProfessionalModal('${req.id}')"`;
+                    const rateClass = req.has_professional_rating ? 'bg-gray-400 cursor-not-allowed' : 'bg-green-500 hover:bg-green-600';
+                    professionalActionsHtml = `<button type="button" class="${rateClass} text-white px-4 py-2 rounded text-sm font-medium" ${rateOnclick}${rateDisabled}>${req.has_professional_rating ? 'Already rated' : 'Rate your service'}</button>`;
+                }
+            } else if (isProfessionalCompletedByRequester && reqDetails.professional_has_arrived) {
+                const rateDisabled = req.has_professional_rating ? ' disabled' : '';
+                const rateOnclick = req.has_professional_rating ? '' : `onclick="openRateProfessionalModal('${req.id}')"`;
+                const rateClass = req.has_professional_rating ? 'bg-gray-400 cursor-not-allowed' : 'bg-green-500 hover:bg-green-600';
+                professionalActionsHtml = `<button type="button" class="${rateClass} text-white px-4 py-2 rounded text-sm font-medium" ${rateOnclick}${rateDisabled}>${req.has_professional_rating ? 'Already rated' : 'Rate your service'}</button>`;
+            }
+
+            const isProviderAcceptedByRequester = role === 'client' && req.request_type === 'provider' && req.status === 'accepted' && currentUserId && String(req.requester_id) === currentUserId;
+            const isProviderCompletedByRequester = role === 'client' && req.request_type === 'provider' && req.status === 'completed' && currentUserId && String(req.requester_id) === currentUserId;
+            let providerActionsHtml = '';
+            if (isProviderAcceptedByRequester) {
+                if (!reqDetails.provider_has_arrived) {
+                    providerActionsHtml = `<button type="button" class="bg-orange-500 text-white px-4 py-2 rounded hover:bg-orange-600 text-sm font-medium" onclick="providerMarkNoShow('${req.id}')">Mark as no-show</button>
+                            <button type="button" class="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600 text-sm font-medium" onclick="providerHasArrived('${req.id}')">Service provider has arrived</button>`;
+                } else {
+                    const rateDisabled = req.has_provider_rating ? ' disabled' : '';
+                    const rateOnclick = req.has_provider_rating ? '' : `onclick="openRateProviderModal('${req.id}')"`;
+                    const rateClass = req.has_provider_rating ? 'bg-gray-400 cursor-not-allowed' : 'bg-green-500 hover:bg-green-600';
+                    providerActionsHtml = `<button type="button" class="${rateClass} text-white px-4 py-2 rounded text-sm font-medium" ${rateOnclick}${rateDisabled}>${req.has_provider_rating ? 'Already rated' : 'Rate your service'}</button>`;
+                }
+            } else if (isProviderCompletedByRequester && reqDetails.provider_has_arrived) {
+                const rateDisabled = req.has_provider_rating ? ' disabled' : '';
+                const rateOnclick = req.has_provider_rating ? '' : `onclick="openRateProviderModal('${req.id}')"`;
+                const rateClass = req.has_provider_rating ? 'bg-gray-400 cursor-not-allowed' : 'bg-green-500 hover:bg-green-600';
+                providerActionsHtml = `<button type="button" class="${rateClass} text-white px-4 py-2 rounded text-sm font-medium" ${rateOnclick}${rateDisabled}>${req.has_provider_rating ? 'Already rated' : 'Rate your service'}</button>`;
+            }
+
+            const details = buildDetails(req);
+            const statusColor = getStatusColor(req.status);
+            const typeIcon = getTypeIcon(req.request_type);
+
+            let actionsHtml = '';
+            if (canCancel || canAccept || cabActionsHtml || professionalActionsHtml || providerActionsHtml) {
+                actionsHtml = '<div class="mt-4 pt-4 border-t flex flex-wrap gap-2">';
+                if (canCancel) {
+                    actionsHtml += `<button class="bg-red-500 text-white px-4 py-2 rounded hover:bg-red-600 text-sm font-medium" onclick="cancelRequest('${req.id}')">Cancel</button>`;
+                }
+                if (canAccept) {
+                    actionsHtml += `<button class="bg-green-500 text-white px-4 py-2 rounded hover:bg-green-600 text-sm font-medium" onclick="acceptRequest('${req.id}')">Accept</button>`;
+                }
+                if (cabActionsHtml) actionsHtml += cabActionsHtml;
+                if (professionalActionsHtml) actionsHtml += professionalActionsHtml;
+                if (providerActionsHtml) actionsHtml += providerActionsHtml;
+                actionsHtml += '</div>';
+            }
+
+            return `
+                <div class="bg-white rounded-lg shadow-md hover:shadow-lg transition-shadow p-6">
+                    <div class="flex items-start justify-between mb-4">
+                        <div class="flex items-center space-x-3">
+                            <div class="text-blue-600">
+                                ${typeIcon}
+                            </div>
+                            <div>
+                                <h3 class="text-lg font-semibold text-gray-900">${formatType(req.request_type)}</h3>
+                                <p class="text-sm text-gray-500">ID: ${req.id}</p>
+                            </div>
+                        </div>
+                        <span class="px-3 py-1 rounded-full text-xs font-medium capitalize ${statusColor}">
+                            ${req.status}
+                        </span>
+                    </div>
+                    
+                    <div class="space-y-3 mb-4">
+                        <div>
+                            <p class="text-xs text-gray-500 uppercase tracking-wide mb-1">Scheduled</p>
+                            <p class="text-sm text-gray-700">${formatDateTime(req.scheduled_date, req.scheduled_time)}</p>
+                        </div>
+                        
+                        <div>
+                            <p class="text-xs text-gray-500 uppercase tracking-wide mb-1">${details.title}</p>
+                            <div class="text-sm text-gray-700">${details.content}</div>
+                        </div>
+                        
+                        <div>
+                            <p class="text-xs text-gray-500 uppercase tracking-wide mb-1">Price</p>
+                            <p class="text-lg font-bold text-gray-900">${formatPrice(req.payment_amount, req.payment_currency)}</p>
+                        </div>
+                    </div>
+                    
+                    ${actionsHtml}
+                </div>
+            `;
+        }).join('');
+    } catch (err) {
+        console.error('Error loading requests', err);
+        errorEl.textContent = 'Error loading requests: ' + err.message;
+        errorEl.classList.remove('hidden');
+    } finally {
+        if (!cardsEl.classList.contains('hidden') && loadingEl.textContent === 'Loading requests...') {
+            loadingEl.classList.add('hidden');
+        }
+    }
+}
+
+async function cancelRequest(id) {
+    if (!confirm('Are you sure you want to cancel this request?')) return;
+    try {
+        const res = await apiCall(`/requests/${id}/cancel`, { method: 'POST' });
+        if (!res.success) {
+            alert(res.error?.message || 'Failed to cancel request');
+            return;
+        }
+        await loadRequests();
+    } catch (e) {
+        alert('Error cancelling request: ' + e.message);
+    }
+}
+
+async function acceptRequest(id) {
+    try {
+        const res = await apiCall(`/requests/${id}/accept`, { method: 'POST' });
+        if (!res.success) {
+            alert(res.error?.message || 'Failed to accept request');
+            return;
+        }
+        await loadRequests();
+    } catch (e) {
+        alert('Error accepting request: ' + e.message);
+    }
+}
+
+async function cabDriverArrived(requestId) {
+    try {
+        const res = await apiCall(`/requests/${requestId}/cab-driver-arrived`, { method: 'PATCH' });
+        if (!res.success) {
+            alert(res.error?.message || 'Failed to update');
+            return;
+        }
+        
+        await loadRequests();
+    } catch (e) {
+        alert('Error: ' + e.message);
+    }
+}
+
+async function cabArrivedAtLocation(requestId) {
+    try {
+        const res = await apiCall(`/requests/${requestId}/cab-arrived-at-location`, { method: 'PATCH' });
+        if (!res.success) {
+            alert(res.error?.message || 'Failed to update');
+            return;
+        }
+        await loadRequests();
+    } catch (e) {
+        alert('Error: ' + e.message);
+    }
+}
+
+async function cabMarkNoShow(requestId) {
+    if (!confirm('Mark driver as no-show? The request will be available for another driver.')) return;
+    try {
+        const res = await apiCall(`/requests/${requestId}/cab-mark-no-show`, { method: 'POST' });
+        if (!res.success) {
+            alert(res.error?.message || 'Failed to update');
+            return;
+        }
+        await loadRequests();
+    } catch (e) {
+        alert('Error: ' + e.message);
+    }
+}
+
+let currentDriverModalRequestId = null;
+
+async function openDriverModal(requestId) {
+    currentDriverModalRequestId = requestId;
+    document.getElementById('driverInfoModal').classList.remove('hidden');
+    document.getElementById('driverInfoLoading').classList.remove('hidden');
+    document.getElementById('driverInfoContent').classList.add('hidden');
+    try {
+        const res = await apiCall(`/requests/${requestId}/driver-info`);
+        document.getElementById('driverInfoLoading').classList.add('hidden');
+        if (!res.success) {
+            alert(res.error?.message || 'Failed to load driver info');
+            closeDriverModal();
+            return;
+        }
+        const driver = res.data.driver;
+        document.getElementById('driverInfoName').textContent = driver.name || 'Driver';
+        if (driver.profile_image_url) {
+            const url = driver.profile_image_url.startsWith('http') ? driver.profile_image_url : (driver.profile_image_url.startsWith('/') ? window.location.origin + driver.profile_image_url : window.location.origin + '/' + driver.profile_image_url);
+            document.getElementById('driverInfoPhotoImg').src = url;
+            document.getElementById('driverInfoPhotoImg').classList.remove('hidden');
+            document.getElementById('driverInfoPhotoPlaceholder').classList.add('hidden');
+        } else {
+            document.getElementById('driverInfoPhotoImg').classList.add('hidden');
+            document.getElementById('driverInfoPhotoPlaceholder').classList.remove('hidden');
+        }
+        const ratingText = driver.average_rating != null ? `${driver.average_rating} ★ (${driver.reviews_count || 0} review${(driver.reviews_count || 0) !== 1 ? 's' : ''})` : 'No ratings yet';
+        document.getElementById('driverInfoRating').textContent = ratingText;
+        const reviewsLink = document.getElementById('driverInfoReviewsLink');
+        if (driver.id && (driver.reviews_count || 0) > 0) {
+            reviewsLink.href = `/driver-reviews/${driver.id}`;
+            reviewsLink.classList.remove('hidden');
+        } else {
+            reviewsLink.classList.add('hidden');
+        }
+        document.getElementById('driverInfoContent').classList.remove('hidden');
+    } catch (e) {
+        document.getElementById('driverInfoLoading').classList.add('hidden');
+        alert('Error loading driver info: ' + e.message);
+        closeDriverModal();
+    }
+}
+
+function closeDriverModal() {
+    currentDriverModalRequestId = null;
+    document.getElementById('driverInfoModal').classList.add('hidden');
+}
+
+function openRequestAnotherDriverForm() {
+    if (!currentDriverModalRequestId) return;
+    document.getElementById('requestAnotherDriverReason').value = '';
+    document.getElementById('requestAnotherDriverModal').classList.remove('hidden');
+}
+
+function closeRequestAnotherDriverModal() {
+    document.getElementById('requestAnotherDriverModal').classList.add('hidden');
+}
+
+async function submitRequestAnotherDriver(event) {
+    event.preventDefault();
+    if (!currentDriverModalRequestId) return;
+    const reason = document.getElementById('requestAnotherDriverReason').value.trim() || null;
+    try {
+        const res = await apiCall(`/requests/${currentDriverModalRequestId}/request-another-driver`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ reason })
+        });
+        if (!res.success) {
+            alert(res.error?.message || 'Failed to request another driver');
+            return;
+        }
+        closeRequestAnotherDriverModal();
+        closeDriverModal();
+        await loadRequests();
+        alert('Request is now pending for another driver.');
+    } catch (e) {
+        alert('Error: ' + e.message);
+    }
+}
+
+let rateDriverSelectedRating = 0;
+
+function openRateDriverModal(requestId) {
+    rateDriverSelectedRating = 0;
+    document.getElementById('rateDriverRequestId').value = requestId;
+    document.getElementById('rateDriverRatingValue').value = '0';
+    document.getElementById('rateDriverReview').value = '';
+    updateRateDriverStars(0);
+    document.getElementById('rateDriverModal').classList.remove('hidden');
+    document.querySelectorAll('#rateDriverStars button').forEach((btn, i) => {
+        btn.onclick = () => {
+            rateDriverSelectedRating = i + 1;
+            document.getElementById('rateDriverRatingValue').value = rateDriverSelectedRating;
+            updateRateDriverStars(rateDriverSelectedRating);
+        };
+    });
+}
+
+function updateRateDriverStars(n) {
+    document.querySelectorAll('#rateDriverStars button').forEach((btn, i) => {
+        btn.classList.toggle('text-yellow-400', i < n);
+        btn.classList.toggle('text-gray-300', i >= n);
+    });
+}
+
+function closeRateDriverModal() {
+    document.getElementById('rateDriverModal').classList.add('hidden');
+}
+
+async function submitRateDriver(event) {
+    event.preventDefault();
+    const requestId = document.getElementById('rateDriverRequestId').value;
+    const rating = parseInt(document.getElementById('rateDriverRatingValue').value, 10);
+    const reviewText = document.getElementById('rateDriverReview').value.trim() || null;
+    if (!requestId || !rating || rating < 1 || rating > 5) {
+        alert('Please select a star rating (1-5).');
+        return;
+    }
+    try {
+        const res = await apiCall(`/requests/${requestId}/rate-driver`, {
+            method: 'POST',
+            body: JSON.stringify({ rating: rating, review_text: reviewText || '' })
+        });
+        if (!res.success) {
+            alert(res.error?.message || 'Failed to submit rating');
+            return;
+        }
+        closeRateDriverModal();
+        alert('Thank you for your rating! Ride marked as completed.');
+        await loadRequests();
+    } catch (e) {
+        alert('Error: ' + e.message);
+    }
+}
+
+async function professionalMarkNoShow(requestId) {
+    if (!confirm('Mark as no-show? The request will be available for another professional.')) return;
+    try {
+        const res = await apiCall(`/requests/${requestId}/professional-mark-no-show`, { method: 'POST' });
+        if (!res.success) {
+            alert(res.error?.message || 'Failed to update');
+            return;
+        }
+        await loadRequests();
+    } catch (e) {
+        alert('Error: ' + e.message);
+    }
+}
+
+async function professionalHasArrived(requestId) {
+    try {
+        const res = await apiCall(`/requests/${requestId}/professional-has-arrived`, { method: 'PATCH' });
+        if (!res.success) {
+            alert(res.error?.message || 'Failed to update');
+            return;
+        }
+        await loadRequests();
+    } catch (e) {
+        alert('Error: ' + e.message);
+    }
+}
+
+let rateProfessionalSelectedRating = 0;
+function openRateProfessionalModal(requestId) {
+    rateProfessionalSelectedRating = 0;
+    document.getElementById('rateProfessionalRequestId').value = requestId;
+    document.getElementById('rateProfessionalRatingValue').value = '0';
+    document.getElementById('rateProfessionalReview').value = '';
+    updateRateProfessionalStars(0);
+    document.getElementById('rateProfessionalModal').classList.remove('hidden');
+    document.querySelectorAll('#rateProfessionalStars button').forEach((btn, i) => {
+        btn.onclick = () => {
+            rateProfessionalSelectedRating = i + 1;
+            document.getElementById('rateProfessionalRatingValue').value = rateProfessionalSelectedRating;
+            updateRateProfessionalStars(rateProfessionalSelectedRating);
+        };
+    });
+}
+function updateRateProfessionalStars(n) {
+    document.querySelectorAll('#rateProfessionalStars button').forEach((btn, i) => {
+        btn.classList.toggle('text-yellow-400', i < n);
+        btn.classList.toggle('text-gray-300', i >= n);
+    });
+}
+function closeRateProfessionalModal() {
+    document.getElementById('rateProfessionalModal').classList.add('hidden');
+}
+async function submitRateProfessional(event) {
+    event.preventDefault();
+    const requestId = document.getElementById('rateProfessionalRequestId').value;
+    const rating = parseInt(document.getElementById('rateProfessionalRatingValue').value, 10);
+    const reviewText = document.getElementById('rateProfessionalReview').value.trim() || null;
+    if (!requestId || !rating || rating < 1 || rating > 5) {
+        alert('Please select a star rating (1-5).');
+        return;
+    }
+    try {
+        const res = await apiCall(`/requests/${requestId}/rate-professional`, {
+            method: 'POST',
+            body: JSON.stringify({ rating: rating, review_text: reviewText || '' })
+        });
+        if (!res.success) {
+            alert(res.error?.message || 'Failed to submit rating');
+            return;
+        }
+        closeRateProfessionalModal();
+        await loadRequests();
+        alert('Thank you for your rating!');
+    } catch (e) {
+        alert('Error: ' + e.message);
+    }
+}
+
+async function providerMarkNoShow(requestId) {
+    if (!confirm('Mark as no-show? The request will be available for another service provider.')) return;
+    try {
+        const res = await apiCall(`/requests/${requestId}/provider-mark-no-show`, { method: 'POST' });
+        if (!res.success) {
+            alert(res.error?.message || 'Failed to update');
+            return;
+        }
+        await loadRequests();
+    } catch (e) {
+        alert('Error: ' + e.message);
+    }
+}
+
+async function providerHasArrived(requestId) {
+    try {
+        const res = await apiCall(`/requests/${requestId}/provider-has-arrived`, { method: 'PATCH' });
+        if (!res.success) {
+            alert(res.error?.message || 'Failed to update');
+            return;
+        }
+        await loadRequests();
+    } catch (e) {
+        alert('Error: ' + e.message);
+    }
+}
+
+let rateProviderSelectedRating = 0;
+function openRateProviderModal(requestId) {
+    rateProviderSelectedRating = 0;
+    document.getElementById('rateProviderRequestId').value = requestId;
+    document.getElementById('rateProviderRatingValue').value = '0';
+    document.getElementById('rateProviderReview').value = '';
+    updateRateProviderStars(0);
+    document.getElementById('rateProviderModal').classList.remove('hidden');
+    document.querySelectorAll('#rateProviderStars button').forEach((btn, i) => {
+        btn.onclick = () => {
+            rateProviderSelectedRating = i + 1;
+            document.getElementById('rateProviderRatingValue').value = rateProviderSelectedRating;
+            updateRateProviderStars(rateProviderSelectedRating);
+        };
+    });
+}
+function updateRateProviderStars(n) {
+    document.querySelectorAll('#rateProviderStars button').forEach((btn, i) => {
+        btn.classList.toggle('text-yellow-400', i < n);
+        btn.classList.toggle('text-gray-300', i >= n);
+    });
+}
+function closeRateProviderModal() {
+    document.getElementById('rateProviderModal').classList.add('hidden');
+}
+async function submitRateProvider(event) {
+    event.preventDefault();
+    const requestId = document.getElementById('rateProviderRequestId').value;
+    const rating = parseInt(document.getElementById('rateProviderRatingValue').value, 10);
+    const reviewText = document.getElementById('rateProviderReview').value.trim() || null;
+    if (!requestId || !rating || rating < 1 || rating > 5) {
+        alert('Please select a star rating (1-5).');
+        return;
+    }
+    try {
+        const res = await apiCall(`/requests/${requestId}/rate-provider`, {
+            method: 'POST',
+            body: JSON.stringify({ rating: rating, review_text: reviewText || '' })
+        });
+        if (!res.success) {
+            alert(res.error?.message || 'Failed to submit rating');
+            return;
+        }
+        closeRateProviderModal();
+        await loadRequests();
+        alert('Thank you for your rating!');
+    } catch (e) {
+        alert('Error: ' + e.message);
+    }
+}
+
+document.addEventListener('DOMContentLoaded', function () {
+    const token = localStorage.getItem('token');
+    if (!token) {
+        window.location.href = '/login';
+        return;
+    }
+    loadRequests();
+});
+</script>
+{% endblock %}
+

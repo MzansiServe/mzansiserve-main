@@ -1,0 +1,331 @@
+{% extends "base.html" %}
+
+{% block title %}Request a Professional - MzansiServe{% endblock %}
+
+{% block extra_head %}
+<script src="https://maps.googleapis.com/maps/api/js?key={{ google_maps_api_key }}&libraries=places"></script>
+<style>
+    #locationMap {
+        height: 300px;
+        width: 100%;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="max-w-6xl mx-auto mt-8 p-6">
+    <h2 class="text-3xl font-bold mb-6">Request a Professional</h2>
+
+    <!-- Step 1: Search and Select Professional -->
+    <div id="step1" class="bg-white p-6 rounded-lg shadow mb-6">
+        <h3 class="text-xl font-semibold mb-4">1. Search for a Professional</h3>
+        
+        <div class="mb-4">
+            <input type="text" id="searchInput" placeholder="Search by service name or description..." 
+                   class="w-full px-4 py-2 border rounded-md"
+                   onkeyup="debounceSearch()">
+        </div>
+        
+        <div class="mb-4 flex gap-2">
+            <select id="sortBy" class="px-4 py-2 border rounded-md" onchange="searchProfessionals()">
+                <option value="">Sort by...</option>
+                <option value="rate-asc">Rate: Low to High</option>
+                <option value="rate-desc">Rate: High to Low</option>
+            </select>
+        </div>
+        
+        <div id="professionalsList" class="space-y-4">
+            <p class="text-gray-500">Loading professionals...</p>
+        </div>
+        
+        <div id="selectedProfessional" class="hidden mt-4 p-4 bg-green-50 rounded border border-green-200">
+            <p><strong>Selected:</strong> <span id="selectedProfessionalName"></span></p>
+            <p><strong>Service:</strong> <span id="selectedServiceName"></span></p>
+            <p><strong>Hourly Rate:</strong> R<span id="selectedHourlyRate"></span>/hour (charged directly, off-platform)</p>
+            <button onclick="resetSelection()" class="mt-2 text-red-600 hover:underline">Change Selection</button>
+        </div>
+        
+        <button id="proceedBtn" onclick="proceedToRequest()" class="mt-4 bg-blue-500 text-white px-6 py-2 rounded hover:bg-blue-600 hidden">
+            Proceed to Request Details
+        </button>
+    </div>
+
+    <!-- Step 2: Request Details -->
+    <div id="step2" class="bg-white p-6 rounded-lg shadow mb-6 hidden">
+        <h3 class="text-xl font-semibold mb-4">2. Request Details</h3>
+        
+        <div class="mb-4">
+            <label for="locationInput" class="block text-sm font-medium mb-2">Service Location</label>
+            <input type="text" id="locationInput" placeholder="Search for location..." 
+                   class="w-full px-4 py-2 border rounded-md mb-2">
+            <div id="locationMap" class="border rounded"></div>
+            <input type="hidden" id="locationLat">
+            <input type="hidden" id="locationLng">
+            <input type="hidden" id="locationAddress">
+        </div>
+        
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+            <div>
+                <label for="requestDate" class="block text-sm font-medium mb-2">Date</label>
+                <input type="date" id="requestDate" class="w-full px-4 py-2 border rounded-md" required>
+            </div>
+            
+            <div>
+                <label for="requestTime" class="block text-sm font-medium mb-2">Time</label>
+                <input type="time" id="requestTime" class="w-full px-4 py-2 border rounded-md" required>
+            </div>
+        </div>
+        
+        <div class="mb-4">
+            <label for="requestNotes" class="block text-sm font-medium mb-2">Additional Notes</label>
+            <textarea id="requestNotes" rows="4" class="w-full px-4 py-2 border rounded-md" 
+                      placeholder="Any additional details about your request..."></textarea>
+        </div>
+        
+        <div id="calloutFeeInfo" class="mb-4 p-4 bg-blue-50 rounded">
+            <p><strong>Call-out Fee:</strong> R<span id="calloutFeeAmount">-</span></p>
+            <p class="text-sm text-gray-600">You will be redirected to the payment checkout to pay the call-out fee when you submit.</p>
+        </div>
+        
+        <button onclick="submitRequest()" class="bg-green-500 text-white px-6 py-2 rounded hover:bg-green-600">
+            Submit Request & Pay Call-out Fee
+        </button>
+    </div>
+
+    <!-- Loading indicator -->
+    <div id="loading" class="hidden text-center p-4">
+        <p>Processing...</p>
+    </div>
+
+    <!-- Success message -->
+    <div id="successMessage" class="hidden bg-green-100 border border-green-400 text-green-700 px-4 py-3 rounded mb-4">
+        <p>Request created successfully!</p>
+    </div>
+</div>
+
+<script>
+let locationMap, locationAutocomplete, locationMarker;
+let selectedProfessional = null;
+let selectedService = null;
+let calloutFee = null;
+let searchTimeout = null;
+
+// Initialize Google Maps
+function initLocationMap() {
+    locationMap = new google.maps.Map(document.getElementById('locationMap'), {
+        center: { lat: -26.2041, lng: 28.0473 },
+        zoom: 13
+    });
+    
+    locationAutocomplete = new google.maps.places.Autocomplete(document.getElementById('locationInput'));
+    locationAutocomplete.bindTo('bounds', locationMap);
+    
+    locationAutocomplete.addListener('place_changed', function() {
+        const place = locationAutocomplete.getPlace();
+        if (!place.geometry) return;
+        
+        document.getElementById('locationLat').value = place.geometry.location.lat();
+        document.getElementById('locationLng').value = place.geometry.location.lng();
+        document.getElementById('locationAddress').value = place.formatted_address || place.name;
+        
+        if (locationMarker) locationMarker.setMap(null);
+        locationMarker = new google.maps.Marker({
+            map: locationMap,
+            position: place.geometry.location
+        });
+        locationMap.setCenter(place.geometry.location);
+    });
+}
+
+// Load call-out fee (admin-configured professional call-out fee)
+async function loadCalloutFee() {
+    try {
+        const response = await apiCall('/admin/settings/callout-fees');
+        if (response.success) {
+            calloutFee = response.data.professional_callout_fee;
+            document.getElementById('calloutFeeAmount').textContent = (calloutFee != null ? calloutFee : 150).toFixed(2);
+        }
+    } catch (error) {
+        console.error('Failed to load call-out fee:', error);
+    }
+}
+
+// Search professionals with debounce
+function debounceSearch() {
+    clearTimeout(searchTimeout);
+    searchTimeout = setTimeout(searchProfessionals, 300);
+}
+
+// Search professionals
+async function searchProfessionals() {
+    const search = document.getElementById('searchInput').value;
+    const sortBy = document.getElementById('sortBy').value;
+    
+    document.getElementById('professionalsList').innerHTML = '<p class="text-gray-500">Loading...</p>';
+    
+    try {
+        const params = new URLSearchParams();
+        if (search) params.append('search', search);
+        if (sortBy === 'rate-asc') {
+            params.append('order_by', 'rate');
+            params.append('direction', 'asc');
+        } else if (sortBy === 'rate-desc') {
+            params.append('order_by', 'rate');
+            params.append('direction', 'desc');
+        }
+        
+        const response = await apiCall(`/profile/professionals?${params.toString()}`);
+        
+        if (response.success) {
+            displayProfessionals(response.data.professionals);
+        } else {
+            document.getElementById('professionalsList').innerHTML = '<p class="text-red-600">Failed to load professionals</p>';
+        }
+    } catch (error) {
+        document.getElementById('professionalsList').innerHTML = '<p class="text-red-600">Error: ' + error.message + '</p>';
+    }
+}
+
+// Display professionals
+function displayProfessionals(professionals) {
+    const container = document.getElementById('professionalsList');
+    
+    if (professionals.length === 0) {
+        container.innerHTML = '<p class="text-gray-500">No professionals found</p>';
+        return;
+    }
+    
+    container.innerHTML = professionals.map(prof => {
+        const profUser = prof.professional;
+        const services = prof.services || [];
+        const minRate = prof.min_hourly_rate;
+        
+        return `
+            <div class="border rounded-lg p-4">
+                <h4 class="font-semibold text-lg">${profUser.email}</h4>
+                ${minRate ? `<p class="text-gray-600">From R${minRate.toFixed(2)}/hour</p>` : ''}
+                <div class="mt-2">
+                    <p class="font-medium">Services:</p>
+                    <ul class="list-disc list-inside ml-2">
+                        ${services.map(svc => `
+                            <li>
+                                <strong>${svc.name}</strong>
+                                ${svc.description ? ` - ${svc.description}` : ''}
+                                ${svc.hourly_rate ? ` (R${svc.hourly_rate}/hour)` : ''}
+                                <button onclick="selectProfessional('${profUser.id}', '${svc.name.replace(/'/g, "\\'")}', ${svc.hourly_rate || 0})" 
+                                        class="ml-2 text-blue-600 hover:underline">Request</button>
+                            </li>
+                        `).join('')}
+                    </ul>
+                </div>
+            </div>
+        `;
+    }).join('');
+}
+
+// Select professional and service
+function selectProfessional(profId, serviceName, hourlyRate) {
+    selectedProfessional = profId;
+    selectedService = serviceName;
+    
+    document.getElementById('selectedProfessionalName').textContent = profId;
+    document.getElementById('selectedServiceName').textContent = serviceName;
+    document.getElementById('selectedHourlyRate').textContent = hourlyRate.toFixed(2);
+    document.getElementById('selectedProfessional').classList.remove('hidden');
+    document.getElementById('proceedBtn').classList.remove('hidden');
+}
+
+// Reset selection
+function resetSelection() {
+    selectedProfessional = null;
+    selectedService = null;
+    document.getElementById('selectedProfessional').classList.add('hidden');
+    document.getElementById('proceedBtn').classList.add('hidden');
+}
+
+// Proceed to request details
+function proceedToRequest() {
+    if (!selectedProfessional) {
+        alert('Please select a professional first');
+        return;
+    }
+    document.getElementById('step1').classList.add('hidden');
+    document.getElementById('step2').classList.remove('hidden');
+}
+
+// Submit request & pay call-out fee (redirects to payment checkout)
+async function submitRequest() {
+    if (!selectedProfessional) {
+        alert('Please select a professional');
+        return;
+    }
+
+    const locationLat = document.getElementById('locationLat').value;
+    const locationLng = document.getElementById('locationLng').value;
+    const requestDate = document.getElementById('requestDate').value;
+    const requestTime = document.getElementById('requestTime').value;
+    const notes = document.getElementById('requestNotes').value;
+
+    if (!locationLat || !locationLng || !requestDate || !requestTime) {
+        alert('Please fill in all required fields');
+        return;
+    }
+
+    const amount = calloutFee != null ? calloutFee : 100;
+    if (!amount || amount <= 0) {
+        alert('Call-out fee could not be loaded. Please refresh the page.');
+        return;
+    }
+
+    document.getElementById('loading').classList.remove('hidden');
+
+    try {
+        const response = await apiCall('/requests/professional-checkout', {
+            method: 'POST',
+            body: JSON.stringify({
+                location: {
+                    lat: parseFloat(locationLat),
+                    lng: parseFloat(locationLng),
+                    address: document.getElementById('locationAddress').value || ''
+                },
+                date: requestDate,
+                time: requestTime,
+                notes: notes || undefined,
+                preferences: {
+                    professional_id: selectedProfessional,
+                    service_name: selectedService
+                },
+                payment_amount: amount
+            })
+        });
+
+        if (response.success && response.data.redirect_url) {
+            window.location.href = response.data.redirect_url;
+        } else {
+            document.getElementById('loading').classList.add('hidden');
+            alert('Failed to start payment: ' + (response.error?.message || 'Unknown error'));
+        }
+    } catch (error) {
+        document.getElementById('loading').classList.add('hidden');
+        alert('Error starting payment: ' + error.message);
+    }
+}
+
+// Initialize on page load
+document.addEventListener('DOMContentLoaded', function() {
+    if (!localStorage.getItem('token')) {
+        window.location.href = '/login';
+        return;
+    }
+    
+    loadCalloutFee();
+    searchProfessionals();
+    
+    if (typeof google !== 'undefined' && google.maps) {
+        initLocationMap();
+    } else {
+        console.warn('Google Maps API not loaded');
+    }
+});
+</script>
+{% endblock %}

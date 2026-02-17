@@ -1,0 +1,64 @@
+version: '3.8'
+
+services:
+  db:
+    image: postgres:15-alpine
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-mzansiserve}
+      POSTGRES_USER: ${POSTGRES_USER:-mzansi}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-changeme}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./init.sql:/docker-entrypoint-initdb.d/init.sql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-mzansi} -d ${POSTGRES_DB:-mzansiserve}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    ports:
+      - "${WEB_PORT:-5000}:5000"
+    environment:
+      # Database
+      DATABASE_URL: postgresql://${POSTGRES_USER:-mzansi}:${DB_PASSWORD:-changeme}@db:5432/${POSTGRES_DB:-mzansiserve}
+      POSTGRES_USER: ${POSTGRES_USER:-mzansi}
+      POSTGRES_DB: ${POSTGRES_DB:-mzansiserve}
+      # Flask
+      SECRET_KEY: ${SECRET_KEY:-dev-secret-key}
+      JWT_SECRET_KEY: ${JWT_SECRET_KEY:-jwt-secret-key}
+      FLASK_ENV: ${FLASK_ENV:-production}
+      FLASK_DEBUG: ${FLASK_DEBUG:-0}
+      # Gunicorn
+      GUNICORN_WORKERS: ${GUNICORN_WORKERS:-4}
+      GUNICORN_THREADS: ${GUNICORN_THREADS:-2}
+      GUNICORN_TIMEOUT: ${GUNICORN_TIMEOUT:-120}
+      # Email
+      SMTP_HOST: ${SMTP_HOST:-}
+      SMTP_PORT: ${SMTP_PORT:-587}
+      SMTP_USER: ${SMTP_USER:-}
+      SMTP_PASSWORD: ${SMTP_PASSWORD:-}
+      DEFAULT_FROM_EMAIL: ${DEFAULT_FROM_EMAIL:-noreply@mzansiserve.com}
+      # External services
+      FRONTEND_URL: ${FRONTEND_URL:-http://localhost:5000}
+      PAYPAL_CLIENT_ID: ${PAYPAL_CLIENT_ID:-}
+      PAYPAL_SECRET: ${PAYPAL_SECRET:-}
+      PAYPAL_BASE_URL: ${PAYPAL_BASE_URL:-https://api-m.sandbox.paypal.com}
+      YOCO_SECRET_KEY: ${YOCO_SECRET_KEY:-}
+      LOG_LEVEL: ${LOG_LEVEL:-DEBUG}
+    depends_on:
+      db:
+        condition: service_healthy
+    volumes:
+      - ./uploads:/app/uploads
+      - ./static:/app/static
+    # Gunicorn production server (uses Dockerfile CMD by default)
+    # Override with: docker compose up --build (uses gunicorn)
+    # For development: docker compose -f docker-compose.yml -f docker-compose.dev.yml up
+
+volumes:
+  postgres_data:
+

@@ -1,0 +1,245 @@
+{% extends "base.html" %}
+
+{% block title %}Product Details - MzansiServe{% endblock %}
+
+{% block content %}
+<div class="max-w-6xl mx-auto mt-8">
+    <div id="productLoading" class="text-center py-8">
+        <p>Loading product details...</p>
+    </div>
+    
+    <div id="productDetails" class="hidden">
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
+            <!-- Product Images -->
+            <div>
+                <div id="mainImageContainer" class="mb-4">
+                    <img id="mainImage" src="" alt="" class="w-full h-96 object-cover rounded-lg cursor-pointer border">
+                </div>
+                <div id="imageGallery" class="grid grid-cols-4 gap-2">
+                    <!-- Gallery images will be inserted here -->
+                </div>
+            </div>
+            
+            <!-- Product Info -->
+            <div>
+                <h1 id="productName" class="text-3xl font-bold mb-4"></h1>
+                <p id="productPrice" class="text-2xl font-bold text-blue-600 mb-4"></p>
+                <p id="productDescription" class="text-gray-600 mb-4"></p>
+                <div id="stockStatus" class="mb-4"></div>
+                <div id="productActions" class="flex space-x-4">
+                    <!-- Add to cart button will be inserted here -->
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div id="productError" class="hidden text-center py-8 text-red-600">
+        <p>Product not found or error loading product details.</p>
+        <a href="/shop" class="text-blue-600 hover:underline mt-4 inline-block">Return to Shop</a>
+    </div>
+</div>
+
+<!-- Image Carousel Modal -->
+<div id="imageCarouselModal" class="fixed inset-0 bg-black bg-opacity-90 hidden items-center justify-center z-50">
+    <div class="relative max-w-6xl w-full mx-4">
+        <button id="closeCarousel" class="absolute top-4 right-4 text-white text-4xl hover:text-gray-300 z-10">&times;</button>
+        <button id="prevImage" class="absolute left-4 top-1/2 transform -translate-y-1/2 text-white text-4xl hover:text-gray-300 z-10">&#8249;</button>
+        <button id="nextImage" class="absolute right-4 top-1/2 transform -translate-y-1/2 text-white text-4xl hover:text-gray-300 z-10">&#8250;</button>
+        <div class="flex items-center justify-center">
+            <img id="carouselImage" src="" alt="" class="max-h-[90vh] max-w-full object-contain">
+        </div>
+        <div id="carouselCounter" class="absolute bottom-4 left-1/2 transform -translate-x-1/2 text-white"></div>
+    </div>
+</div>
+
+<script>
+let currentProduct = null;
+let productImages = [];
+let currentCarouselIndex = 0;
+
+// Load product details
+async function loadProduct() {
+    const productId = window.location.pathname.split('/').pop();
+    
+    try {
+        const response = await fetch(`/api/shop/products/${productId}`);
+        const result = await response.json();
+        
+        if (result.success) {
+            currentProduct = result.data;
+            displayProduct(currentProduct);
+        } else {
+            showError();
+        }
+    } catch (error) {
+        console.error('Error loading product:', error);
+        showError();
+    }
+}
+
+// Display product
+function displayProduct(product) {
+    // Set up images (if product has multiple images or just one)
+    productImages = [];
+    if (product.image_url) {
+        productImages.push(product.image_url);
+    }
+    // For now, we'll use the same image multiple times for demo
+    // In production, you'd have an images array in the product model
+    if (productImages.length === 0) {
+        productImages.push('/static/images/placeholder.png'); // Fallback
+    }
+    
+    // Update main image
+    const mainImage = document.getElementById('mainImage');
+    mainImage.src = productImages[0];
+    mainImage.alt = product.name;
+    mainImage.onclick = () => openCarousel(0);
+    
+    // Update product info
+    document.getElementById('productName').textContent = product.name;
+    document.getElementById('productPrice').textContent = `R${parseFloat(product.price || 0).toFixed(2)}`;
+    document.getElementById('productDescription').textContent = product.description || 'No description available.';
+    
+    // Stock status
+    const stockStatus = document.getElementById('stockStatus');
+    if (product.in_stock) {
+        stockStatus.innerHTML = '<span class="text-green-600 font-semibold">✓ In Stock</span>';
+    } else {
+        stockStatus.innerHTML = '<span class="text-red-600 font-semibold">✗ Out of Stock</span>';
+    }
+    
+    // Product actions
+    const productActions = document.getElementById('productActions');
+    if (product.in_stock) {
+        productActions.innerHTML = `
+            <button onclick="handleAddToCart('${product.id}', '${product.name.replace(/'/g, "\\'")}', ${product.price}, '${product.image_url || ''}')" 
+                    class="bg-blue-500 text-white px-6 py-3 rounded hover:bg-blue-600 font-semibold">
+                Add to Cart
+            </button>
+        `;
+    } else {
+        productActions.innerHTML = `
+            <button disabled class="bg-gray-300 text-gray-500 px-6 py-3 rounded cursor-not-allowed font-semibold">
+                Out of Stock
+            </button>
+        `;
+    }
+    
+    // Update image gallery
+    const gallery = document.getElementById('imageGallery');
+    gallery.innerHTML = productImages.map((img, index) => `
+        <img src="${img}" alt="${product.name}" 
+             class="w-full h-20 object-cover rounded cursor-pointer border-2 ${index === 0 ? 'border-blue-500' : 'border-gray-300'}" 
+             onclick="changeMainImage(${index})"
+             onmouseover="this.style.opacity='0.8'" 
+             onmouseout="this.style.opacity='1'">
+    `).join('');
+    
+    // Show product details
+    document.getElementById('productLoading').classList.add('hidden');
+    document.getElementById('productDetails').classList.remove('hidden');
+}
+
+// Change main image
+function changeMainImage(index) {
+    const mainImage = document.getElementById('mainImage');
+    mainImage.src = productImages[index];
+    currentCarouselIndex = index;
+    
+    // Update gallery border
+    const galleryImages = document.querySelectorAll('#imageGallery img');
+    galleryImages.forEach((img, i) => {
+        if (i === index) {
+            img.classList.remove('border-gray-300');
+            img.classList.add('border-blue-500');
+        } else {
+            img.classList.remove('border-blue-500');
+            img.classList.add('border-gray-300');
+        }
+    });
+}
+
+// Open image carousel
+function openCarousel(index) {
+    currentCarouselIndex = index;
+    const modal = document.getElementById('imageCarouselModal');
+    const carouselImage = document.getElementById('carouselImage');
+    
+    carouselImage.src = productImages[index];
+    updateCarouselCounter();
+    modal.classList.remove('hidden');
+    modal.classList.add('flex');
+}
+
+// Close carousel
+function closeCarousel() {
+    const modal = document.getElementById('imageCarouselModal');
+    modal.classList.add('hidden');
+    modal.classList.remove('flex');
+}
+
+// Navigate carousel
+function navigateCarousel(direction) {
+    if (direction === 'next') {
+        currentCarouselIndex = (currentCarouselIndex + 1) % productImages.length;
+    } else {
+        currentCarouselIndex = (currentCarouselIndex - 1 + productImages.length) % productImages.length;
+    }
+    
+    document.getElementById('carouselImage').src = productImages[currentCarouselIndex];
+    updateCarouselCounter();
+}
+
+// Update carousel counter
+function updateCarouselCounter() {
+    const counter = document.getElementById('carouselCounter');
+    counter.textContent = `${currentCarouselIndex + 1} / ${productImages.length}`;
+}
+
+// Handle add to cart
+function handleAddToCart(productId, productName, productPrice, productImage) {
+    if (typeof addToCart === 'function') {
+        addToCart(productId, productName, productPrice, productImage, 1);
+        alert(`${productName} added to cart!`);
+    } else {
+        alert(`Product ${productId} added to cart (cart functionality loading...)`);
+    }
+}
+
+// Show error
+function showError() {
+    document.getElementById('productLoading').classList.add('hidden');
+    document.getElementById('productError').classList.remove('hidden');
+}
+
+// Event listeners
+document.getElementById('closeCarousel')?.addEventListener('click', closeCarousel);
+document.getElementById('prevImage')?.addEventListener('click', () => navigateCarousel('prev'));
+document.getElementById('nextImage')?.addEventListener('click', () => navigateCarousel('next'));
+
+// Close carousel on escape key
+document.addEventListener('keydown', function(e) {
+    if (e.key === 'Escape') {
+        closeCarousel();
+    } else if (e.key === 'ArrowLeft') {
+        navigateCarousel('prev');
+    } else if (e.key === 'ArrowRight') {
+        navigateCarousel('next');
+    }
+});
+
+// Close carousel on backdrop click
+document.getElementById('imageCarouselModal')?.addEventListener('click', function(e) {
+    if (e.target === this) {
+        closeCarousel();
+    }
+});
+
+// Load product on page load
+document.addEventListener('DOMContentLoaded', function() {
+    loadProduct();
+});
+</script>
+{% endblock %}
+

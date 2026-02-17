@@ -1,0 +1,88 @@
+{% extends "base.html" %}
+
+{% block title %}Client Reviews - MzansiServe{% endblock %}
+
+{% block content %}
+<div class="mt-8 max-w-3xl mx-auto px-4">
+    <a href="/rides-made" class="text-blue-600 hover:underline mb-4 inline-block">← Back to Rides You've Made</a>
+    <div id="clientReviewsLoading" class="text-center py-12 text-gray-500">Loading reviews...</div>
+    <div id="clientReviewsError" class="hidden p-4 bg-red-50 text-red-700 rounded-lg mb-4"></div>
+    <div id="clientReviewsContent" class="hidden">
+        <div class="bg-white rounded-lg shadow p-6 mb-6">
+            <div class="flex items-center gap-4 mb-4">
+                <div id="clientPhoto" class="w-16 h-16 rounded-full bg-gray-200 flex items-center justify-center overflow-hidden shrink-0">
+                    <img id="clientPhotoImg" src="" alt="Client" class="w-full h-full object-cover hidden">
+                    <span id="clientPhotoPlaceholder" class="text-gray-400 text-xl">—</span>
+                </div>
+                <div>
+                    <h1 id="clientName" class="text-2xl font-bold text-gray-900"></h1>
+                    <p id="clientRating" class="text-gray-600"></p>
+                </div>
+            </div>
+        </div>
+        <h2 class="text-lg font-semibold text-gray-900 mb-3">All reviews</h2>
+        <div id="reviewsList" class="space-y-4"></div>
+        <p id="noReviews" class="hidden text-gray-500">No reviews yet.</p>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+(function() {
+    const clientId = '{{ client_id }}';
+    const loadingEl = document.getElementById('clientReviewsLoading');
+    const errorEl = document.getElementById('clientReviewsError');
+    const contentEl = document.getElementById('clientReviewsContent');
+    const reviewsListEl = document.getElementById('reviewsList');
+    const noReviewsEl = document.getElementById('noReviews');
+
+    async function load() {
+        try {
+            const res = await apiCall(`/clients/${clientId}/reviews`);
+            loadingEl.classList.add('hidden');
+            if (!res.success) {
+                errorEl.textContent = res.error?.message || 'Failed to load reviews';
+                errorEl.classList.remove('hidden');
+                return;
+            }
+            const client = res.data.client;
+            const reviews = res.data.reviews || [];
+            const nameEl = document.getElementById('clientName');
+            const ratingEl = document.getElementById('clientRating');
+            nameEl.textContent = client.name || 'Client';
+            ratingEl.textContent = client.average_rating != null
+                ? `${client.average_rating} ★ (${client.reviews_count || 0} review${(client.reviews_count || 0) !== 1 ? 's' : ''})`
+                : 'No ratings yet';
+            const photoImg = document.getElementById('clientPhotoImg');
+            const photoPlaceholder = document.getElementById('clientPhotoPlaceholder');
+            if (client.profile_image_url) {
+                const url = client.profile_image_url.startsWith('http') ? client.profile_image_url : (client.profile_image_url.startsWith('/') ? window.location.origin + client.profile_image_url : window.location.origin + '/' + client.profile_image_url);
+                photoImg.src = url;
+                photoImg.classList.remove('hidden');
+                photoPlaceholder.classList.add('hidden');
+            } else {
+                photoPlaceholder.classList.remove('hidden');
+                photoImg.classList.add('hidden');
+            }
+            contentEl.classList.remove('hidden');
+            if (reviews.length === 0) {
+                noReviewsEl.classList.remove('hidden');
+            } else {
+                noReviewsEl.classList.add('hidden');
+                reviewsListEl.innerHTML = reviews.map(r => {
+                    const stars = '★'.repeat(r.rating) + '☆'.repeat(5 - r.rating);
+                    const date = r.created_at ? new Date(r.created_at).toLocaleDateString() : '';
+                    return `<div class="bg-gray-50 rounded-lg p-4"><div class="flex items-center gap-2 text-yellow-500 text-lg">${stars}</div>${r.review_text ? `<p class="mt-2 text-gray-700">${r.review_text.replace(/</g, '&lt;').replace(/>/g, '&gt;')}</p>` : ''}<p class="text-xs text-gray-500 mt-2">${date}</p></div>`;
+                }).join('');
+            }
+        } catch (e) {
+            loadingEl.classList.add('hidden');
+            errorEl.textContent = 'Error loading reviews: ' + e.message;
+            errorEl.classList.remove('hidden');
+        }
+    }
+    load();
+})();
+</script>
+{% endblock %}

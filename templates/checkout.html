@@ -1,0 +1,449 @@
+{% extends "base.html" %}
+
+{% block title %}Checkout - MzansiServe{% endblock %}
+
+{% block content %}
+<div class="mt-8">
+    <h2 class="text-2xl font-bold mb-6">Checkout</h2>
+    
+    <div id="checkoutLoading" class="text-center py-12">
+        <p class="text-gray-600">Loading checkout...</p>
+    </div>
+    
+    <div id="checkoutContent" class="hidden">
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            <!-- Order Summary & Delivery Address -->
+            <div class="lg:col-span-2 space-y-6">
+                <!-- Delivery Address Selection -->
+                <div class="bg-white rounded-lg shadow p-6">
+                    <h3 class="text-xl font-bold mb-4">Delivery Address</h3>
+                    
+                    <div id="addressList" class="space-y-3 mb-4">
+                        <!-- Addresses will be loaded here -->
+                    </div>
+                    
+                    <button onclick="showAddAddressForm()" class="text-blue-600 hover:text-blue-800 text-sm">
+                        + Add New Address
+                    </button>
+                    
+                    <!-- Add/Edit Address Form -->
+                    <div id="addressForm" class="hidden mt-4 p-4 bg-gray-50 rounded">
+                        <h4 class="font-semibold mb-3" id="addressFormTitle">Add New Address</h4>
+                        <form id="addressFormElement" onsubmit="saveAddress(event)" class="space-y-3">
+                            <input type="hidden" id="addressFormId" value="">
+                            
+                            <div>
+                                <label class="block text-sm font-medium mb-1">Unit/Apartment Number (optional)</label>
+                                <input type="text" id="addressUnitNumber" class="w-full px-3 py-2 border rounded-md">
+                            </div>
+                            
+                            <div>
+                                <label class="block text-sm font-medium mb-1">Building Name (optional)</label>
+                                <input type="text" id="addressBuildingName" class="w-full px-3 py-2 border rounded-md">
+                            </div>
+                            
+                            <div>
+                                <label class="block text-sm font-medium mb-1">Street Address *</label>
+                                <input type="text" id="addressStreet" required class="w-full px-3 py-2 border rounded-md">
+                            </div>
+                            
+                            <div class="grid grid-cols-2 gap-3">
+                                <div>
+                                    <label class="block text-sm font-medium mb-1">City *</label>
+                                    <input type="text" id="addressCity" required class="w-full px-3 py-2 border rounded-md">
+                                </div>
+                                <div>
+                                    <label class="block text-sm font-medium mb-1">Province *</label>
+                                    <input type="text" id="addressProvince" required class="w-full px-3 py-2 border rounded-md">
+                                </div>
+                            </div>
+                            
+                            <div>
+                                <label class="block text-sm font-medium mb-1">Postal Code *</label>
+                                <input type="text" id="addressPostalCode" required class="w-full px-3 py-2 border rounded-md">
+                            </div>
+                            
+                            <div>
+                                <label class="block text-sm font-medium mb-1">Country *</label>
+                                <input type="text" id="addressCountry" value="South Africa" required class="w-full px-3 py-2 border rounded-md">
+                            </div>
+                            
+                            <div>
+                                <label class="block text-sm font-medium mb-1">Delivery Instructions (optional)</label>
+                                <textarea id="addressInstructions" rows="2" class="w-full px-3 py-2 border rounded-md"></textarea>
+                            </div>
+                            
+                            <div class="flex items-center">
+                                <input type="checkbox" id="addressIsDefault" class="mr-2">
+                                <label for="addressIsDefault" class="text-sm">Set as default address</label>
+                            </div>
+                            
+                            <div class="flex space-x-3">
+                                <button type="submit" class="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600">
+                                    Save Address
+                                </button>
+                                <button type="button" onclick="hideAddressForm()" class="bg-gray-300 text-gray-700 px-4 py-2 rounded hover:bg-gray-400">
+                                    Cancel
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Order Summary -->
+            <div class="lg:col-span-1">
+                <div class="bg-white rounded-lg shadow p-6 sticky top-4">
+                    <h3 class="text-xl font-bold mb-4">Order Summary</h3>
+                    
+                    <div id="orderItems" class="mb-4 space-y-2">
+                        <!-- Items will be loaded here -->
+                    </div>
+                    
+                    <div class="border-t pt-4 space-y-2">
+                        <div class="flex justify-between text-gray-600">
+                            <span>Subtotal</span>
+                            <span id="orderSubtotal">R0.00</span>
+                        </div>
+                        <div class="flex justify-between text-gray-600">
+                            <span>Shipping</span>
+                            <span id="orderShipping">R0.00</span>
+                        </div>
+                        <div class="border-t pt-2 mt-2">
+                            <div class="flex justify-between text-lg font-bold">
+                                <span>Total</span>
+                                <span id="orderTotal">R0.00</span>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <button id="placeOrderBtn" onclick="placeOrder()" class="w-full bg-green-500 text-white py-3 rounded hover:bg-green-600 font-semibold mt-4">
+                        Place Order
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+let selectedAddressId = null;
+let addresses = [];
+let editingAddressId = null;
+
+document.addEventListener('DOMContentLoaded', function() {
+    loadCheckout();
+});
+
+async function loadCheckout() {
+    const token = localStorage.getItem('token');
+    if (!token) {
+        window.location.href = '/login?redirect=/checkout';
+        return;
+    }
+    
+    const cart = getCart();
+    if (cart.length === 0) {
+        alert('Your cart is empty');
+        window.location.href = '/cart';
+        return;
+    }
+    
+    // Load addresses
+    await loadAddresses();
+    
+    // Load order summary
+    loadOrderSummary(cart);
+    
+    document.getElementById('checkoutLoading').classList.add('hidden');
+    document.getElementById('checkoutContent').classList.remove('hidden');
+}
+
+async function loadAddresses() {
+    const token = localStorage.getItem('token');
+    try {
+        const response = await fetch('/api/addresses', {
+            headers: {
+                'Authorization': `Bearer ${token}`
+            }
+        });
+        
+        const result = await response.json();
+        if (result.success) {
+            addresses = result.data.addresses;
+            renderAddresses();
+        }
+    } catch (error) {
+        console.error('Error loading addresses:', error);
+    }
+}
+
+function renderAddresses() {
+    const addressList = document.getElementById('addressList');
+
+    if (addresses.length === 0) {
+        addressList.innerHTML = '<p class="text-gray-600 text-sm">No addresses found. Please add a delivery address.</p>';
+        return;
+    }
+    
+    addressList.innerHTML = addresses.map(addr => {
+        const isSelected = selectedAddressId === addr.id;
+        return `
+            <div class="border rounded p-3 cursor-pointer hover:border-blue-500 ${isSelected ? 'border-blue-500 bg-blue-50' : ''}" onclick="selectAddress('${addr.id}')">
+                <div class="flex justify-between items-start">
+                    <div class="flex-grow">
+                        ${addr.is_default ? '<span class="text-xs bg-blue-100 text-blue-800 px-2 py-1 rounded mb-2 inline-block">Default</span>' : ''}
+                        <p class="font-semibold">${formatAddress(addr)}</p>
+                    </div>
+                    <div class="ml-4 flex space-x-2">
+                        ${!addr.is_default ? `<button onclick="event.stopPropagation(); setDefaultAddress('${addr.id}')" class="text-xs text-blue-600 hover:text-blue-800">Set Default</button>` : ''}
+                        <button onclick="event.stopPropagation(); editAddress('${addr.id}')" class="text-xs text-gray-600 hover:text-gray-800">Edit</button>
+                    </div>
+                </div>
+            </div>
+        `;
+    }).join('');
+    
+    // Auto-select default address if none selected
+    if (!selectedAddressId) {
+        const defaultAddr = addresses.find(a => a.is_default);
+        if (defaultAddr) {
+            selectAddress(defaultAddr.id);
+        } else if (addresses.length > 0) {
+            selectAddress(addresses[0].id);
+        }
+    }
+}
+
+function formatAddress(addr) {
+    let parts = [];
+    if (addr.unit_number) parts.push(addr.unit_number);
+    if (addr.building_name) parts.push(addr.building_name);
+    parts.push(addr.street_address);
+    parts.push(addr.city);
+    parts.push(addr.province);
+    parts.push(addr.postal_code);
+    parts.push(addr.country);
+    return parts.join(', ');
+}
+
+function selectAddress(addressId) {
+    selectedAddressId = addressId;
+    renderAddresses();
+}
+
+
+function setDefaultAddress(addressId) {
+    const token = localStorage.getItem('token');
+    fetch(`/api/addresses/${addressId}/set-default`, {
+        method: 'PATCH',
+        headers: {
+            'Authorization': `Bearer ${token}`
+        }
+    })
+    .then(res => res.json())
+    .then(result => {
+        if (result.success) {
+            loadAddresses();
+        } else {
+            alert('Error: ' + (result.error?.message || 'Failed to set default address'));
+        }
+    })
+    .catch(error => {
+        console.error('Error setting default address:', error);
+        alert('Error setting default address');
+    });
+}
+
+function showAddAddressForm() {
+    editingAddressId = null;
+    document.getElementById('addressFormTitle').textContent = 'Add New Address';
+    document.getElementById('addressFormId').value = '';
+    document.getElementById('addressFormElement').reset();
+    document.getElementById('addressForm').classList.remove('hidden');
+}
+
+function hideAddressForm() {
+    document.getElementById('addressForm').classList.add('hidden');
+    editingAddressId = null;
+}
+
+function editAddress(addressId) {
+    const addr = addresses.find(a => a.id === addressId);
+    if (!addr) return;
+    
+    editingAddressId = addressId;
+    document.getElementById('addressFormTitle').textContent = 'Edit Address';
+    document.getElementById('addressFormId').value = addressId;
+    document.getElementById('addressUnitNumber').value = addr.unit_number || '';
+    document.getElementById('addressBuildingName').value = addr.building_name || '';
+    document.getElementById('addressStreet').value = addr.street_address || '';
+    document.getElementById('addressCity').value = addr.city || '';
+    document.getElementById('addressProvince').value = addr.province || '';
+    document.getElementById('addressPostalCode').value = addr.postal_code || '';
+    document.getElementById('addressCountry').value = addr.country || 'South Africa';
+    document.getElementById('addressInstructions').value = addr.delivery_instructions || '';
+    document.getElementById('addressIsDefault').checked = addr.is_default || false;
+    
+    document.getElementById('addressForm').classList.remove('hidden');
+}
+
+async function saveAddress(event) {
+    event.preventDefault();
+    
+    const token = localStorage.getItem('token');
+    const addressId = document.getElementById('addressFormId').value;
+    
+    const addressData = {
+        street_address: document.getElementById('addressStreet').value,
+        city: document.getElementById('addressCity').value,
+        province: document.getElementById('addressProvince').value,
+        postal_code: document.getElementById('addressPostalCode').value,
+        country: document.getElementById('addressCountry').value,
+        unit_number: document.getElementById('addressUnitNumber').value || null,
+        building_name: document.getElementById('addressBuildingName').value || null,
+        delivery_instructions: document.getElementById('addressInstructions').value || null,
+        is_default: document.getElementById('addressIsDefault').checked
+    };
+    
+    const url = addressId ? `/api/addresses/${addressId}` : '/api/addresses';
+    const method = addressId ? 'PATCH' : 'POST';
+    
+    try {
+        const response = await fetch(url, {
+            method: method,
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${token}`
+            },
+            body: JSON.stringify(addressData)
+        });
+        
+        const result = await response.json();
+        
+        if (result.success) {
+            hideAddressForm();
+            await loadAddresses();
+        } else {
+            alert('Error: ' + (result.error?.message || 'Failed to save address'));
+        }
+    } catch (error) {
+        console.error('Error saving address:', error);
+        alert('Error saving address: ' + error.message);
+    }
+}
+
+function loadOrderSummary(cart) {
+    const itemsDiv = document.getElementById('orderItems');
+    itemsDiv.innerHTML = cart.map(item => {
+        const itemTotal = parseFloat(item.price) * item.quantity;
+        return `
+            <div class="flex justify-between text-sm">
+                <span>${item.name} x${item.quantity}</span>
+                <span>R${itemTotal.toFixed(2)}</span>
+            </div>
+        `;
+    }).join('');
+    
+    const subtotal = cart.reduce((sum, item) => sum + parseFloat(item.price) * item.quantity, 0);
+    const shipping = 0; // Free shipping for now
+    const total = subtotal + shipping;
+    
+    document.getElementById('orderSubtotal').textContent = `R${subtotal.toFixed(2)}`;
+    document.getElementById('orderShipping').textContent = `R${shipping.toFixed(2)}`;
+    document.getElementById('orderTotal').textContent = `R${total.toFixed(2)}`;
+}
+
+async function placeOrder() {
+    if (!selectedAddressId) {
+        alert('Please select a delivery address');
+        return;
+    }
+    
+    const token = localStorage.getItem('token');
+    const cart = getCart();
+    
+    const items = cart.map(item => ({
+        product_id: item.id,
+        product_name: item.name,
+        quantity: item.quantity,
+        price: parseFloat(item.price),
+        subtotal: parseFloat(item.price) * item.quantity
+    }));
+    
+    const subtotal = items.reduce((sum, item) => sum + item.subtotal, 0);
+    const shipping = 0;
+    const total = subtotal + shipping;
+    
+    const selectedAddress = addresses.find(a => a.id === selectedAddressId);
+    
+    try {
+        const btn = document.getElementById('placeOrderBtn');
+        btn.disabled = true;
+        btn.textContent = 'Processing...';
+        
+        // Step 1: Create order with pending status
+        const orderResponse = await fetch('/api/shop/orders', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${token}`
+            },
+            body: JSON.stringify({
+                items: items,
+                total: total,
+                shipping: {
+                    method: 'standard',
+                    cost: shipping
+                },
+                delivery_address: selectedAddress
+            })
+        });
+        
+        const orderResult = await orderResponse.json();
+        
+        if (!orderResult.success) {
+            alert('Error: ' + (orderResult.error?.message || 'Failed to create order'));
+            btn.disabled = false;
+            btn.textContent = 'Place Order';
+            return;
+        }
+        
+        const orderId = orderResult.data.id;
+        
+        // Step 2: Initiate Yoco payment
+        btn.textContent = 'Redirecting to payment...';
+        
+        const paymentResponse = await fetch(`/api/shop/orders/${orderId}/pay`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${token}`
+            }
+        });
+        
+        const paymentResult = await paymentResponse.json();
+        
+        if (paymentResult.success && paymentResult.data.redirect_url) {
+            // Clear cart before redirecting
+            saveCart([]);
+            updateCartIcon();
+            
+            // Redirect to Yoco checkout
+            window.location.href = paymentResult.data.redirect_url;
+        } else {
+            alert('Error: ' + (paymentResult.error?.message || 'Failed to initiate payment'));
+            btn.disabled = false;
+            btn.textContent = 'Place Order';
+        }
+    } catch (error) {
+        console.error('Error placing order:', error);
+        alert('Error placing order: ' + error.message);
+        const btn = document.getElementById('placeOrderBtn');
+        btn.disabled = false;
+        btn.textContent = 'Place Order';
+    }
+}
+</script>
+{% endblock %}
+

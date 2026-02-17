@@ -1,0 +1,52 @@
+"""
+Flask Configuration
+"""
+import os
+from datetime import timedelta
+
+class Config:
+    """Base configuration"""
+    # Database
+    SQLALCHEMY_DATABASE_URI = os.environ.get('DATABASE_URL') or \
+        'postgresql://mzansi:changeme@localhost:5432/mzansiserve'
+    SQLALCHEMY_TRACK_MODIFICATIONS = False
+    SQLALCHEMY_ENGINE_OPTIONS = {
+        'pool_size': 10,
+        'pool_recycle': 3600,
+    }
+    
+    # Flask
+    SECRET_KEY = os.environ.get('SECRET_KEY') or 'dev-secret-key-change-in-production'
+    
+    # JWT
+    JWT_SECRET_KEY = os.environ.get('JWT_SECRET_KEY') or 'jwt-secret-key-change-in-production'
+    JWT_ACCESS_TOKEN_EXPIRES = timedelta(hours=24)
+    JWT_ALGORITHM = 'HS256'
+    
+    # Flask-Mail
+    MAIL_SERVER = os.environ.get('SMTP_HOST') or 'smtp.gmail.com'
+    MAIL_PORT = int(os.environ.get('SMTP_PORT') or 587)
+    MAIL_USE_TLS = True
+    MAIL_USERNAME = os.environ.get('SMTP_USER')
+    MAIL_PASSWORD = os.environ.get('SMTP_PASSWORD')
+    DEFAULT_FROM_EMAIL = os.environ.get('DEFAULT_FROM_EMAIL') or 'noreply@mzansiserve.com'
+    
+    # Payments
+    PAYPAL_CLIENT_ID = os.environ.get('PAYPAL_CLIENT_ID')
+    PAYPAL_SECRET = os.environ.get('PAYPAL_SECRET')
+    PAYPAL_BASE_URL = os.environ.get('PAYPAL_BASE_URL') or 'https://api-m.sandbox.paypal.com'
+    YOCO_SECRET_KEY = os.environ.get('YOCO_SECRET_KEY')
+    YOCO_API_URL = 'https://payments.yoco.com'
+    
+    # Upload
+    UPLOAD_FOLDER = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'uploads')
+    MAX_UPLOAD_SIZE = 16 * 1024 * 1024  # 16MB
+    
+    # Application
+    FLASK_ENV = os.environ.get('FLASK_ENV') or 'development'
+    FLASK_DEBUG = os.environ.get('FLASK_DEBUG') == '1'
+
+    FRONTEND_URL = os.environ.get('FRONTEND_URL') or 'http://localhost:5006'
+
+    # Google Maps
+    GOOGLE_MAPS_API_KEY = os.environ.get('GOOGLE_MAPS_API_KEY') or ''

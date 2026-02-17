@@ -1,0 +1,23 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+venv/
+.env
+
+# Flask
+instance/
+.webassets-cache
+
+# Docker
+.docker_data/
+postgres_data/
+
+# OS
+.DS_Store
+.idea/
+.vscode/
+
+# User Uploads (do not track large user content)
+uploads/
+!uploads/.gitkeep

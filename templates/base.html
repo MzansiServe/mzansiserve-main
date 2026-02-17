@@ -1,0 +1,136 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}MzansiServe{% endblock %}</title>
+    <link rel="icon" type="image/jpeg" href="{{ url_for('static', filename='assets/logo.jpeg') }}">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    {% block extra_head %}{% endblock %}
+</head>
+<body>
+    <!-- Global Alert Message (shown via JavaScript if user is authenticated but not paid) -->
+    <div id="registrationAlert" class="hidden bg-yellow-100 border-l-4 border-yellow-500 text-yellow-700 p-4 mb-4">
+        <p>User features are limited until registration fee payment</p>
+    </div>
+    
+    <!-- Navigation -->
+    <nav class="text-white mzansi-navbar">
+        <div class="container mx-auto flex justify-between items-center h-16 relative">
+            <!-- Logo -->
+            <a href="/" class="flex items-center space-x-2 z-50">
+                <img src="{{ url_for('static', filename='assets/logo.jpeg') }}" alt="MzansiServe logo" class="nav-logo object-contain">
+            </a>
+            
+            <!-- Hamburger Menu Button (visible on mobile) -->
+            <button id="hamburgerBtn" class="md:hidden z-50 p-2 text-white focus:outline-none" aria-label="Toggle menu">
+                <svg id="hamburgerIcon" class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"></path>
+                </svg>
+                <svg id="closeIcon" class="w-6 h-6 hidden" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                </svg>
+            </button>
+            
+            <!-- Desktop Navigation Links -->
+            <div class="hidden md:flex items-stretch nav-links-container">
+                <a href="/" class="hover:text-gray-300 nav-link">Home</a>
+                <a href="/dashboard" id="nav-dashboard" class="hidden hover:text-gray-300 nav-link" data-dashboard-href="/dashboard">Dashboard</a>
+                <a href="/shop" class="hover:text-gray-300 nav-link">Shop</a>
+                <!-- Cart Icon -->
+                <a href="/cart" class="relative hover:text-gray-300 nav-link" id="cartIcon">
+                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z"></path>
+                    </svg>
+                    <span id="cartBadge" class="hidden absolute -top-1 -right-1 w-4 h-4 bg-green-500 rounded-full border-2 border-gray-800"></span>
+                </a>
+                <!-- Request Links (hidden for drivers) -->
+                <a href="/request-driver" id="nav-request-driver" class="hover:text-gray-300 nav-link client-only">Request Cab</a>
+                <a href="/request-professional" id="nav-request-professional" class="hover:text-gray-300 nav-link client-only">Request Professional</a>
+                <a href="/request-service-provider" id="nav-request-service-provider" class="hover:text-gray-300 nav-link client-only">Request Service Provider</a>
+                <!-- Authenticated links (hidden by default, shown via JavaScript) -->
+                <a href="/admin" id="nav-admin" class="hidden hover:text-gray-300 nav-link" style="display: none;">Admin Portal</a>
+                <a href="/profile" id="nav-profile" class="hidden hover:text-gray-300 nav-link" style="display: none;">Profile</a>
+                <a href="#" id="nav-logout" class="hidden hover:text-gray-300 nav-link" style="display: none;" onclick="localStorage.removeItem('token'); window.location.href='/login';">Logout</a>
+                <!-- Guest links (shown by default, hidden via JavaScript when authenticated) -->
+                <a href="/login" class="hover:text-gray-300 nav-link guest-link">Login</a>
+                <a href="/register" class="hover:text-gray-300 nav-link guest-link">Register</a>
+            </div>
+            
+            <!-- Mobile Navigation Menu -->
+            <div id="mobileMenu" class="mobile-menu md:hidden">
+                <a href="/" class="mobile-nav-link">Home</a>
+                <a href="/dashboard" id="mobile-nav-dashboard" class="hidden mobile-nav-link" data-dashboard-href="/dashboard">Dashboard</a>
+                <a href="/shop" class="mobile-nav-link">Shop</a>
+                <a href="/cart" class="relative mobile-nav-link" id="mobileCartIcon">
+                    <span class="flex items-center">
+                        <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z"></path>
+                        </svg>
+                        Cart
+                    </span>
+                    <span id="mobileCartBadge" class="hidden absolute top-0 right-0 w-4 h-4 bg-green-500 rounded-full border-2 border-white"></span>
+                </a>
+                <!-- Request Options (hidden for drivers) -->
+                <a href="/request-professional" id="mobile-nav-request-professional" class="mobile-nav-link client-only">Request a Professional</a>
+                <a href="/request-service-provider" id="mobile-nav-request-service-provider" class="mobile-nav-link client-only">Request a Service Provider</a>
+                <a href="/request-driver" id="mobile-nav-request-driver" class="mobile-nav-link client-only">Request a Cab</a>
+                <!-- Authenticated links (hidden by default, shown via JavaScript) -->
+                <a href="/admin" id="mobile-nav-admin" class="hidden mobile-nav-link">Admin Portal</a>
+                <a href="/profile" id="mobile-nav-profile" class="hidden mobile-nav-link">Profile</a>
+                <a href="#" id="mobile-nav-logout" class="hidden mobile-nav-link" onclick="localStorage.removeItem('token'); window.location.href='/login';">Logout</a>
+                <!-- Guest links (shown by default, hidden via JavaScript when authenticated) -->
+                <a href="/login" class="mobile-nav-link guest-link">Login</a>
+                <a href="/register" class="mobile-nav-link guest-link">Register</a>
+            </div>
+        </div>
+    </nav>
+    
+    <!-- Login Required Modal (always present, shown when needed, cannot be dismissed) -->
+    <div id="loginRequiredModal" class="hidden fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50" style="display: none;">
+        <div class="bg-white p-8 rounded-lg max-w-md w-full mx-4">
+            <h3 class="text-2xl font-bold mb-4">Login Required</h3>
+            <p class="text-gray-600 mb-6">Please log in or register to access this service.</p>
+            <div class="flex space-x-4">
+                <a href="/login" class="flex-1 bg-blue-500 text-white py-2 px-4 rounded hover:bg-blue-600 text-center">Login</a>
+                <a href="/register" class="flex-1 bg-green-500 text-white py-2 px-4 rounded hover:bg-green-600 text-center">Register</a>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Main Content -->
+    <main class="container mx-auto p-4">
+        {% block content %}{% endblock %}
+    </main>
+    
+    <!-- Footer (CMS: company name, email, phone, address) -->
+    <footer class="text-white mzansi-footer p-4 mt-8">
+        <div class="container mx-auto">
+            <div class="text-center mb-4">
+                <p class="font-semibold">{{ footer_content.company_name or 'MzansiServe' }}</p>
+                {% if footer_content.physical_address %}
+                <p class="text-sm mt-1">{{ footer_content.physical_address }}</p>
+                {% endif %}
+                {% if footer_content.email %}
+                <a href="mailto:{{ footer_content.email }}" class="text-sm hover:text-gray-300">{{ footer_content.email }}</a>
+                {% endif %}
+                {% if footer_content.phone %}
+                <span class="text-sm"> &bull; </span>
+                <a href="tel:{{ footer_content.phone }}" class="text-sm hover:text-gray-300">{{ footer_content.phone }}</a>
+                {% endif %}
+            </div>
+            <p class="text-center text-sm">&copy; {{ current_year }} {{ footer_content.company_name or 'MzansiServe' }}. All rights reserved.</p>
+            <div class="mt-2 text-center space-x-4">
+                <a href="/faq" class="hover:text-gray-300">FAQ</a>
+                <a href="/terms-of-use" class="hover:text-gray-300">Terms of Use</a>
+                <a href="/privacy-policy" class="hover:text-gray-300">Privacy Policy</a>
+            </div>
+        </div>
+    </footer>
+    
+    <script src="{{ url_for('static', filename='js/app.js') }}"></script>
+    {% block extra_scripts %}{% endblock %}
+</body>
+</html>
+

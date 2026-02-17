@@ -1,0 +1,48 @@
+{% extends "base.html" %}
+
+{% block title %}Privacy Policy - MzansiServe{% endblock %}
+
+{% block content %}
+<div class="max-w-4xl mx-auto mt-8">
+    <h2 class="text-2xl font-bold mb-4">Privacy Policy</h2>
+    <div id="privacyContent" class="prose">
+        <p class="text-gray-500">Loading...</p>
+    </div>
+    <div id="privacyPdf" class="hidden w-full" style="min-height: 70vh;">
+        <iframe id="privacyPdfFrame" class="w-full border rounded" style="height: 80vh;" title="Privacy Policy PDF"></iframe>
+    </div>
+</div>
+<script>
+(function() {
+    fetch('/api/admin/legal/privacy')
+        .then(function(r) { return r.json(); })
+        .then(function(result) {
+            var container = document.getElementById('privacyContent');
+            var pdfWrap = document.getElementById('privacyPdf');
+            var frame = document.getElementById('privacyPdfFrame');
+            if (result.success && result.data) {
+                var d = result.data;
+                if (d.content_type === 'pdf' && d.file_url) {
+                    container.classList.add('hidden');
+                    pdfWrap.classList.remove('hidden');
+                    frame.src = d.file_url;
+                } else {
+                    pdfWrap.classList.add('hidden');
+                    container.classList.remove('hidden');
+                    container.innerHTML = d.text ? ('<div class="whitespace-pre-wrap">' + escapeHtml(d.text) + '</div>') : '<p class="text-gray-500">No content configured yet.</p>';
+                }
+            } else {
+                container.innerHTML = '<p class="text-gray-500">No content configured yet.</p>';
+            }
+        })
+        .catch(function() {
+            document.getElementById('privacyContent').innerHTML = '<p class="text-gray-500">Unable to load content.</p>';
+        });
+    function escapeHtml(s) {
+        var div = document.createElement('div');
+        div.textContent = s;
+        return div.innerHTML;
+    }
+})();
+</script>
+{% endblock %}

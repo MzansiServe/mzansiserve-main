@@ -1,0 +1,17 @@
+# Development override - use with: docker compose -f docker-compose.yml -f docker-compose.dev.yml up
+# Enables Flask development server with hot-reloading
+
+version: '3.8'
+
+services:
+  app:
+    environment:
+      FLASK_ENV: development
+      FLASK_DEBUG: 1
+    volumes:
+      # Mount source code for hot-reloading
+      - .:/app
+      - ./static:/app/static
+      - ./uploads:/app/uploads
+    # Override to use Flask development server with reload
+    command: flask run --host=0.0.0.0 --port=5000 --reload

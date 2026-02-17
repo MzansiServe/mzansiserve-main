@@ -1,0 +1,1352 @@
+{% extends "base.html" %}
+
+{% block title %}Profile - MzansiServe{% endblock %}
+
+{% block content %}
+<div class="max-w-2xl mx-auto mt-8">
+    <h2 class="text-2xl font-bold mb-4 user-profile-header"> User Profile</h2>
+    
+    <!-- Registration Fee Status -->
+    <div id="registrationFeeStatus" class="mb-4 p-4 rounded-lg hidden"></div>
+    
+    <!-- ID Verification Status -->
+    <div id="idVerificationStatus" class="mb-4 p-4 rounded-lg hidden"></div>
+    
+    <!-- Profile pending approval: view only, no edits -->
+    <div id="profilePendingApprovalBanner" class="mb-4 p-4 rounded-lg bg-amber-100 border-l-4 border-amber-500 text-amber-800 hidden">
+        <p class="font-medium">Profile pending approval</p>
+        <p class="text-sm mt-1">You cannot upload documents or make changes until your account is approved.</p>
+    </div>
+    
+    <!-- Pending profile changes (awaiting admin approval) -->
+    <div id="profilePendingUpdateBanner" class="mb-4 p-4 rounded-lg bg-blue-100 border-l-4 border-blue-500 text-blue-800 hidden">
+        <p class="font-medium">Changes awaiting approval</p>
+        <p class="text-sm mt-1">You have submitted profile changes. They will be applied after an admin approves them.</p>
+    </div>
+    
+    <form id="profileForm" class="space-y-4">
+        <!-- Profile photo -->
+        <div class="bg-white p-4 rounded-lg shadow">
+            <h3 class="text-lg font-semibold mb-4">Profile photo</h3>
+            <div class="flex items-center gap-4">
+                <div id="profilePhotoPreview" class="w-24 h-24 rounded-full bg-gray-200 flex items-center justify-center overflow-hidden shrink-0">
+                    <img id="profilePhotoImg" src="" alt="Profile" class="w-full h-full object-cover hidden">
+                    <span id="profilePhotoPlaceholder" class="text-gray-400 text-2xl">—</span>
+                </div>
+                <div>
+                    <label for="profilePhoto" class="block text-sm font-medium mb-1">Change photo</label>
+                    <input type="file" id="profilePhoto" name="profile_photo" accept="image/jpeg,image/png,image/jpg"
+                           class="w-full text-sm">
+                    <p class="text-xs text-gray-500 mt-1">JPG or PNG. Max 5MB.</p>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Basic Info -->
+        <div class="bg-white p-4 rounded-lg shadow">
+            <h3 class="text-lg font-semibold mb-4">Basic Information</h3>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                    <label for="fullName" class="block text-sm font-medium mb-1">Name</label>
+                    <input type="text" id="fullName" name="full_name" readonly class="w-full px-3 py-2 border rounded-md bg-gray-100">
+                </div>
+                <div>
+                    <label for="surname" class="block text-sm font-medium mb-1">Surname</label>
+                    <input type="text" id="surname" name="surname" readonly class="w-full px-3 py-2 border rounded-md bg-gray-100">
+                </div>
+                <div>
+                    <label for="email" class="block text-sm font-medium mb-1">Email</label>
+                    <input type="email" id="email" name="email" readonly class="w-full px-3 py-2 border rounded-md bg-gray-100">
+                </div>
+                <div>
+                    <label for="profileRole" class="block text-sm font-medium mb-1">Role (register as)</label>
+                    <input type="text" id="profileRole" class="w-full px-3 py-2 border rounded-md bg-gray-100" readonly placeholder="—">
+                    <p class="text-xs text-gray-500 mt-1">Role cannot be changed.</p>
+                </div>
+                <div>
+                    <label for="profileAgent" class="block text-sm font-medium mb-1">Agent</label>
+                    <input type="text" id="profileAgent" class="w-full px-3 py-2 border rounded-md bg-gray-100" readonly placeholder="—">
+                </div>
+                <div>
+                    <label for="phone" class="block text-sm font-medium mb-1">Phone</label>
+                    <input type="text" id="phone" name="phone" readonly class="w-full px-3 py-2 border rounded-md bg-gray-100">
+                </div>
+                <div>
+                    <label for="gender" class="block text-sm font-medium mb-1">Gender</label>
+                    <select id="gender" name="gender" class="w-full px-3 py-2 border rounded-md">
+                        <option value="">Select</option>
+                        <option value="male">Male</option>
+                        <option value="female">Female</option>
+                        <option value="other">Other</option>
+                        <option value="prefer_not_to_say">Prefer not to say</option>
+                    </select>
+                    <p id="genderMatchingNote" class="text-xs text-gray-600 mt-1 hidden">
+                        This field is used to match you with service requests that have gender preferences.
+                    </p>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Identity Information (aligned with registration: nationality + SA ID or Passport, read-only) -->
+        <div class="bg-white p-6 rounded-lg shadow">
+            <h3 class="text-lg font-semibold mb-4">Identity Information</h3>
+            <div class="space-y-4">
+                <div>
+                    <label for="nationality" class="block text-sm font-medium mb-1">Nationality</label>
+                    <select id="nationality" name="nationality" disabled class="w-full px-3 py-2 border rounded-md bg-gray-100">
+                        <option value="">Select Nationality</option>
+                        <!-- Countries loaded dynamically; value shows user's selection -->
+                    </select>
+                    <p class="text-xs text-gray-500 mt-1">Nationality cannot be changed.</p>
+                </div>
+                <div id="idField" class="hidden">
+                    <label for="idNumber" class="block text-sm font-medium mb-1" id="idLabel">South African ID Number</label>
+                    <input type="text" id="idNumber" name="id_number" readonly class="w-full px-3 py-2 border rounded-md bg-gray-100">
+                    <p class="text-xs text-gray-500 mt-1">ID number cannot be changed.</p>
+                </div>
+                <div id="passportField" class="hidden">
+                    <label for="passportNumber" class="block text-sm font-medium mb-1">Passport Number</label>
+                    <input type="text" id="passportNumber" readonly class="w-full px-3 py-2 border rounded-md bg-gray-100">
+                    <p class="text-xs text-gray-500 mt-1">Passport number cannot be changed.</p>
+                </div>
+                <div>
+                    <label class="block text-sm font-medium mb-2">Next of Kin</label>
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                        <div>
+                            <label for="nextOfKinFullName" class="block text-xs text-gray-600 mb-1">Full name</label>
+                            <input type="text" id="nextOfKinFullName" name="next_of_kin_full_name" class="w-full px-3 py-2 border rounded-md">
+                        </div>
+                        <div>
+                            <label for="nextOfKinContactNumber" class="block text-xs text-gray-600 mb-1">Contact number</label>
+                            <input type="text" id="nextOfKinContactNumber" name="next_of_kin_contact_number" class="w-full px-3 py-2 border rounded-md">
+                        </div>
+                        <div>
+                            <label for="nextOfKinContactEmail" class="block text-xs text-gray-600 mb-1">Contact Email</label>
+                            <input type="email" id="nextOfKinContactEmail" name="next_of_kin_contact_email" class="w-full px-3 py-2 border rounded-md">
+                        </div>
+                    </div>
+                </div>
+                <div>
+                    <label for="idDocument" class="block text-sm font-medium mb-1">ID Document</label>
+                    <div id="idDocumentView" class="mt-2">
+                        <a id="viewIdDocumentLink" href="#" target="_blank" class="inline-block bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600 text-sm hidden">
+                            View ID Document
+                        </a>
+                    </div>
+                </div>
+                <div id="cvResumeViewContainer" class="hidden">
+                    <label class="block text-sm font-medium mb-1">CV / Resume</label>
+                    <div class="mt-2">
+                        <a id="viewCvResumeLink" href="#" target="_blank" class="inline-block bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600 text-sm">
+                            View CV / Resume
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Professional Services (for professionals) -->
+        <div id="professionalServicesSection" class="bg-white p-4 rounded-lg shadow hidden">
+            <h3 class="text-lg font-semibold mb-4">Professional Services</h3>
+            <div id="professionalServicesList" class="space-y-3 mb-4">
+                <!-- Services will be dynamically added here -->
+            </div>
+            <button type="button" onclick="addProfessionalService()" class="bg-green-500 text-white px-4 py-2 rounded hover:bg-green-600">
+                + Add Service
+            </button>
+        </div>
+        
+        <!-- Provider Services (for service providers) -->
+        <div id="providerServicesSection" class="bg-white p-4 rounded-lg shadow hidden">
+            <h3 class="text-lg font-semibold mb-4">Service Provider Services</h3>
+            <div id="providerServicesList" class="space-y-3 mb-4">
+                <!-- Services will be dynamically added here -->
+            </div>
+            <button type="button" onclick="addProviderService()" class="bg-green-500 text-white px-4 py-2 rounded hover:bg-green-600">
+                + Add Service
+            </button>
+        </div>
+        
+        <!-- Professional Qualifications (for professionals) -->
+        <div id="professionalQualificationsSection" class="bg-white p-4 rounded-lg shadow hidden">
+            <h3 class="text-lg font-semibold mb-4">Professional Qualifications</h3>
+            <div class="space-y-4">
+                <div>
+                    <label for="highestQualification" class="block text-sm font-medium mb-1">Highest Qualification</label>
+                    <input type="text" id="highestQualification" name="highest_qualification" class="w-full px-3 py-2 border rounded-md">
+                </div>
+                <div>
+                    <label for="professionalBody" class="block text-sm font-medium mb-1">Professional Body</label>
+                    <input type="text" id="professionalBody" name="professional_body" class="w-full px-3 py-2 border rounded-md">
+                </div>
+                <div>
+                    <label for="qualificationDocuments" class="block text-sm font-medium mb-1">Qualification Documents (for admin verification)</label>
+                    <input type="file" id="qualificationDocuments" name="qualification_documents" multiple accept=".pdf,.jpg,.jpeg,.png" class="w-full px-3 py-2 border rounded-md">
+                    <p class="text-sm text-gray-600 mt-1">Upload certificates, transcripts or other proof of qualifications.</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Driver Services (for drivers) -->
+        <div id="driverServicesSection" class="bg-white p-6 rounded-lg shadow hidden">
+            <h3 class="text-lg font-semibold mb-4">Driver Services (Cars)</h3>
+            <div id="driverServicesList" class="space-y-3 mb-4">
+                <!-- Services will be dynamically added here -->
+            </div>
+            <button type="button" onclick="addDriverService()" class="bg-green-500 text-white px-4 py-2 rounded hover:bg-green-600">
+                + Add Car/Service
+            </button>
+        </div>
+
+        <!-- Address & Verification Documents -->
+        <div class="bg-white p-4 rounded-lg shadow">
+            <h3 class="text-lg font-semibold mb-4">Verification Documents</h3>
+            <p class="text-sm text-gray-600 mb-3">
+                These documents are used for admin verification and are not visible to clients.
+            </p>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                    <label for="proofOfResidence" class="block text-sm font-medium mb-1">Proof of Residence *</label>
+                    <div class="mt-2 mb-1">
+                        <a id="viewProofOfResidenceLink" href="#" target="_blank" class="inline-block bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600 text-sm hidden">
+                            View Proof of Residence
+                        </a>
+                    </div>
+                    <input type="file" id="proofOfResidence" name="proof_of_residence" accept=".pdf,.jpg,.jpeg,.png" class="w-full px-3 py-2 border rounded-md">
+                    <p class="text-sm text-gray-600 mt-1">Recent utility bill or bank statement.</p>
+                </div>
+                <div>
+                    <label for="driversLicenseDocument" class="block text-sm font-medium mb-1">Driver's License *</label>
+                    <div class="mt-2 mb-1">
+                        <a id="viewDriversLicenseLink" href="#" target="_blank" class="inline-block bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600 text-sm hidden">
+                            View Driver's License
+                        </a>
+                    </div>
+                    <input type="file" id="driversLicenseDocument" name="drivers_license_document" accept=".pdf,.jpg,.jpeg,.png" class="w-full px-3 py-2 border rounded-md">
+                    <p class="text-sm text-gray-600 mt-1">Required for drivers; optional for other roles.</p>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Registration Fee Payment -->
+        <div class="bg-white p-4 rounded-lg shadow">
+            <h3 class="text-lg font-semibold mb-4">Registration Fee</h3>
+            <div id="registrationFeeSection">
+                <p class="text-gray-600 mb-4">Status: <span id="feeStatus">Loading...</span></p>
+                <button type="button" id="payRegistrationFee" class="bg-green-500 text-white px-6 py-2 rounded hover:bg-green-600 hidden">
+                    Pay Registration Fee
+                </button>
+            </div>
+        </div>
+        
+        <div class="flex space-x-4">
+            <button type="submit" id="saveProfileButton" class="bg-blue-500 text-white px-6 py-2 rounded hover:bg-blue-600 disabled:opacity-50 disabled:cursor-not-allowed">
+                <span id="saveProfileButtonText">Save Profile</span>
+                <span id="saveProfileButtonSpinner" class="hidden">Saving...</span>
+            </button>
+        </div>
+    </form>
+    
+    <!-- Delivery Addresses (outside profile form to avoid nested form issue) -->
+    <div id="profileDeliveryAddressSection" class="bg-white p-4 rounded-lg shadow mt-4">
+        <h3 class="text-lg font-semibold mb-4">Delivery Addresses</h3>
+        <div id="profileAddressList" class="space-y-3 mb-4">
+            <!-- Addresses will be loaded here -->
+        </div>
+        <button type="button" onclick="showProfileAddAddressForm()" class="text-blue-600 hover:text-blue-800 text-sm">
+            + Add New Address
+        </button>
+        
+        <!-- Add/Edit Address Form -->
+        <div id="profileAddressForm" class="hidden mt-4 p-4 bg-gray-50 rounded">
+            <h4 class="font-semibold mb-3" id="profileAddressFormTitle">Add New Address</h4>
+            <form id="profileAddressFormElement" onsubmit="saveProfileAddress(event)" class="space-y-3">
+                <input type="hidden" id="profileAddressFormId" value="">
+                
+                <div>
+                    <label class="block text-sm font-medium mb-1">Unit/Apartment Number (optional)</label>
+                    <input type="text" id="profileAddressUnitNumber" class="w-full px-3 py-2 border rounded-md">
+                </div>
+                
+                <div>
+                    <label class="block text-sm font-medium mb-1">Building Name (optional)</label>
+                    <input type="text" id="profileAddressBuildingName" class="w-full px-3 py-2 border rounded-md">
+                </div>
+                
+                <div>
+                    <label class="block text-sm font-medium mb-1">Street Address *</label>
+                    <input type="text" id="profileAddressStreet" required class="w-full px-3 py-2 border rounded-md">
+                </div>
+                
+                <div class="grid grid-cols-2 gap-3">
+                    <div>
+                        <label class="block text-sm font-medium mb-1">City *</label>
+                        <input type="text" id="profileAddressCity" required class="w-full px-3 py-2 border rounded-md">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium mb-1">Province *</label>
+                        <input type="text" id="profileAddressProvince" required class="w-full px-3 py-2 border rounded-md">
+                    </div>
+                </div>
+                
+                <div>
+                    <label class="block text-sm font-medium mb-1">Postal Code *</label>
+                    <input type="text" id="profileAddressPostalCode" required class="w-full px-3 py-2 border rounded-md">
+                </div>
+                
+                <div>
+                    <label class="block text-sm font-medium mb-1">Country *</label>
+                    <input type="text" id="profileAddressCountry" value="South Africa" required class="w-full px-3 py-2 border rounded-md">
+                </div>
+                
+                <div>
+                    <label class="block text-sm font-medium mb-1">Delivery Instructions (optional)</label>
+                    <textarea id="profileAddressInstructions" rows="2" class="w-full px-3 py-2 border rounded-md"></textarea>
+                </div>
+                
+                <div class="flex items-center">
+                    <input type="checkbox" id="profileAddressIsDefault" class="mr-2">
+                    <label for="profileAddressIsDefault" class="text-sm">Set as default address</label>
+                </div>
+                
+                <div class="flex space-x-3">
+                    <button type="submit" class="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600">
+                        Save Address
+                    </button>
+                    <button type="button" onclick="hideProfileAddressForm()" class="bg-gray-300 text-gray-700 px-4 py-2 rounded hover:bg-gray-400">
+                        Cancel
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<script>
+// SA ID validation function
+function validateSAID(idNumber) {
+    if (!idNumber || idNumber.length !== 13 || !/^\d+$/.test(idNumber)) {
+        return false;
+    }
+    
+    // Extract date components
+    const year = parseInt(idNumber.substring(0, 2));
+    const month = parseInt(idNumber.substring(2, 4));
+    const day = parseInt(idNumber.substring(4, 6));
+    
+    // Validate date range
+    if (month < 1 || month > 12 || day < 1 || day > 31) {
+        return false;
+    }
+    
+    // Convert 2-digit year to 4-digit
+    const fullYear = year < 50 ? 2000 + year : 1900 + year;
+    
+    // Validate date
+    const date = new Date(fullYear, month - 1, day);
+    if (date.getFullYear() !== fullYear || date.getMonth() !== month - 1 || date.getDate() !== day) {
+        return false;
+    }
+    
+    return true;
+}
+
+// When user is approved, only allowed fields are editable (phone, next of kin, and role-specific).
+function setApprovedUserEditableFields(role) {
+    const form = document.getElementById('profileForm');
+    if (!form) return;
+    const deliverySection = document.getElementById('profileDeliveryAddressSection');
+    const disableEl = (el) => { if (el) { el.disabled = true; el.readOnly = true; el.classList.add('bg-gray-100'); } };
+    const enableEl = (el) => { if (el) { el.disabled = false; el.readOnly = false; el.classList.remove('bg-gray-100'); } };
+    const disableSection = (sectionId) => {
+        const section = document.getElementById(sectionId);
+        if (section) section.querySelectorAll('input, select, button, textarea').forEach(disableEl);
+    };
+    const enableSection = (sectionId) => {
+        const section = document.getElementById(sectionId);
+        if (section) section.querySelectorAll('input, select, button, textarea').forEach(enableEl);
+    };
+    form.querySelectorAll('input, select, textarea').forEach(disableEl);
+    form.querySelectorAll('button').forEach(b => { b.disabled = true; });
+    if (deliverySection) deliverySection.querySelectorAll('input, select, button, textarea').forEach(disableEl);
+    disableSection('driverServicesSection');
+    disableSection('providerServicesSection');
+    disableSection('professionalServicesSection');
+    disableSection('professionalQualificationsSection');
+    enableEl(document.getElementById('phone'));
+    enableEl(document.getElementById('nextOfKinFullName'));
+    enableEl(document.getElementById('nextOfKinContactNumber'));
+    enableEl(document.getElementById('nextOfKinContactEmail'));
+    if (role === 'driver') {
+        enableSection('driverServicesSection');
+        enableEl(document.getElementById('proofOfResidence'));
+        enableEl(document.getElementById('driversLicenseDocument'));
+    } else if (role === 'service-provider') {
+        enableSection('providerServicesSection');
+        enableEl(document.getElementById('proofOfResidence'));
+        enableEl(document.getElementById('driversLicenseDocument'));
+    } else if (role === 'professional') {
+        enableSection('professionalServicesSection');
+        enableSection('professionalQualificationsSection');
+        enableEl(document.getElementById('highestQualification'));
+        enableEl(document.getElementById('professionalBody'));
+        enableEl(document.getElementById('qualificationDocuments'));
+        enableEl(document.getElementById('proofOfResidence'));
+    }
+    const saveBtn = document.getElementById('saveProfileButton');
+    if (saveBtn) saveBtn.disabled = false;
+}
+
+// Load profile data
+async function loadProfile() {
+    const token = localStorage.getItem('token');
+    if (!token) {
+        window.location.href = '/login';
+        return;
+    }
+    
+    try {
+        const response = await fetch('/api/profile', {
+            headers: {
+                'Authorization': `Bearer ${token}`
+            }
+        });
+        
+        const result = await response.json();
+        if (result.success) {
+            const user = result.data.user;
+            currentUserApproved = !!user.is_approved;
+            // Get profile data from user.data or profile_data
+            const profileData = result.data.profile_data || user.data || {};
+            document.querySelector('.user-profile-header').textContent = (user.role.toUpperCase().replace('-', ' ') + ' PROFILE');
+            // Profile visibility before approval: view only, no updates or uploads
+            const pendingBanner = document.getElementById('profilePendingApprovalBanner'); 
+            const profileForm = document.getElementById('profileForm');
+            const saveProfileBtn = document.getElementById('saveProfileButton');
+            if (!user.is_approved && pendingBanner && profileForm) {
+                pendingBanner.classList.remove('hidden');
+                profileForm.querySelectorAll('input, select, button, textarea').forEach(el => {
+                    el.disabled = true;
+                });
+                if (saveProfileBtn) saveProfileBtn.disabled = true;
+                const deliverySection = document.getElementById('profileDeliveryAddressSection');
+                if (deliverySection) {
+                    deliverySection.querySelectorAll('input, select, button, textarea').forEach(el => {
+                        el.disabled = true;
+                    });
+                }
+                const driverServicesSection = document.getElementById('driverServicesSection');
+                if (driverServicesSection) {
+                    driverServicesSection.querySelectorAll('input, select, button, textarea').forEach(el => {
+                        el.disabled = true;
+                    });
+                }
+            } else if (pendingBanner) {
+                pendingBanner.classList.add('hidden');
+                setApprovedUserEditableFields(user.role);
+            }
+            const pendingUpdateBanner = document.getElementById('profilePendingUpdateBanner');
+            if (result.data.pending_profile_update && pendingUpdateBanner) {
+                pendingUpdateBanner.classList.remove('hidden');
+            } else if (pendingUpdateBanner) {
+                pendingUpdateBanner.classList.add('hidden');
+            }
+            // Profile photo
+            const profilePhotoImg = document.getElementById('profilePhotoImg');
+            const profilePhotoPlaceholder = document.getElementById('profilePhotoPlaceholder');
+            if (user.profile_image_url) {
+                const url = user.profile_image_url.startsWith('http') ? user.profile_image_url : (user.profile_image_url.startsWith('/') ? window.location.origin + user.profile_image_url : window.location.origin + '/' + user.profile_image_url);
+                if (profilePhotoImg) {
+                    profilePhotoImg.src = url;
+                    profilePhotoImg.classList.remove('hidden');
+                }
+                if (profilePhotoPlaceholder) profilePhotoPlaceholder.classList.add('hidden');
+            } else {
+                if (profilePhotoImg) {
+                    profilePhotoImg.src = '';
+                    profilePhotoImg.classList.add('hidden');
+                }
+                if (profilePhotoPlaceholder) profilePhotoPlaceholder.classList.remove('hidden');
+            }
+            
+            // Populate form fields
+            document.getElementById('fullName').value = profileData.full_name || '';
+            document.getElementById('surname').value = profileData.surname || '';
+            document.getElementById('email').value = user.email;
+            // Role is display-only (cannot be changed)
+            const roleDisplay = (user.role || '').replace(/-/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
+            const profileRoleEl = document.getElementById('profileRole');
+            if (profileRoleEl) profileRoleEl.value = roleDisplay || '—';
+            const profileAgentEl = document.getElementById('profileAgent');
+            if (profileAgentEl) profileAgentEl.value = result.data.selected_agent_id || '—';
+            document.getElementById('phone').value = profileData.phone || '';
+            if (document.getElementById('gender')) {
+                document.getElementById('gender').value = profileData.gender || '';
+            }
+            // Load nationality and ID/Passport (aligned with registration: show selected nationality, then SA ID or Passport)
+            const userNationality = user.nationality || profileData.nationality || '';
+            await loadCountries();
+            const nationalityEl = document.getElementById('nationality');
+            if (nationalityEl) nationalityEl.value = userNationality || '';
+            updateIdFieldBasedOnNationality(userNationality);
+            
+            if (userNationality === 'South Africa') {
+                const idVal = profileData.sa_id || profileData.id_number || '';
+                const idInput = document.getElementById('idNumber');
+                if (idInput) idInput.value = idVal;
+            } else if (userNationality) {
+                const passportVal = profileData.passport_number || profileData.id_number || '';
+                const passportInput = document.getElementById('passportNumber');
+                if (passportInput) passportInput.value = passportVal;
+            }
+            
+            // Load Next of Kin data (can be string or object)
+            const nextOfKin = profileData.next_of_kin || {};
+            if (typeof nextOfKin === 'string') {
+                // Legacy format - just full name
+                document.getElementById('nextOfKinFullName').value = nextOfKin;
+            } else if (typeof nextOfKin === 'object') {
+                document.getElementById('nextOfKinFullName').value = nextOfKin.full_name || '';
+                document.getElementById('nextOfKinContactNumber').value = nextOfKin.contact_number || '';
+                document.getElementById('nextOfKinContactEmail').value = nextOfKin.contact_email || '';
+            }
+            
+            // Show ID document view button if document exists
+            if (result.data.id_document_url) {
+                const viewLink = document.getElementById('viewIdDocumentLink');
+                viewLink.href = result.data.id_document_url;
+                viewLink.classList.remove('hidden');
+            } else {
+                document.getElementById('viewIdDocumentLink').classList.add('hidden');
+            }
+            // Show Proof of Residence view button when populated
+            const proofUrl = profileData.proof_of_residence_url;
+            const viewProofLink = document.getElementById('viewProofOfResidenceLink');
+            if (proofUrl && viewProofLink) {
+                viewProofLink.href = proofUrl;
+                viewProofLink.classList.remove('hidden');
+            } else if (viewProofLink) {
+                viewProofLink.classList.add('hidden');
+            }
+            // Show Driver's License view button when populated
+            const licenseUrl = profileData.driver_license_url;
+            const viewLicenseLink = document.getElementById('viewDriversLicenseLink');
+            if (licenseUrl && viewLicenseLink) {
+                viewLicenseLink.href = licenseUrl;
+                viewLicenseLink.classList.remove('hidden');
+            } else if (viewLicenseLink) {
+                viewLicenseLink.classList.add('hidden');
+            }
+            // Show CV/Resume download for professionals
+            const cvResumeUrl = profileData.cv_resume_url;
+            const cvContainer = document.getElementById('cvResumeViewContainer');
+            if (user.role === 'professional' && cvResumeUrl) {
+                document.getElementById('viewCvResumeLink').href = cvResumeUrl;
+                cvContainer.classList.remove('hidden');
+            } else {
+                cvContainer.classList.add('hidden');
+            }
+            
+            // Load role-specific services and sections
+            loadRoleServices(user.role, profileData);
+            // Before approval: disable Driver Services (Cars) fields if they were just rendered
+            if (!user.is_approved) {
+                const driverServicesSection = document.getElementById('driverServicesSection');
+                if (driverServicesSection) {
+                    driverServicesSection.querySelectorAll('input, select, button, textarea').forEach(el => {
+                        el.disabled = true;
+                    });
+                }
+            }
+
+            // Professional-specific fields
+            if (user.role === 'professional') {
+                document.getElementById('professionalQualificationsSection')?.classList.remove('hidden');
+                document.getElementById('highestQualification').value = profileData.highest_qualification || '';
+                document.getElementById('professionalBody').value = profileData.professional_body || '';
+            }
+            
+            // Show gender matching note for professional, service-provider, and driver roles
+            if (user.role === 'professional' || user.role === 'service-provider' || user.role === 'driver') {
+                const genderNote = document.getElementById('genderMatchingNote');
+                if (genderNote) {
+                    genderNote.classList.remove('hidden');
+                }
+            }
+            
+            // Registration fee status
+            const feeStatus = result.data.registration_fee_paid ? 'Paid' : 'Not Paid';
+            document.getElementById('feeStatus').textContent = feeStatus;
+            
+            if (!result.data.registration_fee_paid) {
+                document.getElementById('payRegistrationFee').classList.remove('hidden');
+            }
+            
+            // Registration fee alert
+            if (!result.data.registration_fee_paid) {
+                const statusDiv = document.getElementById('registrationFeeStatus');
+                statusDiv.className = 'mb-4 p-4 rounded-lg bg-yellow-100 border-l-4 border-yellow-500 text-yellow-700';
+                statusDiv.innerHTML = '<p>Registration fee not paid. User features are limited until payment.</p>';
+                statusDiv.classList.remove('hidden');
+            }
+            
+            // ID verification status
+            const idStatus = result.data.id_verification_status;
+            const idStatusDiv = document.getElementById('idVerificationStatus'); 
+            
+            if (idStatus === 'pending') {
+                // idStatusDiv.className = 'mb-4 p-4 rounded-lg bg-blue-100 border-l-4 border-blue-500 text-blue-700';
+                // idStatusDiv.innerHTML = '<p>User Registered, Pending Verification</p>';
+                // idStatusDiv.classList.remove('hidden');
+            } else if (idStatus === 'rejected') {
+                idStatusDiv.className = 'mb-4 p-4 rounded-lg bg-red-100 border-l-4 border-red-500 text-red-700';
+                let html = '<p>ID verification: Rejected</p>';
+                if (result.data.id_rejection_reason) {
+                    html += `<p class="mt-2">Reason: ${result.data.id_rejection_reason}</p>`;
+                }
+                idStatusDiv.innerHTML = html;
+                idStatusDiv.classList.remove('hidden');
+            } else if (idStatus === 'verified') {
+                idStatusDiv.className = 'mb-4 p-4 rounded-lg bg-green-100 border-l-4 border-green-500 text-green-700';
+                idStatusDiv.innerHTML = '<p>ID verification: Verified ✓</p>';
+                idStatusDiv.classList.remove('hidden');
+            }
+        }
+    } catch (error) {
+        console.error('Error loading profile:', error);
+    }
+}
+
+// Load countries for nationality dropdown
+async function loadCountries() {
+    try {
+        const response = await fetch('/api/auth/countries');
+        const result = await response.json();
+        if (result.success && result.data.countries) {
+            const select = document.getElementById('nationality');
+            select.innerHTML = '<option value="">Select Nationality</option>';
+            result.data.countries.forEach(country => {
+                const option = document.createElement('option');
+                option.value = country.name;
+                option.textContent = country.name;
+                select.appendChild(option);
+            });
+        }
+    } catch (error) {
+        console.error('Error loading countries:', error);
+    }
+}
+
+// Update ID/Passport field visibility based on nationality (align with registration)
+function updateIdFieldBasedOnNationality(nationality) {
+    const idField = document.getElementById('idField');
+    const passportField = document.getElementById('passportField');
+    
+    if (nationality === 'South Africa') {
+        if (idField) idField.classList.remove('hidden');
+        if (passportField) passportField.classList.add('hidden');
+    } else if (nationality) {
+        if (idField) idField.classList.add('hidden');
+        if (passportField) passportField.classList.remove('hidden');
+    } else {
+        if (idField) idField.classList.add('hidden');
+        if (passportField) passportField.classList.add('hidden');
+    }
+}
+
+// Form submission handler
+async function handleProfileSubmit(e) {
+    e.preventDefault();
+    e.stopPropagation();
+    console.log('Profile form submitted');
+    
+    const token = localStorage.getItem('token');
+    if (!token) {
+        window.location.href = '/login';
+        return;
+    }
+    
+    // Disable submit button and show loading state
+    const submitButton = document.getElementById('saveProfileButton');
+    const buttonText = document.getElementById('saveProfileButtonText');
+    const buttonSpinner = document.getElementById('saveProfileButtonSpinner');
+    
+    if (submitButton) {
+        submitButton.disabled = true;
+        if (buttonText) buttonText.classList.add('hidden');
+        if (buttonSpinner) buttonSpinner.classList.remove('hidden');
+    }
+    
+    try {
+        // Build form data, converting empty strings to null
+        const getValue = (id) => {
+            const element = document.getElementById(id);
+            if (!element) return null;
+            const value = element.value.trim();
+            return value === '' ? null : value;
+        };
+        
+        // Build Next of Kin object
+        const nextOfKinFullName = getValue('nextOfKinFullName');
+        const nextOfKinContactNumber = getValue('nextOfKinContactNumber');
+        const nextOfKinContactEmail = getValue('nextOfKinContactEmail');
+        
+        let next_of_kin = null;
+        if (nextOfKinFullName || nextOfKinContactNumber || nextOfKinContactEmail) {
+            next_of_kin = {
+                full_name: nextOfKinFullName,
+                contact_number: nextOfKinContactNumber,
+                contact_email: nextOfKinContactEmail
+            };
+            Object.keys(next_of_kin).forEach(key => {
+                if (next_of_kin[key] === null) delete next_of_kin[key];
+            });
+            if (Object.keys(next_of_kin).length === 0) next_of_kin = null;
+        }
+        
+        let formData;
+        if (currentUserApproved) {
+            // After approval: send only allowed fields (phone, next_of_kin, and role-specific)
+            formData = { phone: getValue('phone'), next_of_kin: next_of_kin };
+            if (currentUserRole === 'professional') {
+                formData.highest_qualification = getValue('highestQualification');
+                formData.professional_body = getValue('professionalBody');
+                formData.professional_services = getProfessionalServices();
+            } else if (currentUserRole === 'service-provider') {
+                formData.provider_services = getProviderServices();
+            } else if (currentUserRole === 'driver') {
+                formData.driver_services = getDriverServices();
+            }
+        } else {
+            // Not approved: send full profile (backend will reject updates until approved)
+            formData = {
+                full_name: getValue('fullName'),
+                surname: getValue('surname'),
+                phone: getValue('phone'),
+                gender: getValue('gender'),
+                next_of_kin: next_of_kin
+            };
+            if (currentUserRole === 'professional') {
+                formData.highest_qualification = getValue('highestQualification');
+                formData.professional_body = getValue('professionalBody');
+                formData.professional_services = getProfessionalServices();
+            } else if (currentUserRole === 'service-provider') {
+                formData.provider_services = getProviderServices();
+            } else if (currentUserRole === 'driver') {
+                formData.driver_services = getDriverServices();
+            }
+        }
+        
+        Object.keys(formData).forEach(key => {
+            if (formData[key] === null) delete formData[key];
+        });
+        
+        const profilePhotoInput = document.getElementById('profilePhoto');
+        const profilePhotoFile = profilePhotoInput ? profilePhotoInput.files[0] : null;
+        const idDocumentInput = document.getElementById('idDocument');
+        const idDocumentFile = idDocumentInput ? idDocumentInput.files[0] : null;
+        const proofOfResidenceInput = document.getElementById('proofOfResidence');
+        const proofOfResidenceFile = proofOfResidenceInput ? proofOfResidenceInput.files[0] : null;
+        const driversLicenseInput = document.getElementById('driversLicenseDocument');
+        const driversLicenseFile = driversLicenseInput ? driversLicenseInput.files[0] : null;
+        const qualificationInput = document.getElementById('qualificationDocuments');
+        const qualificationFiles = qualificationInput ? Array.from(qualificationInput.files || []) : [];
+        const hasFile = currentUserApproved
+            ? ((currentUserRole === 'driver' || currentUserRole === 'service-provider' || currentUserRole === 'professional') && (proofOfResidenceFile?.size > 0 || driversLicenseFile?.size > 0)) ||
+              (currentUserRole === 'professional' && qualificationFiles.length > 0)
+            : (profilePhotoFile?.size > 0 || idDocumentFile?.size > 0 || proofOfResidenceFile?.size > 0 || driversLicenseFile?.size > 0 || qualificationFiles.length > 0);
+        
+        let requestOptions;
+        
+        if (hasFile) {
+            const formDataToSend = new FormData();
+            if (!currentUserApproved) {
+                if (profilePhotoFile) formDataToSend.append('profile_photo', profilePhotoFile);
+                if (idDocumentFile) formDataToSend.append('id_document', idDocumentFile);
+            }
+            if (proofOfResidenceFile && (!currentUserApproved || currentUserRole === 'driver' || currentUserRole === 'service-provider' || currentUserRole === 'professional')) {
+                formDataToSend.append('proof_of_residence', proofOfResidenceFile);
+            }
+            if (driversLicenseFile && (!currentUserApproved || currentUserRole === 'driver' || currentUserRole === 'service-provider')) {
+                formDataToSend.append('drivers_license_document', driversLicenseFile);
+            }
+            if (qualificationFiles.length > 0 && (!currentUserApproved || currentUserRole === 'professional')) {
+                qualificationFiles.forEach(file => formDataToSend.append('qualification_documents', file));
+            }
+            if (currentUserApproved) {
+                formDataToSend.append('phone', formData.phone || '');
+                if (next_of_kin) formDataToSend.append('next_of_kin', JSON.stringify(next_of_kin));
+                if (currentUserRole === 'professional') {
+                    formDataToSend.append('highest_qualification', formData.highest_qualification || '');
+                    formDataToSend.append('professional_body', formData.professional_body || '');
+                    if (formData.professional_services) formDataToSend.append('professional_services', JSON.stringify(formData.professional_services));
+                } else if (currentUserRole === 'service-provider' && formData.provider_services) {
+                    formDataToSend.append('provider_services', JSON.stringify(formData.provider_services));
+                } else if (currentUserRole === 'driver' && formData.driver_services) {
+                    formDataToSend.append('driver_services', JSON.stringify(formData.driver_services));
+                }
+            } else {
+                formDataToSend.append('full_name', formData.full_name || '');
+                formDataToSend.append('surname', formData.surname || '');
+                formDataToSend.append('phone', formData.phone || '');
+                formDataToSend.append('gender', formData.gender || '');
+                formDataToSend.append('sa_citizen', (formData.sa_citizen !== undefined ? formData.sa_citizen : false).toString());
+                if (next_of_kin) formDataToSend.append('next_of_kin', JSON.stringify(next_of_kin));
+                if (currentUserRole === 'professional') {
+                    formDataToSend.append('highest_qualification', formData.highest_qualification || '');
+                    formDataToSend.append('professional_body', formData.professional_body || '');
+                }
+                if (currentUserRole === 'professional' && formData.professional_services) formDataToSend.append('professional_services', JSON.stringify(formData.professional_services));
+                else if (currentUserRole === 'service-provider' && formData.provider_services) formDataToSend.append('provider_services', JSON.stringify(formData.provider_services));
+                else if (currentUserRole === 'driver' && formData.driver_services) formDataToSend.append('driver_services', JSON.stringify(formData.driver_services));
+            }
+            requestOptions = {
+                method: 'PATCH',
+                headers: { 'Authorization': `Bearer ${token}` },
+                body: formDataToSend
+            };
+        } else {
+            requestOptions = {
+                method: 'PATCH',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${token}`
+                },
+                body: JSON.stringify(formData)
+            };
+        }
+        
+        console.log('Sending profile update request...', formData);
+        const response = await fetch('/api/profile', requestOptions);
+        
+        if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+        }
+        
+        const result = await response.json();
+        console.log('Profile update response:', result);
+        
+        if (result.success) {
+            alert('Profile updated successfully');
+            loadProfile(); // Reload to show updated status
+        } else {
+            // Show detailed error message
+            let errorMsg = result.error?.message || 'Failed to update profile';
+            if (result.error?.details) {
+                errorMsg += '\n' + JSON.stringify(result.error.details, null, 2);
+            }
+            alert(errorMsg);
+            console.error('Profile update error:', result);
+        }
+    } catch (error) {
+        console.error('Error updating profile:', error);
+        alert('Error updating profile: ' + error.message);
+    } finally {
+        // Re-enable submit button
+        if (submitButton) {
+            submitButton.disabled = false;
+            if (buttonText) buttonText.classList.remove('hidden');
+            if (buttonSpinner) buttonSpinner.classList.add('hidden');
+        }
+    }
+}
+
+// Pay Registration Fee button click
+document.getElementById('payRegistrationFee')?.addEventListener('click', async function() {
+    const token = localStorage.getItem('token');
+    if (!token) {
+        window.location.href = '/login';
+        return;
+    }
+    
+    try {
+        // Disable button while processing
+        const btn = document.getElementById('payRegistrationFee');
+        btn.disabled = true;
+        btn.textContent = 'Processing...';
+        
+        const response = await fetch('/api/profile/pay-registration-fee', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${token}`
+            }
+        });
+        
+        const result = await response.json();
+        if (result.success && result.data.redirect_url) {
+            // Redirect to Yoco checkout
+            window.location.href = result.data.redirect_url;
+        } else {
+            // Re-enable button on error
+            btn.disabled = false;
+            btn.textContent = 'Pay Registration Fee';
+            alert(result.error?.message || 'Failed to create checkout. Please try again.');
+            console.error('Pay registration fee error:', result);
+        }
+    } catch (error) {
+        console.error('Error initiating payment:', error);
+        const btn = document.getElementById('payRegistrationFee');
+        btn.disabled = false;
+        btn.textContent = 'Pay Registration Fee';
+        alert('Error initiating payment: ' + error.message);
+    }
+});
+
+// Check for payment status in URL parameters
+function checkPaymentStatus() {
+    const urlParams = new URLSearchParams(window.location.search);
+    console.log("urlParams", urlParams);
+    const paymentStatus = urlParams.get('payment');
+    
+    if (paymentStatus === 'success') {
+        alert('Registration fee payment successful! Your account has been updated.');
+        // Reload profile to show updated status
+        loadProfile();
+        // Clean URL
+        window.history.replaceState({}, document.title, window.location.pathname);
+    } else if (paymentStatus === 'error') {
+        alert('Payment failed or was cancelled. Please try again.');
+        // Clean URL
+        window.history.replaceState({}, document.title, window.location.pathname);
+    }
+}
+
+// Profile address management
+let profileAddresses = [];
+let editingProfileAddressId = null;
+
+async function loadProfileAddresses() {
+    const token = localStorage.getItem('token');
+    if (!token) return;
+    
+    try {
+        const response = await fetch('/api/addresses', {
+            headers: {
+                'Authorization': `Bearer ${token}`
+            }
+        });
+        
+        const result = await response.json();
+        if (result.success) {
+            profileAddresses = result.data.addresses;
+            renderProfileAddresses();
+        }
+    } catch (error) {
+        console.error('Error loading addresses:', error);
+    }
+}
+
+function renderProfileAddresses() {
+    const addressList = document.getElementById('profileAddressList');
+    
+    if (profileAddresses.length === 0) {
+        addressList.innerHTML = '<p class="text-gray-600 text-sm">No addresses found. Add a delivery address.</p>';
+        return;
+    }
+    
+    addressList.innerHTML = profileAddresses.map(addr => {
+        return `
+            <div class="border rounded p-3">
+                <div class="flex justify-between items-start">
+                    <div class="flex-grow">
+                        ${addr.is_default ? '<span class="text-xs bg-blue-100 text-blue-800 px-2 py-1 rounded mb-2 inline-block">Default</span>' : ''}
+                        <p class="font-semibold">${formatProfileAddress(addr)}</p>
+                    </div>
+                    <div class="ml-4 flex space-x-2">
+                        ${!addr.is_default ? `<button onclick="setProfileDefaultAddress('${addr.id}')" class="text-xs text-blue-600 hover:text-blue-800">Set Default</button>` : ''}
+                        <button onclick="editProfileAddress('${addr.id}')" class="text-xs text-gray-600 hover:text-gray-800">Edit</button>
+                        <button onclick="deleteProfileAddress('${addr.id}')" class="text-xs text-red-600 hover:text-red-800">Delete</button>
+                    </div>
+                </div>
+            </div>
+        `;
+    }).join('');
+}
+
+function formatProfileAddress(addr) {
+    let parts = [];
+    if (addr.unit_number) parts.push(addr.unit_number);
+    if (addr.building_name) parts.push(addr.building_name);
+    parts.push(addr.street_address);
+    parts.push(addr.city);
+    parts.push(addr.province);
+    parts.push(addr.postal_code);
+    parts.push(addr.country);
+    return parts.join(', ');
+}
+
+function showProfileAddAddressForm() {
+    editingProfileAddressId = null;
+    document.getElementById('profileAddressFormTitle').textContent = 'Add New Address';
+    document.getElementById('profileAddressFormId').value = '';
+    document.getElementById('profileAddressFormElement').reset();
+    document.getElementById('profileAddressForm').classList.remove('hidden');
+}
+
+function hideProfileAddressForm() {
+    document.getElementById('profileAddressForm').classList.add('hidden');
+    editingProfileAddressId = null;
+}
+
+function editProfileAddress(addressId) {
+    const addr = profileAddresses.find(a => a.id === addressId);
+    if (!addr) return;
+    
+    editingProfileAddressId = addressId;
+    document.getElementById('profileAddressFormTitle').textContent = 'Edit Address';
+    document.getElementById('profileAddressFormId').value = addressId;
+    document.getElementById('profileAddressUnitNumber').value = addr.unit_number || '';
+    document.getElementById('profileAddressBuildingName').value = addr.building_name || '';
+    document.getElementById('profileAddressStreet').value = addr.street_address || '';
+    document.getElementById('profileAddressCity').value = addr.city || '';
+    document.getElementById('profileAddressProvince').value = addr.province || '';
+    document.getElementById('profileAddressPostalCode').value = addr.postal_code || '';
+    document.getElementById('profileAddressCountry').value = addr.country || 'South Africa';
+    document.getElementById('profileAddressInstructions').value = addr.delivery_instructions || '';
+    document.getElementById('profileAddressIsDefault').checked = addr.is_default || false;
+    
+    document.getElementById('profileAddressForm').classList.remove('hidden');
+}
+
+async function saveProfileAddress(event) {
+    event.preventDefault();
+    
+    const token = localStorage.getItem('token');
+    const addressId = document.getElementById('profileAddressFormId').value;
+    
+    const addressData = {
+        street_address: document.getElementById('profileAddressStreet').value,
+        city: document.getElementById('profileAddressCity').value,
+        province: document.getElementById('profileAddressProvince').value,
+        postal_code: document.getElementById('profileAddressPostalCode').value,
+        country: document.getElementById('profileAddressCountry').value,
+        unit_number: document.getElementById('profileAddressUnitNumber').value || null,
+        building_name: document.getElementById('profileAddressBuildingName').value || null,
+        delivery_instructions: document.getElementById('profileAddressInstructions').value || null,
+        is_default: document.getElementById('profileAddressIsDefault').checked
+    };
+    
+    const url = addressId ? `/api/addresses/${addressId}` : '/api/addresses';
+    const method = addressId ? 'PATCH' : 'POST';
+    
+    try {
+        const response = await fetch(url, {
+            method: method,
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${token}`
+            },
+            body: JSON.stringify(addressData)
+        });
+        
+        const result = await response.json();
+        
+        if (result.success) {
+            hideProfileAddressForm();
+            await loadProfileAddresses();
+        } else {
+            alert('Error: ' + (result.error?.message || 'Failed to save address'));
+        }
+    } catch (error) {
+        console.error('Error saving address:', error);
+        alert('Error saving address: ' + error.message);
+    }
+}
+
+function setProfileDefaultAddress(addressId) {
+    const token = localStorage.getItem('token');
+    fetch(`/api/addresses/${addressId}/set-default`, {
+        method: 'PATCH',
+        headers: {
+            'Authorization': `Bearer ${token}`
+        }
+    })
+    .then(res => res.json())
+    .then(result => {
+        if (result.success) {
+            loadProfileAddresses();
+        } else {
+            alert('Error: ' + (result.error?.message || 'Failed to set default address'));
+        }
+    })
+    .catch(error => {
+        console.error('Error setting default address:', error);
+        alert('Error setting default address');
+    });
+}
+
+async function deleteProfileAddress(addressId) {
+    if (!confirm('Are you sure you want to delete this address?')) return;
+    
+    const token = localStorage.getItem('token');
+    try {
+        const response = await fetch(`/api/addresses/${addressId}`, {
+            method: 'DELETE',
+            headers: {
+                'Authorization': `Bearer ${token}`
+            }
+        });
+        
+        const result = await response.json();
+        
+        if (result.success) {
+            await loadProfileAddresses();
+        } else {
+            alert('Error: ' + (result.error?.message || 'Failed to delete address'));
+        }
+    } catch (error) {
+        console.error('Error deleting address:', error);
+        alert('Error deleting address: ' + error.message);
+    }
+}
+
+// Service management functions
+let professionalServices = [];
+let providerServices = [];
+let driverServices = [];
+let currentUserRole = null;
+let currentUserApproved = false;
+
+async function getUserRole() {
+    if (currentUserRole) return currentUserRole;
+    const token = localStorage.getItem('token');
+    try {
+        const response = await fetch('/api/profile', {
+            headers: { 'Authorization': `Bearer ${token}` }
+        });
+        const result = await response.json();
+        if (result.success) {
+            currentUserRole = result.data.user.role;
+            return currentUserRole;
+        }
+    } catch (error) {
+        console.error('Error getting user role:', error);
+    }
+    return null;
+}
+
+function loadRoleServices(role, profileData) {
+    currentUserRole = role;
+    
+    if (role === 'professional') {
+        professionalServices = profileData.professional_services || [];
+        document.getElementById('professionalServicesSection').classList.remove('hidden');
+        renderProfessionalServices();
+    } else if (role === 'service-provider') {
+        providerServices = profileData.provider_services || [];
+        document.getElementById('providerServicesSection').classList.remove('hidden');
+        renderProviderServices();
+    } else if (role === 'driver') {
+        driverServices = profileData.driver_services || [];
+        document.getElementById('driverServicesSection').classList.remove('hidden');
+        renderDriverServices();
+    }
+}
+
+function renderProfessionalServices() {
+    const container = document.getElementById('professionalServicesList');
+    if (professionalServices.length === 0) {
+        container.innerHTML = '<p class="text-gray-500 text-sm">No services added yet.</p>';
+        return;
+    }
+    container.innerHTML = professionalServices.map((svc, index) => `
+        <div class="border rounded p-3">
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-2">
+                <input type="text" placeholder="Service name" value="${svc.name || ''}" 
+                       onchange="updateProfessionalService(${index}, 'name', this.value)" 
+                       class="px-2 py-1 border rounded">
+                <input type="text" placeholder="Description" value="${svc.description || ''}" 
+                       onchange="updateProfessionalService(${index}, 'description', this.value)" 
+                       class="px-2 py-1 border rounded">
+                <div class="flex gap-2">
+                    <input type="number" placeholder="Hourly rate (R)" value="${svc.hourly_rate || ''}" 
+                           onchange="updateProfessionalService(${index}, 'hourly_rate', parseFloat(this.value) || null)" 
+                           class="px-2 py-1 border rounded flex-1">
+                    <button onclick="removeProfessionalService(${index})" class="text-red-600 hover:text-red-800">Remove</button>
+                </div>
+            </div>
+        </div>
+    `).join('');
+}
+
+function renderProviderServices() {
+    const container = document.getElementById('providerServicesList');
+    if (providerServices.length === 0) {
+        container.innerHTML = '<p class="text-gray-500 text-sm">No services added yet.</p>';
+        return;
+    }
+    container.innerHTML = providerServices.map((svc, index) => `
+        <div class="border rounded p-3">
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-2">
+                <input type="text" placeholder="Service name" value="${svc.name || ''}" 
+                       onchange="updateProviderService(${index}, 'name', this.value)" 
+                       class="px-2 py-1 border rounded">
+                <div class="flex gap-2">
+                    <input type="text" placeholder="Description" value="${svc.description || ''}" 
+                           onchange="updateProviderService(${index}, 'description', this.value)" 
+                           class="px-2 py-1 border rounded flex-1">
+                    <button onclick="removeProviderService(${index})" class="text-red-600 hover:text-red-800">Remove</button>
+                </div>
+            </div>
+        </div>
+    `).join('');
+}
+
+function renderDriverServices() {
+    const container = document.getElementById('driverServicesList');
+    if (driverServices.length === 0) {
+        container.innerHTML = '<p class="text-gray-500 text-sm">No cars/services added yet.</p>';
+        return;
+    }
+    container.innerHTML = driverServices.map((svc, index) => `
+        <div class="border p-3 rounded bg-gray-50">
+            <div class="space-y-2">
+                <div class="grid grid-cols-2 gap-2">
+                    <input type="text" placeholder="Car Make *" value="${svc.car_make || ''}" 
+                           onchange="updateDriverService(${index}, 'car_make', this.value)" 
+                           class="px-2 py-1 border rounded">
+                    <input type="text" placeholder="Car Model *" value="${svc.car_model || ''}" 
+                           onchange="updateDriverService(${index}, 'car_model', this.value)" 
+                           class="px-2 py-1 border rounded">
+                </div>
+                <div class="grid grid-cols-3 gap-2">
+                    <input type="number" placeholder="Year" value="${svc.car_year || ''}" 
+                           onchange="updateDriverService(${index}, 'car_year', parseInt(this.value) || null)" 
+                           class="px-2 py-1 border rounded">
+                    <input type="text" placeholder="Registration Number" value="${svc.registration_number || ''}" 
+                           onchange="updateDriverService(${index}, 'registration_number', this.value)" 
+                           class="px-2 py-1 border rounded">
+                    <select onchange="updateDriverService(${index}, 'car_type', this.value)" 
+                            class="px-2 py-1 border rounded">
+                        <option value="">Car Type *</option>
+                        <option value="small_hatchback" ${svc.car_type === 'small_hatchback' ? 'selected' : ''}>Small Hatchback</option>
+                        <option value="sedan" ${svc.car_type === 'sedan' ? 'selected' : ''}>Sedan</option>
+                        <option value="suv" ${svc.car_type === 'suv' ? 'selected' : ''}>SUV</option>
+                        <option value="bakkie" ${svc.car_type === 'bakkie' ? 'selected' : ''}>Bakkie</option>
+                        <option value="luxury" ${svc.car_type === 'luxury' ? 'selected' : ''}>Luxury</option>
+                        <option value="hybrid" ${svc.car_type === 'hybrid' ? 'selected' : ''}>Hybrid</option>
+                        <option value="electric" ${svc.car_type === 'electric' ? 'selected' : ''}>Electric</option>
+                    </select>
+                    <button type="button" onclick="removeDriverService(${index})" class="text-red-600 hover:text-red-800">×</button>
+                </div>
+            </div>
+        </div>
+    `).join('');
+}
+
+function addProfessionalService() {
+    professionalServices.push({ name: '', description: '', hourly_rate: null });
+    renderProfessionalServices();
+}
+
+function updateProfessionalService(index, field, value) {
+    if (professionalServices[index]) {
+        professionalServices[index][field] = value;
+    }
+}
+
+function removeProfessionalService(index) {
+    professionalServices.splice(index, 1);
+    renderProfessionalServices();
+}
+
+function getProfessionalServices() {
+    return professionalServices.filter(svc => svc.name && svc.name.trim() !== '');
+}
+
+function addProviderService() {
+    providerServices.push({ name: '', description: '' });
+    renderProviderServices();
+}
+
+function updateProviderService(index, field, value) {
+    if (providerServices[index]) {
+        providerServices[index][field] = value;
+    }
+}
+
+function removeProviderService(index) {
+    providerServices.splice(index, 1);
+    renderProviderServices();
+}
+
+function getProviderServices() {
+    return providerServices.filter(svc => svc.name && svc.name.trim() !== '');
+}
+
+function addDriverService() {
+    driverServices.push({ car_make: '', car_model: '', car_year: null, car_type: 'standard' });
+    renderDriverServices();
+}
+
+function updateDriverService(index, field, value) {
+    if (driverServices[index]) {
+        driverServices[index][field] = value;
+    }
+}
+
+function removeDriverService(index) {
+    driverServices.splice(index, 1);
+    renderDriverServices();
+}
+
+function getDriverServices() {
+    return driverServices.filter(svc => svc.car_make && svc.car_make.trim() !== '' && svc.car_model && svc.car_model.trim() !== '');
+}
+
+// Make all form fields readonly
+function makeProfileReadonly() {
+    const form = document.getElementById('profileForm');
+    if (!form) return;
+    
+    // Make all inputs readonly (except hidden and already readonly ones)
+    form.querySelectorAll('input:not([type="hidden"]):not([readonly])').forEach(input => {
+        input.readOnly = true;
+        input.classList.add('bg-gray-100', 'cursor-not-allowed');
+    });
+    
+    // Make all selects disabled
+    form.querySelectorAll('select').forEach(select => {
+        select.disabled = true;
+        select.classList.add('bg-gray-100', 'cursor-not-allowed');
+    });
+    
+    // Make all textareas readonly
+    form.querySelectorAll('textarea').forEach(textarea => {
+        textarea.readOnly = true;
+        textarea.classList.add('bg-gray-100', 'cursor-not-allowed');
+    });
+    
+    // Disable all buttons in the form (except address management)
+    form.querySelectorAll('button[type="submit"]').forEach(button => {
+        button.disabled = true;
+        button.style.display = 'none';
+    });
+    
+    // Hide file inputs
+    form.querySelectorAll('input[type="file"]').forEach(fileInput => {
+        fileInput.style.display = 'none';
+    });
+    
+    // Disable checkboxes
+    form.querySelectorAll('input[type="checkbox"]').forEach(checkbox => {
+        checkbox.disabled = true;
+    });
+}
+
+// Load profile on page load
+document.addEventListener('DOMContentLoaded', function() {
+    loadProfile();
+    checkPaymentStatus();
+    loadProfileAddresses();
+    
+    // Attach form submit handler (profile is editable except ID number and role)
+    const profileForm = document.getElementById('profileForm');
+    if (profileForm) {
+        profileForm.addEventListener('submit', handleProfileSubmit);
+    }
+});
+</script>
+{% endblock %}
+

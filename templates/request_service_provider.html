@@ -1,0 +1,310 @@
+{% extends "base.html" %}
+
+{% block title %}Request a Service Provider - MzansiServe{% endblock %}
+
+{% block extra_head %}
+<script src="https://maps.googleapis.com/maps/api/js?key={{ google_maps_api_key }}&libraries=places"></script>
+<style>
+    #locationMap {
+        height: 300px;
+        width: 100%;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="max-w-6xl mx-auto mt-8 p-6">
+    <h2 class="text-3xl font-bold mb-6">Request a Service Provider</h2>
+
+    <!-- Step 1: Search and Select Service Provider -->
+    <div id="step1" class="bg-white p-6 rounded-lg shadow mb-6">
+        <h3 class="text-xl font-semibold mb-4">1. Search for a Service Provider</h3>
+        
+        <div class="mb-4">
+            <input type="text" id="searchInput" placeholder="Search by service name or description..." 
+                   class="w-full px-4 py-2 border rounded-md"
+                   onkeyup="debounceSearch()">
+        </div>
+        
+        <div id="providersList" class="space-y-4">
+            <p class="text-gray-500">Loading service providers...</p>
+        </div>
+        
+        <div id="selectedProvider" class="hidden mt-4 p-4 bg-green-50 rounded border border-green-200">
+            <p><strong>Selected:</strong> <span id="selectedProviderName"></span></p>
+            <p><strong>Service:</strong> <span id="selectedServiceName"></span></p>
+            <button onclick="resetSelection()" class="mt-2 text-red-600 hover:underline">Change Selection</button>
+        </div>
+        
+        <button id="proceedBtn" onclick="proceedToRequest()" class="mt-4 bg-blue-500 text-white px-6 py-2 rounded hover:bg-blue-600 hidden">
+            Proceed to Request Details
+        </button>
+    </div>
+
+    <!-- Step 2: Request Details -->
+    <div id="step2" class="bg-white p-6 rounded-lg shadow mb-6 hidden">
+        <h3 class="text-xl font-semibold mb-4">2. Request Details</h3>
+        
+        <div class="mb-4">
+            <label for="locationInput" class="block text-sm font-medium mb-2">Service Location</label>
+            <input type="text" id="locationInput" placeholder="Search for location..." 
+                   class="w-full px-4 py-2 border rounded-md mb-2">
+            <div id="locationMap" class="border rounded"></div>
+            <input type="hidden" id="locationLat">
+            <input type="hidden" id="locationLng">
+            <input type="hidden" id="locationAddress">
+        </div>
+        
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+            <div>
+                <label for="requestDate" class="block text-sm font-medium mb-2">Date</label>
+                <input type="date" id="requestDate" class="w-full px-4 py-2 border rounded-md" required>
+            </div>
+            
+            <div>
+                <label for="requestTime" class="block text-sm font-medium mb-2">Time</label>
+                <input type="time" id="requestTime" class="w-full px-4 py-2 border rounded-md" required>
+            </div>
+        </div>
+        
+        <div class="mb-4">
+            <label for="requestNotes" class="block text-sm font-medium mb-2">Additional Notes</label>
+            <textarea id="requestNotes" rows="4" class="w-full px-4 py-2 border rounded-md" 
+                      placeholder="Any additional details about your request..."></textarea>
+        </div>
+        
+        <div id="calloutFeeInfo" class="mb-4 p-4 bg-blue-50 rounded">
+            <p><strong>Call-out Fee:</strong> R<span id="calloutFeeAmount">-</span></p>
+            <p class="text-sm text-gray-600">This fee is charged when you submit the request.</p>
+        </div>
+        
+        <button onclick="submitRequest()" class="bg-green-500 text-white px-6 py-2 rounded hover:bg-green-600">
+            Submit Request & Pay Call-out Fee
+        </button>
+    </div>
+
+    <!-- Loading indicator -->
+    <div id="loading" class="hidden text-center p-4">
+        <p>Processing...</p>
+    </div>
+
+    <!-- Success message -->
+    <div id="successMessage" class="hidden bg-green-100 border border-green-400 text-green-700 px-4 py-3 rounded mb-4">
+        <p>Request created successfully!</p>
+    </div>
+</div>
+
+<script>
+let locationMap, locationAutocomplete, locationMarker;
+let selectedProvider = null;
+let selectedService = null;
+let calloutFee = null;
+let searchTimeout = null;
+
+// Initialize Google Maps
+function initLocationMap() {
+    locationMap = new google.maps.Map(document.getElementById('locationMap'), {
+        center: { lat: -26.2041, lng: 28.0473 },
+        zoom: 13
+    });
+    
+    locationAutocomplete = new google.maps.places.Autocomplete(document.getElementById('locationInput'));
+    locationAutocomplete.bindTo('bounds', locationMap);
+    
+    locationAutocomplete.addListener('place_changed', function() {
+        const place = locationAutocomplete.getPlace();
+        if (!place.geometry) return;
+        
+        document.getElementById('locationLat').value = place.geometry.location.lat();
+        document.getElementById('locationLng').value = place.geometry.location.lng();
+        document.getElementById('locationAddress').value = place.formatted_address || place.name;
+        
+        if (locationMarker) locationMarker.setMap(null);
+        locationMarker = new google.maps.Marker({
+            map: locationMap,
+            position: place.geometry.location
+        });
+        locationMap.setCenter(place.geometry.location);
+    });
+}
+
+// Load call-out fee (admin-configured service provider call-out fee)
+async function loadCalloutFee() {
+    try {
+        const response = await apiCall('/admin/settings/callout-fees');
+        if (response.success) {
+            calloutFee = response.data.provider_callout_fee;
+            document.getElementById('calloutFeeAmount').textContent = (calloutFee != null ? calloutFee : 150).toFixed(2);
+        }
+    } catch (error) {
+        console.error('Failed to load call-out fee:', error);
+        calloutFee = 150;
+        document.getElementById('calloutFeeAmount').textContent = calloutFee.toFixed(2);
+    }
+}
+
+// Search service providers with debounce
+function debounceSearch() {
+    clearTimeout(searchTimeout);
+    searchTimeout = setTimeout(searchProviders, 300);
+}
+
+// Search service providers
+async function searchProviders() {
+    const search = document.getElementById('searchInput').value;
+    
+    document.getElementById('providersList').innerHTML = '<p class="text-gray-500">Loading...</p>';
+    
+    try {
+        const params = new URLSearchParams();
+        if (search) params.append('search', search);
+        
+        const response = await apiCall(`/profile/service-providers?${params.toString()}`);
+        
+        if (response.success) {
+            displayProviders(response.data.service_providers);
+        } else {
+            document.getElementById('providersList').innerHTML = '<p class="text-red-600">Failed to load service providers</p>';
+        }
+    } catch (error) {
+        document.getElementById('providersList').innerHTML = '<p class="text-red-600">Error: ' + error.message + '</p>';
+    }
+}
+
+// Display service providers
+function displayProviders(providers) {
+    const container = document.getElementById('providersList');
+    
+    if (providers.length === 0) {
+        container.innerHTML = '<p class="text-gray-500">No service providers found</p>';
+        return;
+    }
+    
+    container.innerHTML = providers.map(prov => {
+        const provUser = prov.provider;
+        const services = prov.services || [];
+        
+        return `
+            <div class="border rounded-lg p-4">
+                <h4 class="font-semibold text-lg">${provUser.email}</h4>
+                <div class="mt-2">
+                    <p class="font-medium">Services:</p>
+                    <ul class="list-disc list-inside ml-2">
+                        ${services.map(svc => `
+                            <li>
+                                <strong>${svc.name}</strong>
+                                ${svc.description ? ` - ${svc.description}` : ''}
+                                <button onclick="selectProvider('${provUser.id}', '${svc.name.replace(/'/g, "\\'")}')" 
+                                        class="ml-2 text-blue-600 hover:underline">Request</button>
+                            </li>
+                        `).join('')}
+                    </ul>
+                </div>
+            </div>
+        `;
+    }).join('');
+}
+
+// Select provider and service
+function selectProvider(provId, serviceName) {
+    selectedProvider = provId;
+    selectedService = serviceName;
+    
+    document.getElementById('selectedProviderName').textContent = provId;
+    document.getElementById('selectedServiceName').textContent = serviceName;
+    document.getElementById('selectedProvider').classList.remove('hidden');
+    document.getElementById('proceedBtn').classList.remove('hidden');
+}
+
+// Reset selection
+function resetSelection() {
+    selectedProvider = null;
+    selectedService = null;
+    document.getElementById('selectedProvider').classList.add('hidden');
+    document.getElementById('proceedBtn').classList.add('hidden');
+}
+
+// Proceed to request details
+function proceedToRequest() {
+    if (!selectedProvider) {
+        alert('Please select a service provider first');
+        return;
+    }
+    document.getElementById('step1').classList.add('hidden');
+    document.getElementById('step2').classList.remove('hidden');
+}
+
+// Submit request
+async function submitRequest() {
+    if (!selectedProvider) {
+        alert('Please select a service provider');
+        return;
+    }
+    
+    const locationLat = document.getElementById('locationLat').value;
+    const locationLng = document.getElementById('locationLng').value;
+    const requestDate = document.getElementById('requestDate').value;
+    const requestTime = document.getElementById('requestTime').value;
+    const notes = document.getElementById('requestNotes').value;
+    
+    if (!locationLat || !locationLng || !requestDate || !requestTime) {
+        alert('Please fill in all required fields');
+        return;
+    }
+    
+    document.getElementById('loading').classList.remove('hidden');
+    
+    try {
+        const response = await apiCall('/requests', {
+            method: 'POST',
+            body: JSON.stringify({
+                type: 'provider',
+                location: {
+                    lat: parseFloat(locationLat),
+                    lng: parseFloat(locationLng),
+                    address: document.getElementById('locationAddress').value
+                },
+                date: requestDate,
+                time: requestTime,
+                notes: notes,
+                preferences: {
+                    provider_id: selectedProvider,
+                    service_name: selectedService
+                },
+                payment_amount: calloutFee || 100 // Default if not loaded
+            })
+        });
+        
+        if (response.success) {
+            document.getElementById('successMessage').classList.remove('hidden');
+            setTimeout(() => {
+                window.location.href = '/requested-services';
+            }, 2000);
+        } else {
+            alert('Failed to create request: ' + (response.error?.message || 'Unknown error'));
+        }
+    } catch (error) {
+        alert('Error creating request: ' + error.message);
+    } finally {
+        document.getElementById('loading').classList.add('hidden');
+    }
+}
+
+// Initialize on page load
+document.addEventListener('DOMContentLoaded', function() {
+    if (!localStorage.getItem('token')) {
+        window.location.href = '/login';
+        return;
+    }
+    
+    loadCalloutFee();
+    searchProviders();
+    
+    if (typeof google !== 'undefined' && google.maps) {
+        initLocationMap();
+    } else {
+        console.warn('Google Maps API not loaded');
+    }
+});
+</script>
+{% endblock %}

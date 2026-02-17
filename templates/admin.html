@@ -1,0 +1,4025 @@
+{% extends "base.html" %}
+
+{% block title %}Admin Dashboard - MzansiServe{% endblock %}
+
+{% block extra_head %}
+<style>
+    /* Ensure login modal is hidden on admin page */
+    #loginRequiredModal {
+        display: none !important;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div id="adminAccessDenied" class="hidden mt-8">
+    <div class="max-w-2xl mx-auto bg-red-100 border-l-4 border-red-500 text-red-700 p-4 rounded">
+        <h2 class="text-xl font-bold mb-2">Access Denied</h2>
+        <p>You must be an admin user to access this page.</p>
+        <a href="/" class="mt-4 inline-block bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600">
+            Return to Home
+        </a>
+    </div>
+</div>
+
+<div id="adminDashboard" class="hidden mt-8">
+    <h2 class="text-2xl font-bold mb-6">Admin Dashboard</h2>
+    
+    <!-- Statistics Cards -->
+    <div class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8">
+        <div class="bg-white p-6 rounded-lg shadow">
+            <h3 class="text-gray-600 text-sm mb-2">Total Users</h3>
+            <p class="text-3xl font-bold" id="statTotalUsers">-</p>
+        </div>
+        <div class="bg-white p-6 rounded-lg shadow">
+            <h3 class="text-gray-600 text-sm mb-2">Total Requests</h3>
+            <p class="text-3xl font-bold" id="statTotalRequests">-</p>
+        </div>
+        <div class="bg-white p-6 rounded-lg shadow">
+            <h3 class="text-gray-600 text-sm mb-2">Pending Requests</h3>
+            <p class="text-3xl font-bold text-yellow-600" id="statPendingRequests">-</p>
+        </div>
+        <div class="bg-white p-6 rounded-lg shadow">
+            <h3 class="text-gray-600 text-sm mb-2">Completed Requests</h3>
+            <p class="text-3xl font-bold text-green-600" id="statCompletedRequests">-</p>
+        </div>
+    </div>
+    
+    <!-- Tabs Navigation -->
+    <div class="mb-6 border-b">
+        <button onclick="switchTab('users')" id="tabUsers" class="px-6 py-3 font-semibold border-b-2 border-blue-500 text-blue-600">
+            Users
+        </button>
+        <button onclick="switchTab('requests')" id="tabRequests" class="px-6 py-3 font-semibold text-gray-600 hover:text-blue-600">
+            Service Requests
+        </button>
+        <button onclick="switchTab('products')" id="tabProducts" class="px-6 py-3 font-semibold text-gray-600 hover:text-blue-600">
+            Products
+        </button>
+        <button onclick="switchTab('faqs')" id="tabFaqs" class="px-6 py-3 font-semibold text-gray-600 hover:text-blue-600">
+            FAQs
+        </button>
+        <button onclick="switchTab('categories')" id="tabCategories" class="px-6 py-3 font-semibold text-gray-600 hover:text-blue-600">
+            Categories
+        </button>
+        <button onclick="switchTab('services')" id="tabServices" class="px-6 py-3 font-semibold text-gray-600 hover:text-blue-600">
+            Available Services
+        </button>
+        <button onclick="switchTab('sales')" id="tabSales" class="px-6 py-3 font-semibold text-gray-600 hover:text-blue-600">
+            User Sales
+        </button>
+        <button onclick="switchTab('carousel')" id="tabCarousel" class="px-6 py-3 font-semibold text-gray-600 hover:text-blue-600">
+            Carousel
+        </button>
+        <button onclick="switchTab('cms')" id="tabCms" class="px-6 py-3 font-semibold text-gray-600 hover:text-blue-600">
+            CMS
+        </button>
+        <button onclick="switchTab('settings')" id="tabSettings" class="px-6 py-3 font-semibold text-gray-600 hover:text-blue-600">
+            Settings
+        </button>
+        <button onclick="switchTab('legal')" id="tabLegal" class="px-6 py-3 font-semibold text-gray-600 hover:text-blue-600">
+            Legal
+        </button>
+        <button onclick="switchTab('recons')" id="tabRecons" class="px-6 py-3 font-semibold text-gray-600 hover:text-blue-600">
+            Recons
+        </button>
+        <button onclick="switchTab('withdrawals')" id="tabWithdrawals" class="px-6 py-3 font-semibold text-gray-600 hover:text-blue-600">
+            Withdrawals
+        </button>
+        <button onclick="switchTab('agents')" id="tabAgents" class="px-6 py-3 font-semibold text-gray-600 hover:text-blue-600">
+            Agents
+        </button>
+        <button onclick="switchTab('pendingUpdates')" id="tabPendingUpdates" class="px-6 py-3 font-semibold text-gray-600 hover:text-blue-600">
+            Pending updates
+        </button>
+    </div>
+    
+    <!-- Users Tab -->
+    <div id="usersTab" class="tab-content">
+        <!-- Filters -->
+        <div class="bg-white p-4 rounded-lg shadow mb-4">
+            <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
+                <div>
+                    <label class="block text-sm font-medium mb-1">Role</label>
+                    <select id="userFilterRole" class="w-full px-3 py-2 border rounded-md">
+                        <option value="">All Roles</option>
+                        <option value="client">Client</option>
+                        <option value="driver">Driver</option>
+                        <option value="professional">Professional</option>
+                        <option value="service-provider">Service Provider</option>
+                        <option value="admin">Admin</option>
+                    </select>
+                </div>
+                <div>
+                    <label class="block text-sm font-medium mb-1">Approval Status</label>
+                    <select id="userFilterApproved" class="w-full px-3 py-2 border rounded-md">
+                        <option value="">All</option>
+                        <option value="true">Approved</option>
+                        <option value="false">Pending</option>
+                    </select>
+                </div>
+                <div class="flex items-end">
+                    <button onclick="loadUsers()" class="w-full bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600">
+                        Filter
+                    </button>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Users Table -->
+        <div class="bg-white rounded-lg shadow overflow-hidden">
+            <div id="usersTable" class="overflow-x-auto">
+                <table class="min-w-full divide-y divide-gray-200">
+                    <thead class="bg-gray-50">
+                        <tr>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Email</th>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Name</th>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Role</th>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Status</th>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">ID Verification</th>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody id="usersTableBody" class="bg-white divide-y divide-gray-200">
+                        <tr>
+                            <td colspan="6" class="px-6 py-4 text-center text-gray-500">Loading users...</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+            <div id="usersPagination" class="px-6 py-4 border-t flex justify-between items-center hidden">
+                <button onclick="previousUsersPage()" id="usersPrevBtn" class="px-4 py-2 bg-gray-300 rounded hover:bg-gray-400 disabled:opacity-50" disabled>Previous</button>
+                <span id="usersPageInfo" class="text-sm text-gray-600"></span>
+                <button onclick="nextUsersPage()" id="usersNextBtn" class="px-4 py-2 bg-gray-300 rounded hover:bg-gray-400 disabled:opacity-50" disabled>Next</button>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Service Requests Tab -->
+    <div id="requestsTab" class="tab-content hidden">
+        <div class="bg-white rounded-lg shadow overflow-hidden">
+            <div id="requestsTable" class="overflow-x-auto">
+                <table class="min-w-full divide-y divide-gray-200">
+                    <thead class="bg-gray-50">
+                        <tr>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">ID</th>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Type</th>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Requester</th>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Status</th>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Amount</th>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Created</th>
+                        </tr>
+                    </thead>
+                    <tbody id="requestsTableBody" class="bg-white divide-y divide-gray-200">
+                        <tr>
+                            <td colspan="6" class="px-6 py-4 text-center text-gray-500">Loading requests...</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+            <div id="requestsPagination" class="px-6 py-4 border-t flex justify-between items-center hidden">
+                <button onclick="previousRequestsPage()" id="requestsPrevBtn" class="px-4 py-2 bg-gray-300 rounded hover:bg-gray-400 disabled:opacity-50" disabled>Previous</button>
+                <span id="requestsPageInfo" class="text-sm text-gray-600"></span>
+                <button onclick="nextRequestsPage()" id="requestsNextBtn" class="px-4 py-2 bg-gray-300 rounded hover:bg-gray-400 disabled:opacity-50" disabled>Next</button>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Products Tab -->
+    <div id="productsTab" class="tab-content hidden">
+        <div class="mb-4 flex justify-between items-center">
+            <h3 class="text-lg font-semibold">Products</h3>
+            <button onclick="openAddProductModal()" class="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600">
+                Add
+            </button>
+        </div>
+        <!-- Product search and filters -->
+        <div class="bg-white p-4 rounded-lg shadow mb-4">
+            <div class="grid grid-cols-1 md:grid-cols-5 gap-4 items-end">
+                <div>
+                    <label class="block text-sm font-medium mb-1">Search by name</label>
+                    <input type="text" id="productSearchName" class="w-full px-3 py-2 border rounded-md" placeholder="Product name..." onkeydown="if(event.key==='Enter') applyProductFilters()">
+                </div>
+                <div>
+                    <label class="block text-sm font-medium mb-1">Status</label>
+                    <select id="productFilterStatus" class="w-full px-3 py-2 border rounded-md">
+                        <option value="">All</option>
+                        <option value="active">Active</option>
+                        <option value="inactive">Inactive</option>
+                    </select>
+                </div>
+                <div>
+                    <label class="block text-sm font-medium mb-1">Category</label>
+                    <select id="productFilterCategory" class="w-full px-3 py-2 border rounded-md" onchange="onProductFilterCategoryChange()">
+                        <option value="">All</option>
+                    </select>
+                </div>
+                <div>
+                    <label class="block text-sm font-medium mb-1">Subcategory</label>
+                    <select id="productFilterSubcategory" class="w-full px-3 py-2 border rounded-md">
+                        <option value="">All</option>
+                    </select>
+                </div>
+                <div>
+                    <button type="button" onclick="applyProductFilters()" class="w-full bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600">
+                        Search
+                    </button>
+                </div>
+            </div>
+        </div>
+        <div class="bg-white rounded-lg shadow overflow-hidden">
+            <div id="productsTable" class="overflow-x-auto">
+                <table class="min-w-full divide-y divide-gray-200">
+                    <thead class="bg-gray-50">
+                        <tr>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Name</th>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Price</th>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Status</th>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Inventory</th>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody id="productsTableBody" class="bg-white divide-y divide-gray-200">
+                        <tr>
+                            <td colspan="5" class="px-6 py-4 text-center text-gray-500">Loading products...</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+            <div id="productsPagination" class="px-6 py-4 border-t flex justify-between items-center hidden">
+                <button onclick="previousProductsPage()" id="productsPrevBtn" class="px-4 py-2 bg-gray-300 rounded hover:bg-gray-400 disabled:opacity-50" disabled>Previous</button>
+                <span id="productsPageInfo" class="text-sm text-gray-600"></span>
+                <button onclick="nextProductsPage()" id="productsNextBtn" class="px-4 py-2 bg-gray-300 rounded hover:bg-gray-400 disabled:opacity-50" disabled>Next</button>
+            </div>
+        </div>
+    </div>
+    
+    <!-- FAQs Tab -->
+    <div id="faqsTab" class="tab-content hidden">
+        <div class="mb-4 flex justify-between items-center">
+            <h3 class="text-lg font-semibold">Frequently Asked Questions</h3>
+            <button onclick="openAddFAQModal()" class="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600">
+                Add FAQ
+            </button>
+        </div>
+        <div class="bg-white rounded-lg shadow overflow-hidden">
+            <div id="faqsTable" class="overflow-x-auto">
+                <table class="min-w-full divide-y divide-gray-200">
+                    <thead class="bg-gray-50">
+                        <tr>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Order</th>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Question</th>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Status</th>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody id="faqsTableBody" class="bg-white divide-y divide-gray-200">
+                        <tr>
+                            <td colspan="4" class="px-6 py-4 text-center text-gray-500">Loading FAQs...</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Categories Tab -->
+    <div id="categoriesTab" class="tab-content hidden">
+        <div class="mb-4 flex justify-between items-center">
+            <h3 class="text-lg font-semibold">Categories & Subcategories</h3>
+            <div class="space-x-2">
+                <button onclick="openAddCategoryModal()" class="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600">
+                    Add Category
+                </button>
+                <button onclick="openAddSubcategoryModal()" class="bg-green-500 text-white px-4 py-2 rounded hover:bg-green-600">
+                    Add Subcategory
+                </button>
+            </div>
+        </div>
+        <div class="bg-white rounded-lg shadow overflow-hidden">
+            <div id="categoriesTable" class="overflow-x-auto">
+                <table class="min-w-full divide-y divide-gray-200">
+                    <thead class="bg-gray-50">
+                        <tr>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Category</th>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Subcategories</th>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody id="categoriesTableBody" class="bg-white divide-y divide-gray-200">
+                        <tr>
+                            <td colspan="3" class="px-6 py-4 text-center text-gray-500">Loading categories...</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Available Services Tab -->
+    <div id="servicesTab" class="tab-content hidden">
+        <div class="mb-4 flex justify-between items-center">
+            <h3 class="text-lg font-semibold">Available Services</h3>
+            <button onclick="openAddServiceModal()" class="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600">
+                Add Service
+            </button>
+        </div>
+        <div class="bg-white rounded-lg shadow overflow-hidden">
+            <div id="servicesTable" class="overflow-x-auto">
+                <table class="min-w-full divide-y divide-gray-200">
+                    <thead class="bg-gray-50">
+                        <tr>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Name</th>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Category</th>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Description</th>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Order</th>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Status</th>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody id="servicesTableBody" class="bg-white divide-y divide-gray-200">
+                        <tr>
+                            <td colspan="6" class="px-6 py-4 text-center text-gray-500">Loading services...</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+    
+    <!-- User Sales Tab -->
+    <div id="salesTab" class="tab-content hidden">
+        <div class="mb-4">
+            <h3 class="text-lg font-semibold">User Sales & Reconciliation</h3>
+            <p class="text-sm text-gray-600 mt-2">View all user transactions and sales for reconciliation and customer support.</p>
+        </div>
+        <div class="bg-white rounded-lg shadow overflow-hidden">
+            <div id="salesTable" class="overflow-x-auto">
+                <table class="min-w-full divide-y divide-gray-200">
+                    <thead class="bg-gray-50">
+                        <tr>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Date</th>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">User</th>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Type</th>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Amount</th>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Status</th>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Details</th>
+                        </tr>
+                    </thead>
+                    <tbody id="salesTableBody" class="bg-white divide-y divide-gray-200">
+                        <tr>
+                            <td colspan="6" class="px-6 py-4 text-center text-gray-500">Loading sales data...</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Carousel Tab -->
+    <div id="carouselTab" class="tab-content hidden">
+        <div class="mb-4 flex justify-between items-center">
+            <h3 class="text-lg font-semibold">Home Page Carousel</h3>
+            <button onclick="openAddCarouselModal()" class="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600">
+                Add Carousel Item
+            </button>
+        </div>
+        <div class="bg-white rounded-lg shadow overflow-hidden">
+            <div id="carouselTable" class="overflow-x-auto">
+                <table class="min-w-full divide-y divide-gray-200">
+                    <thead class="bg-gray-50">
+                        <tr>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Image</th>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">CTA Link</th>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">CTA Text</th>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Order</th>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Active</th>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody id="carouselTableBody" class="bg-white divide-y divide-gray-200">
+                        <tr>
+                            <td colspan="6" class="px-6 py-4 text-center text-gray-500">Loading carousel...</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+    
+    <!-- CMS Tab (Footer) -->
+    <div id="cmsTab" class="tab-content hidden">
+        <div class="mb-4">
+            <h3 class="text-lg font-semibold">Footer CMS</h3>
+            <p class="text-sm text-gray-600 mt-2">Edit company contact details shown in the site footer.</p>
+        </div>
+        <div class="bg-white rounded-lg shadow p-6 max-w-2xl">
+            <form id="footerCmsForm" onsubmit="saveFooterCms(event)" class="space-y-4">
+                <div>
+                    <label class="block text-sm font-medium mb-1">Company Name</label>
+                    <input type="text" id="cmsCompanyName" class="w-full px-3 py-2 border rounded-md" placeholder="MzansiServe">
+                </div>
+                <div>
+                    <label class="block text-sm font-medium mb-1">Email</label>
+                    <input type="email" id="cmsEmail" class="w-full px-3 py-2 border rounded-md" placeholder="contact@example.com">
+                </div>
+                <div>
+                    <label class="block text-sm font-medium mb-1">Phone</label>
+                    <input type="text" id="cmsPhone" class="w-full px-3 py-2 border rounded-md" placeholder="+27 12 345 6789">
+                </div>
+                <div>
+                    <label class="block text-sm font-medium mb-1">Physical Address</label>
+                    <textarea id="cmsPhysicalAddress" rows="3" class="w-full px-3 py-2 border rounded-md" placeholder="Street, City, Province, Postal Code"></textarea>
+                </div>
+                <button type="submit" class="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600">
+                    Save Footer Content
+                </button>
+            </form>
+        </div>
+    </div>
+    
+    <!-- Settings Tab (Call-out fees) -->
+    <div id="settingsTab" class="tab-content hidden">
+        <div class="mb-4">
+            <h3 class="text-lg font-semibold">Call-out Fees</h3>
+            <p class="text-sm text-gray-600 mt-2">Configure call-out fees charged when users request a professional or service provider. Fees are applied at checkout.</p>
+        </div>
+        <div class="bg-white rounded-lg shadow p-6 max-w-2xl">
+            <form id="calloutFeesForm" onsubmit="saveCalloutFees(event)" class="space-y-4">
+                <div>
+                    <label class="block text-sm font-medium mb-1">Professional call-out fee (R)</label>
+                    <input type="number" id="settingsProfessionalCalloutFee" min="0" step="0.01" class="w-full px-3 py-2 border rounded-md" placeholder="150">
+                </div>
+                <div>
+                    <label class="block text-sm font-medium mb-1">Service provider call-out fee (R)</label>
+                    <input type="number" id="settingsProviderCalloutFee" min="0" step="0.01" class="w-full px-3 py-2 border rounded-md" placeholder="150">
+                </div>
+                <button type="submit" class="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600">
+                    Save Call-out Fees
+                </button>
+            </form>
+        </div>
+    </div>
+    
+    <!-- Recons Tab (trigger month-end earnings transfer for all earners) -->
+    <div id="reconsTab" class="tab-content hidden">
+        <div class="mb-4">
+            <h3 class="text-lg font-semibold">Earnings Reconciliation</h3>
+            <p class="text-sm text-gray-600 mt-2">Trigger month-end earnings transfer to wallets for all earners (drivers, professionals, service providers) for a given month.</p>
+        </div>
+        <div class="bg-white rounded-lg shadow p-6 max-w-md">
+            <form id="reconTriggerForm" onsubmit="triggerRecon(event)" class="space-y-4">
+                <div>
+                    <label class="block text-sm font-medium mb-1">Month (YYYY-MM)</label>
+                    <input type="text" id="reconMonth" class="w-full px-3 py-2 border rounded-md" placeholder="2026-01" pattern="\d{4}-\d{2}">
+                </div>
+                <button type="submit" class="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600">Run Recon for All Earners</button>
+            </form>
+            <div id="reconResult" class="mt-4 text-sm text-gray-600 hidden"></div>
+        </div>
+    </div>
+    
+    <!-- Withdrawals Tab (withdrawal requests from earners) -->
+    <div id="withdrawalsTab" class="tab-content hidden">
+        <div class="mb-4">
+            <h3 class="text-lg font-semibold">Withdrawal Requests</h3>
+            <p class="text-sm text-gray-600 mt-2">View and update status (paid, pending, reversed) for earner withdrawal requests.</p>
+        </div>
+        <div class="bg-white rounded-lg shadow overflow-hidden">
+            <div id="withdrawalsList" class="p-4">
+                <p class="text-gray-500">Loading...</p>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Agents Tab -->
+    <div id="agentsTab" class="tab-content hidden">
+        <div class="mb-4">
+            <h3 class="text-lg font-semibold">Agents</h3>
+            <p class="text-sm text-gray-600 mt-2">Manage agents shown in the registration dropdown (displayed by agent_id).</p>
+        </div>
+        <div class="bg-white rounded-lg shadow p-4 mb-4">
+            <h4 class="font-medium mb-3" id="agentFormTitle">Add Agent</h4>
+            <form id="agentForm" onsubmit="saveAgent(event)" class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <input type="hidden" id="agentEditId" value="">
+                <div>
+                    <label for="agentName" class="block text-sm font-medium mb-1">Name</label>
+                    <input type="text" id="agentName" class="w-full px-3 py-2 border rounded-md" required>
+                </div>
+                <div>
+                    <label for="agentSurname" class="block text-sm font-medium mb-1">Surname</label>
+                    <input type="text" id="agentSurname" class="w-full px-3 py-2 border rounded-md" required>
+                </div>
+                <div>
+                    <label for="agentIdNumber" class="block text-sm font-medium mb-1">ID Number</label>
+                    <input type="text" id="agentIdNumber" class="w-full px-3 py-2 border rounded-md">
+                </div>
+                <div>
+                    <label for="agentDisplayId" class="block text-sm font-medium mb-1">Agent ID (optional)</label>
+                    <input type="text" id="agentDisplayId" class="w-full px-3 py-2 border rounded-md" placeholder="Leave blank to auto-generate">
+                </div>
+                <div class="md:col-span-2 flex gap-2">
+                    <button type="submit" class="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600">Save</button>
+                    <button type="button" onclick="cancelAgentEdit()" class="px-4 py-2 bg-gray-300 rounded hover:bg-gray-400 hidden" id="agentCancelBtn">Cancel</button>
+                </div>
+            </form>
+        </div>
+        <div class="bg-white rounded-lg shadow overflow-hidden">
+            <div id="agentsList" class="p-4">
+                <p class="text-gray-500">Loading...</p>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Pending profile updates tab -->
+    <div id="pendingUpdatesTab" class="tab-content hidden">
+        <div class="mb-4">
+            <h3 class="text-lg font-semibold">Pending profile updates</h3>
+            <p class="text-sm text-gray-600 mt-2">Approved users can only change certain fields; changes are applied here after you approve.</p>
+        </div>
+        <div class="bg-white rounded-lg shadow overflow-hidden">
+            <div id="pendingUpdatesList" class="p-4">
+                <p class="text-gray-500">Loading...</p>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Legal Tab (Terms of Use, Privacy Policy) -->
+    <div id="legalTab" class="tab-content hidden">
+        <div class="mb-4">
+            <h3 class="text-lg font-semibold">Terms of Use &amp; Privacy Policy</h3>
+            <p class="text-sm text-gray-600 mt-2">Upload text or a PDF for each page. Text is shown as-is; PDFs open in the page.</p>
+        </div>
+        <div class="space-y-8 max-w-4xl">
+            <!-- Terms of Use -->
+            <div class="bg-white rounded-lg shadow p-6">
+                <h4 class="font-semibold mb-4">Terms of Use</h4>
+                <form id="legalTermsForm" onsubmit="saveLegalContent(event, 'terms')" class="space-y-4">
+                    <div>
+                        <label class="block text-sm font-medium mb-2">Content type</label>
+                        <div class="flex gap-4">
+                            <label class="inline-flex items-center"><input type="radio" name="termsContentType" value="text" class="mr-2" onchange="toggleLegalInputs('terms', 'text')"> Text</label>
+                            <label class="inline-flex items-center"><input type="radio" name="termsContentType" value="pdf" class="mr-2" onchange="toggleLegalInputs('terms', 'pdf')"> PDF</label>
+                        </div>
+                    </div>
+                    <div id="termsTextWrap">
+                        <label class="block text-sm font-medium mb-1">Text content</label>
+                        <textarea id="legalTermsText" rows="12" class="w-full px-3 py-2 border rounded-md" placeholder="Paste or type Terms of Use text..."></textarea>
+                    </div>
+                    <div id="termsPdfWrap" class="hidden">
+                        <label class="block text-sm font-medium mb-1">PDF file</label>
+                        <input type="file" id="legalTermsFile" accept=".pdf" class="w-full px-3 py-2 border rounded-md">
+                    </div>
+                    <button type="submit" class="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600">Save Terms of Use</button>
+                </form>
+            </div>
+            <!-- Privacy Policy -->
+            <div class="bg-white rounded-lg shadow p-6">
+                <h4 class="font-semibold mb-4">Privacy Policy</h4>
+                <form id="legalPrivacyForm" onsubmit="saveLegalContent(event, 'privacy')" class="space-y-4">
+                    <div>
+                        <label class="block text-sm font-medium mb-2">Content type</label>
+                        <div class="flex gap-4">
+                            <label class="inline-flex items-center"><input type="radio" name="privacyContentType" value="text" class="mr-2" onchange="toggleLegalInputs('privacy', 'text')"> Text</label>
+                            <label class="inline-flex items-center"><input type="radio" name="privacyContentType" value="pdf" class="mr-2" onchange="toggleLegalInputs('privacy', 'pdf')"> PDF</label>
+                        </div>
+                    </div>
+                    <div id="privacyTextWrap">
+                        <label class="block text-sm font-medium mb-1">Text content</label>
+                        <textarea id="legalPrivacyText" rows="12" class="w-full px-3 py-2 border rounded-md" placeholder="Paste or type Privacy Policy text..."></textarea>
+                    </div>
+                    <div id="privacyPdfWrap" class="hidden">
+                        <label class="block text-sm font-medium mb-1">PDF file</label>
+                        <input type="file" id="legalPrivacyFile" accept=".pdf" class="w-full px-3 py-2 border rounded-md">
+                    </div>
+                    <button type="submit" class="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600">Save Privacy Policy</button>
+                </form>
+            </div>
+        </div>
+    </div>
+    
+    <!-- ID Document View Modal -->
+    <div id="idViewModal" class="hidden fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50" onclick="if(event.target === this) closeIdViewModal()">
+        <div class="bg-white p-8 rounded-lg max-w-4xl w-full mx-4 relative max-h-[90vh] overflow-y-auto">
+            <button type="button" onclick="closeIdViewModal()" class="absolute top-3 right-3 text-gray-400 hover:text-gray-600 text-2xl z-10">&times;</button>
+            <h3 class="text-2xl font-bold mb-4">ID Document</h3>
+            <div id="idViewContent">
+                <div id="idViewDocumentPreview" class="mb-4 text-center">
+                    <img id="idViewDocumentImage" src="" alt="ID Document" class="max-w-full max-h-96 mx-auto border rounded shadow-lg">
+                </div>
+                <div class="flex justify-center">
+                    <button onclick="openIdDocumentInNewWindow()" class="bg-blue-500 text-white px-6 py-2 rounded hover:bg-blue-600">
+                        Open in New Window
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Vehicle (car) photos modal - carousel -->
+    <div id="vehiclePhotosModal" class="hidden fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50" onclick="if(event.target === this) closeVehiclePhotosModal()">
+        <div class="bg-white p-8 rounded-lg max-w-4xl w-full mx-4 relative max-h-[90vh] overflow-hidden flex flex-col">
+            <button type="button" onclick="closeVehiclePhotosModal()" class="absolute top-3 right-3 text-gray-400 hover:text-gray-600 text-2xl z-10">&times;</button>
+            <h3 class="text-2xl font-bold mb-4">Car photos</h3>
+            <div id="vehiclePhotosCarouselContainer" class="flex-1 min-h-0 flex items-center justify-center bg-gray-100 rounded relative">
+                <button type="button" id="vehiclePhotosPrev" onclick="vehiclePhotosPrev()" class="absolute left-2 top-1/2 -translate-y-1/2 bg-black bg-opacity-50 text-white px-3 py-2 rounded hover:bg-opacity-70 z-10">&#9664;</button>
+                <img id="vehiclePhotosImage" src="" alt="Car photo" class="max-w-full max-h-[70vh] object-contain">
+                <button type="button" id="vehiclePhotosNext" onclick="vehiclePhotosNext()" class="absolute right-2 top-1/2 -translate-y-1/2 bg-black bg-opacity-50 text-white px-3 py-2 rounded hover:bg-opacity-70 z-10">&#9654;</button>
+            </div>
+            <p id="vehiclePhotosCounter" class="text-center text-sm text-gray-500 mt-2">0 / 0</p>
+        </div>
+    </div>
+    
+    <!-- ID Verification Modal -->
+    <div id="idVerificationModal" class="hidden fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+        <div class="bg-white p-8 rounded-lg max-w-lg w-full mx-4 relative">
+            <button type="button" onclick="closeIdVerificationModal()" class="absolute top-3 right-3 text-gray-400 hover:text-gray-600 text-2xl">&times;</button>
+            <h3 class="text-2xl font-bold mb-4">Verify ID Document</h3>
+            <div id="idVerificationContent">
+                <p class="text-gray-600 mb-4">User: <span id="idVerifyUserEmail" class="font-semibold"></span></p>
+                <div id="idDocumentPreview" class="mb-4">
+                    <img id="idDocumentImage" src="" alt="ID Document" class="max-w-full h-auto border rounded">
+                </div>
+                <div class="space-y-4">
+                    <div>
+                        <label class="block text-sm font-medium mb-2">Verification Status</label>
+                        <select id="idVerifyStatus" class="w-full px-3 py-2 border rounded-md">
+                            <option value="verified">Verified</option>
+                            <option value="rejected">Rejected</option>
+                        </select>
+                    </div>
+                    <div id="idRejectionReasonContainer" class="hidden">
+                        <label class="block text-sm font-medium mb-2">Rejection Reason</label>
+                        <textarea id="idRejectionReason" class="w-full px-3 py-2 border rounded-md" rows="3" placeholder="Enter reason for rejection"></textarea>
+                    </div>
+                    <div class="flex space-x-4">
+                        <button onclick="submitIdVerification()" class="flex-1 bg-blue-500 text-white py-2 px-4 rounded hover:bg-blue-600">
+                            Submit
+                        </button>
+                        <button onclick="closeIdVerificationModal()" class="flex-1 bg-gray-300 text-gray-700 py-2 px-4 rounded hover:bg-gray-400">
+                            Cancel
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Service Selection Modal (for Admin Edit User) -->
+    <div id="adminServiceSelectionModal" class="hidden fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+        <div class="bg-white p-8 rounded-lg max-w-2xl w-full mx-4 max-h-[80vh] overflow-y-auto">
+            <h3 class="text-2xl font-bold mb-4">Select Service</h3>
+            <div id="adminAvailableServicesList" class="space-y-2 mb-4">
+                <!-- Services will be loaded here -->
+            </div>
+            <button onclick="closeAdminServiceModal()" class="w-full bg-gray-300 text-gray-700 py-2 rounded hover:bg-gray-400">
+                Cancel
+            </button>
+        </div>
+    </div>
+    
+    <!-- Edit User Modal -->
+    <div id="editUserModal" class="hidden fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+        <div class="bg-white p-8 rounded-lg max-w-4xl w-full mx-4 relative max-h-[90vh] overflow-y-auto">
+            <button type="button" onclick="closeEditUserModal()" class="absolute top-3 right-3 text-gray-400 hover:text-gray-600 text-2xl">&times;</button>
+            <h3 class="text-2xl font-bold mb-4">Edit User Profile</h3>
+            <form id="editUserForm" onsubmit="saveUserProfile(event)" class="space-y-4">
+                <input type="hidden" id="editUserId" value="">
+                
+                <!-- Profile photo -->
+                <div class="border-b pb-4">
+                    <h4 class="text-lg font-semibold mb-3">Profile photo</h4>
+                    <div class="flex items-center gap-4">
+                        <div id="editUserProfilePhotoPreview" class="w-20 h-20 rounded-full bg-gray-200 flex items-center justify-center overflow-hidden shrink-0">
+                            <img id="editUserProfilePhotoImg" src="" alt="Profile" class="w-full h-full object-cover hidden">
+                            <span id="editUserProfilePhotoPlaceholder" class="text-gray-400">—</span>
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium mb-1">Change photo</label>
+                            <input type="file" id="editUserProfilePhoto" name="profile_image" accept="image/jpeg,image/png,image/jpg" class="w-full text-sm">
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Basic Information -->
+                <div class="border-b pb-4">
+                    <h4 class="text-lg font-semibold mb-3">Basic Information</h4>
+                    <div class="grid grid-cols-2 gap-4">
+                        <div>
+                            <label class="block text-sm font-medium mb-1">Email</label>
+                            <input type="email" id="editUserEmail" readonly class="w-full px-3 py-2 border rounded-md bg-gray-100">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium mb-1">Role</label>
+                            <input type="text" id="editUserRole" readonly class="w-full px-3 py-2 border rounded-md bg-gray-100">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium mb-1">Full Name</label>
+                            <input type="text" id="editUserFullName" class="w-full px-3 py-2 border rounded-md">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium mb-1">Surname</label>
+                            <input type="text" id="editUserSurname" class="w-full px-3 py-2 border rounded-md">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium mb-1">Phone</label>
+                            <input type="text" id="editUserPhone" class="w-full px-3 py-2 border rounded-md">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium mb-1">Gender</label>
+                            <select id="editUserGender" class="w-full px-3 py-2 border rounded-md">
+                                <option value="">Select</option>
+                                <option value="male">Male</option>
+                                <option value="female">Female</option>
+                                <option value="other">Other</option>
+                            </select>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- South African Citizen Information -->
+                <div class="border-b pb-4">
+                    <h4 class="text-lg font-semibold mb-3">South African Citizen</h4>
+                    <div class="grid grid-cols-2 gap-4">
+                        <div>
+                            <label class="flex items-center">
+                                <input type="checkbox" id="editUserSaCitizen" class="mr-2">
+                                <span>South African Citizen</span>
+                            </label>
+                        </div>
+                        <div id="editUserSaIdContainer" class="hidden">
+                            <label class="block text-sm font-medium mb-1">SA ID Number</label>
+                            <input type="text" id="editUserSaId" class="w-full px-3 py-2 border rounded-md">
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Next of Kin -->
+                <div class="border-b pb-4">
+                    <h4 class="text-lg font-semibold mb-3">Next of Kin</h4>
+                    <div class="grid grid-cols-3 gap-4">
+                        <div>
+                            <label class="block text-sm font-medium mb-1">Full Name</label>
+                            <input type="text" id="editUserNextOfKinName" class="w-full px-3 py-2 border rounded-md">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium mb-1">Contact Number</label>
+                            <input type="text" id="editUserNextOfKinPhone" class="w-full px-3 py-2 border rounded-md">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium mb-1">Contact Email</label>
+                            <input type="email" id="editUserNextOfKinEmail" class="w-full px-3 py-2 border rounded-md">
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Professional Role Fields -->
+                <div id="editUserProfessionalFields" class="border-b pb-4 hidden">
+                    <h4 class="text-lg font-semibold mb-3">Professional Information</h4>
+                    <div class="grid grid-cols-2 gap-4">
+                        <div>
+                            <label class="block text-sm font-medium mb-1">Highest Qualification</label>
+                            <input type="text" id="editUserHighestQualification" class="w-full px-3 py-2 border rounded-md">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium mb-1">Professional Body</label>
+                            <input type="text" id="editUserProfessionalBody" class="w-full px-3 py-2 border rounded-md">
+                        </div>
+                    </div>
+                    <div class="mt-4">
+                        <label class="block text-sm font-medium mb-2">Professional Services</label>
+                        <div id="editUserProfessionalServices" class="space-y-2">
+                            <!-- Services will be dynamically added here -->
+                        </div>
+                        <button type="button" onclick="addProfessionalService()" class="mt-2 text-blue-600 hover:text-blue-800 text-sm">+ Add Service</button>
+                    </div>
+                </div>
+                
+                <!-- Service Provider Role Fields -->
+                <div id="editUserProviderFields" class="border-b pb-4 hidden">
+                    <h4 class="text-lg font-semibold mb-3">Service Provider Information</h4>
+                    <div class="mt-4">
+                        <label class="block text-sm font-medium mb-2">Provider Services</label>
+                        <div id="editUserProviderServices" class="space-y-2">
+                            <!-- Services will be dynamically added here -->
+                        </div>
+                        <button type="button" onclick="addAdminProviderService()" class="mt-2 text-blue-600 hover:text-blue-800 text-sm">+ Add Service</button>
+                    </div>
+                </div>
+                
+                <!-- Driver Role Fields -->
+                <div id="editUserDriverFields" class="border-b pb-4 hidden">
+                    <h4 class="text-lg font-semibold mb-3">Driver Information</h4>
+                    <div class="mt-4">
+                        <label class="block text-sm font-medium mb-2">Driver Services (Cars)</label>
+                        <div id="editUserDriverServices" class="space-y-2">
+                            <!-- Services will be dynamically added here -->
+                        </div>
+                        <button type="button" onclick="addDriverService()" class="mt-2 text-blue-600 hover:text-blue-800 text-sm">+ Add Car/Service</button>
+                    </div>
+                </div>
+                
+                <!-- Status Flags -->
+                <div class="border-b pb-4">
+                    <h4 class="text-lg font-semibold mb-3">Status Flags</h4>
+                    <div class="grid grid-cols-2 gap-4">
+                        <label class="flex items-center">
+                            <input type="checkbox" id="editUserIsPaid" class="mr-2">
+                            <span>Registration Fee Paid</span>
+                        </label>
+                        <label class="flex items-center">
+                            <input type="checkbox" id="editUserIsApproved" class="mr-2">
+                            <span>Approved</span>
+                        </label>
+                        <label class="flex items-center">
+                            <input type="checkbox" id="editUserIsActive" class="mr-2" checked>
+                            <span>Active</span>
+                        </label>
+                        <label class="flex items-center">
+                            <input type="checkbox" id="editUserEmailVerified" class="mr-2">
+                            <span>Email Verified</span>
+                        </label>
+                    </div>
+                </div>
+                
+                <div class="flex space-x-4">
+                    <button type="submit" class="flex-1 bg-blue-500 text-white py-2 px-4 rounded hover:bg-blue-600">
+                        Save Changes
+                    </button>
+                    <button type="button" onclick="closeEditUserModal()" class="flex-1 bg-gray-300 text-gray-700 py-2 px-4 rounded hover:bg-gray-400">
+                        Cancel
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+    
+    <!-- Add/Edit Product Modal -->
+    <div id="productModal" class="hidden fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+        <div class="bg-white p-8 rounded-lg max-w-2xl w-full mx-4 relative max-h-[90vh] overflow-y-auto">
+            <button type="button" onclick="closeProductModal()" class="absolute top-3 right-3 text-gray-400 hover:text-gray-600 text-2xl">&times;</button>
+            <h3 class="text-2xl font-bold mb-4" id="productModalTitle">Add New Product</h3>
+            <form id="productForm" onsubmit="saveProduct(event)" class="space-y-4">
+                <input type="hidden" id="productFormId" value="">
+                
+                <div>
+                    <label class="block text-sm font-medium mb-1">Product Name *</label>
+                    <input type="text" id="productName" required class="w-full px-3 py-2 border rounded-md">
+                </div>
+                
+                <div>
+                    <label class="block text-sm font-medium mb-1">Description</label>
+                    <textarea id="productDescription" rows="3" class="w-full px-3 py-2 border rounded-md"></textarea>
+                </div>
+                
+                <div class="grid grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-sm font-medium mb-1">Price (ZAR) *</label>
+                        <input type="number" id="productPrice" step="0.01" min="0" required class="w-full px-3 py-2 border rounded-md">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium mb-1">Initial Inventory Quantity *</label>
+                        <input type="number" id="productQuantity" min="0" value="0" required class="w-full px-3 py-2 border rounded-md">
+                    </div>
+                </div>
+                
+                <div class="grid grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-sm font-medium mb-1">Category</label>
+                        <select id="productCategory" class="w-full px-3 py-2 border rounded-md" onchange="loadSubcategoriesForProduct()">
+                            <option value="">No Category</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium mb-1">Subcategory</label>
+                        <select id="productSubcategory" class="w-full px-3 py-2 border rounded-md">
+                            <option value="">No Subcategory</option>
+                        </select>
+                    </div>
+                </div>
+                
+                <!-- Product Images Section -->
+                <div id="productImagesSection">
+                    <label class="block text-sm font-medium mb-2">Product Images</label>
+                    <div id="productImagesList" class="space-y-2 mb-3">
+                        <!-- Existing images will be displayed here -->
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium mb-1">Upload New Images</label>
+                        <input type="file" id="productImageFiles" accept="image/*" multiple class="w-full px-3 py-2 border rounded-md">
+                        <p class="text-xs text-gray-500 mt-1">You can upload multiple images. The first image will be set as primary if no primary exists.</p>
+                    </div>
+                </div>
+                
+                <div class="flex space-x-4">
+                    <button type="submit" class="flex-1 bg-blue-500 text-white py-2 px-4 rounded hover:bg-blue-600">
+                        Save Product
+                    </button>
+                    <button type="button" onclick="closeProductModal()" class="flex-1 bg-gray-300 text-gray-700 py-2 px-4 rounded hover:bg-gray-400">
+                        Cancel
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+    
+    <!-- Update Inventory Modal -->
+    <div id="inventoryModal" class="hidden fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+        <div class="bg-white p-8 rounded-lg max-w-md w-full mx-4 relative">
+            <button type="button" onclick="closeInventoryModal()" class="absolute top-3 right-3 text-gray-400 hover:text-gray-600 text-2xl">&times;</button>
+            <h3 class="text-2xl font-bold mb-4">Update Inventory</h3>
+            <p class="text-gray-600 mb-4">Product: <span id="inventoryProductName" class="font-semibold"></span></p>
+            <form id="inventoryForm" onsubmit="updateInventoryQuantity(event)" class="space-y-4">
+                <input type="hidden" id="inventoryProductId" value="">
+                
+                <div>
+                    <label class="block text-sm font-medium mb-1">Quantity *</label>
+                    <input type="number" id="inventoryQuantity" min="0" required class="w-full px-3 py-2 border rounded-md">
+                </div>
+                
+                <div class="flex space-x-4">
+                    <button type="submit" class="flex-1 bg-blue-500 text-white py-2 px-4 rounded hover:bg-blue-600">
+                        Update Inventory
+                    </button>
+                    <button type="button" onclick="closeInventoryModal()" class="flex-1 bg-gray-300 text-gray-700 py-2 px-4 rounded hover:bg-gray-400">
+                        Cancel
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+    
+    <!-- FAQ Modal (Add/Edit) -->
+    <div id="faqModal" class="hidden fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+        <div class="bg-white p-8 rounded-lg max-w-2xl w-full mx-4 relative max-h-[90vh] overflow-y-auto">
+            <button type="button" onclick="closeFAQModal()" class="absolute top-3 right-3 text-gray-400 hover:text-gray-600 text-2xl">&times;</button>
+            <h3 class="text-2xl font-bold mb-4" id="faqModalTitle">Add FAQ</h3>
+            <form id="faqForm" onsubmit="saveFAQ(event)" class="space-y-4">
+                <input type="hidden" id="faqId" value="">
+                
+                <div>
+                    <label class="block text-sm font-medium mb-1">Question *</label>
+                    <textarea id="faqQuestion" required rows="2" class="w-full px-3 py-2 border rounded-md" placeholder="Enter the question"></textarea>
+                </div>
+                
+                <div>
+                    <label class="block text-sm font-medium mb-1">Answer *</label>
+                    <textarea id="faqAnswer" required rows="6" class="w-full px-3 py-2 border rounded-md" placeholder="Enter the answer"></textarea>
+                </div>
+                
+                <div class="grid grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-sm font-medium mb-1">Order</label>
+                        <input type="number" id="faqOrder" min="0" value="0" class="w-full px-3 py-2 border rounded-md">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium mb-1">Status</label>
+                        <select id="faqIsActive" class="w-full px-3 py-2 border rounded-md">
+                            <option value="true">Active</option>
+                            <option value="false">Inactive</option>
+                        </select>
+                    </div>
+                </div>
+                
+                <div class="flex space-x-4">
+                    <button type="submit" class="flex-1 bg-blue-500 text-white py-2 px-4 rounded hover:bg-blue-600">
+                        Save FAQ
+                    </button>
+                    <button type="button" onclick="closeFAQModal()" class="flex-1 bg-gray-300 text-gray-700 py-2 px-4 rounded hover:bg-gray-400">
+                        Cancel
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+    
+    <!-- Carousel Item Modal -->
+    <div id="carouselModal" class="hidden fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50" onclick="if(event.target === this) closeCarouselModal()">
+        <div class="bg-white p-8 rounded-lg max-w-lg w-full mx-4 relative max-h-[90vh] overflow-y-auto">
+            <button type="button" onclick="closeCarouselModal()" class="absolute top-3 right-3 text-gray-400 hover:text-gray-600 text-2xl">&times;</button>
+            <h3 class="text-2xl font-bold mb-4" id="carouselModalTitle">Add Carousel Item</h3>
+            <form id="carouselForm" onsubmit="saveCarouselItem(event)" class="space-y-4">
+                <input type="hidden" id="carouselItemId" value="">
+                <div>
+                    <label class="block text-sm font-medium mb-1">Image (optional)</label>
+                    <input type="file" id="carouselImageFile" accept="image/*" class="w-full px-3 py-2 border rounded-md">
+                    <p class="text-xs text-gray-500 mt-1">Leave empty to keep current image when editing.</p>
+                </div>
+                <div>
+                    <label class="block text-sm font-medium mb-1">CTA Link (URL)</label>
+                    <input type="text" id="carouselCtaLink" class="w-full px-3 py-2 border rounded-md" placeholder="https://... or /shop">
+                </div>
+                <div>
+                    <label class="block text-sm font-medium mb-1">CTA Button Text</label>
+                    <input type="text" id="carouselCtaText" class="w-full px-3 py-2 border rounded-md" placeholder="Learn more">
+                </div>
+                <div class="grid grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-sm font-medium mb-1">Order</label>
+                        <input type="number" id="carouselOrder" min="0" value="0" class="w-full px-3 py-2 border rounded-md">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium mb-1">Active</label>
+                        <select id="carouselIsActive" class="w-full px-3 py-2 border rounded-md">
+                            <option value="true">Yes</option>
+                            <option value="false">No</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="flex space-x-4">
+                    <button type="submit" class="flex-1 bg-blue-500 text-white py-2 px-4 rounded hover:bg-blue-600">
+                        Save
+                    </button>
+                    <button type="button" onclick="closeCarouselModal()" class="flex-1 bg-gray-300 text-gray-700 py-2 px-4 rounded hover:bg-gray-400">
+                        Cancel
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+    
+    <!-- Add Subcategory Modal -->
+    <div id="addSubcategoryModal" class="hidden fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50" onclick="if(event.target === this) closeAddSubcategoryModal()">
+        <div class="bg-white p-8 rounded-lg max-w-md w-full mx-4 relative">
+            <button type="button" onclick="closeAddSubcategoryModal()" class="absolute top-3 right-3 text-gray-400 hover:text-gray-600 text-2xl">&times;</button>
+            <h3 class="text-2xl font-bold mb-4">Add Subcategory</h3>
+            <form id="addSubcategoryForm" onsubmit="saveSubcategoryFromModal(event)" class="space-y-4">
+                <input type="hidden" id="subcategoryCategoryId" value="">
+                <div id="subcategoryCategoryDisplay" class="hidden">
+                    <label class="block text-sm font-medium mb-1">Category</label>
+                    <p id="subcategoryCategoryName" class="px-3 py-2 bg-gray-100 rounded-md text-gray-700"></p>
+                </div>
+                <div id="subcategoryCategorySelectWrap" class="hidden">
+                    <label class="block text-sm font-medium mb-1">Category</label>
+                    <select id="subcategoryCategorySelect" class="w-full px-3 py-2 border rounded-md">
+                        <option value="">Select category</option>
+                    </select>
+                </div>
+                <div>
+                    <label class="block text-sm font-medium mb-1">Subcategory title *</label>
+                    <input type="text" id="subcategoryTitle" required class="w-full px-3 py-2 border rounded-md" placeholder="Enter subcategory name">
+                </div>
+                <div class="flex space-x-4">
+                    <button type="submit" class="flex-1 bg-green-500 text-white py-2 px-4 rounded hover:bg-green-600">Save</button>
+                    <button type="button" onclick="closeAddSubcategoryModal()" class="flex-1 bg-gray-300 text-gray-700 py-2 px-4 rounded hover:bg-gray-400">Cancel</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<div id="adminLoading" class="mt-8 text-center py-8">
+    <p>Checking access...</p>
+</div>
+
+<script>
+// Check admin access
+async function checkAdminAccess() {
+    const token = localStorage.getItem('token');
+    if (!token) {
+        showAccessDenied();
+        return;
+    }
+    
+    try {
+        // Get current user info
+        const response = await fetch('/api/auth/me', {
+            headers: {
+                'Authorization': `Bearer ${token}`
+            }
+        });
+        
+        const result = await response.json();
+        if (result.success && result.data) {
+            const user = result.data;
+            if (user.is_admin) {
+                showAdminDashboard();
+            } else {
+                showAccessDenied();
+            }
+        } else {
+            showAccessDenied();
+        }
+    } catch (error) {
+        console.error('Error checking admin access:', error);
+        showAccessDenied();
+    }
+}
+
+function showAdminDashboard() {
+    document.getElementById('adminLoading').classList.add('hidden');
+    document.getElementById('adminAccessDenied').classList.add('hidden');
+    document.getElementById('adminDashboard').classList.remove('hidden');
+}
+
+function showAccessDenied() {
+    document.getElementById('adminLoading').classList.add('hidden');
+    document.getElementById('adminDashboard').classList.add('hidden');
+    document.getElementById('adminAccessDenied').classList.remove('hidden');
+}
+
+// Ensure login modal is hidden on admin page - run immediately
+(function() {
+    const loginModal = document.getElementById('loginRequiredModal');
+    if (loginModal) {
+        loginModal.classList.add('hidden');
+        loginModal.style.display = 'none';
+        loginModal.style.visibility = 'hidden';
+    }
+})();
+
+// Dashboard state
+let currentUsersPage = 0;
+let currentRequestsPage = 0;
+let currentProductsPage = 0;
+const itemsPerPage = 20;
+let usersTotal = 0;
+let requestsTotal = 0;
+let productsTotal = 0;
+let currentFilters = {};
+
+// Load dashboard statistics
+async function loadStats() {
+    const token = localStorage.getItem('token');
+    if (!token) return;
+    
+    try {
+        const response = await fetch('/api/admin/stats', {
+            headers: {
+                'Authorization': `Bearer ${token}`
+            }
+        });
+        
+        const result = await response.json();
+        if (result.success) {
+            document.getElementById('statTotalUsers').textContent = result.data.total_users || 0;
+            document.getElementById('statTotalRequests').textContent = result.data.total_requests || 0;
+            document.getElementById('statPendingRequests').textContent = result.data.pending_requests || 0;
+            document.getElementById('statCompletedRequests').textContent = result.data.completed_requests || 0;
+        }
+    } catch (error) {
+        console.error('Error loading stats:', error);
+    }
+}
+
+// Load users
+async function loadUsers(page = 0) {
+    const token = localStorage.getItem('token');
+    if (!token) return;
+    
+    try {
+        currentUsersPage = page;
+        const params = new URLSearchParams({
+            limit: itemsPerPage,
+            offset: page * itemsPerPage
+        });
+        
+        const role = document.getElementById('userFilterRole').value;
+        const isApproved = document.getElementById('userFilterApproved').value;
+        
+        if (role) params.append('role', role);
+        if (isApproved !== '') params.append('is_approved', isApproved);
+        
+        const response = await fetch(`/api/admin/users?${params}`, {
+            headers: {
+                'Authorization': `Bearer ${token}`
+            }
+        });
+        
+        const result = await response.json();
+        if (result.success) {
+            usersTotal = result.data.total;
+            displayUsers(result.data.users);
+            updateUsersPagination(result.data.total, page);
+        }
+    } catch (error) {
+        console.error('Error loading users:', error);
+        document.getElementById('usersTableBody').innerHTML = '<tr><td colspan="6" class="px-6 py-4 text-center text-red-500">Error loading users</td></tr>';
+    }
+}
+
+// Display users
+function displayUsers(users) {
+    const tbody = document.getElementById('usersTableBody');
+    
+    if (users.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="6" class="px-6 py-4 text-center text-gray-500">No users found</td></tr>';
+        return;
+    }
+    
+    tbody.innerHTML = users.map(user => {
+        const fullName = user.data?.full_name || 'N/A';
+        const approvedStatus = user.is_approved ? '<span class="text-green-600">Approved</span>' : '<span class="text-yellow-600">Pending</span>';
+        const activeStatus = user.is_active ? '<span class="text-green-600">Active</span>' : '<span class="text-red-600">Suspended</span>';
+        const idStatus = user.id_verification_status || 'pending';
+        const idStatusBadge = idStatus === 'verified' ? '<span class="text-green-600">Verified</span>' : 
+                             idStatus === 'rejected' ? '<span class="text-red-600">Rejected</span>' : 
+                             '<span class="text-yellow-600">Pending</span>';
+        
+        return `
+            <tr class="hover:bg-gray-50">
+                <td class="px-6 py-4 whitespace-nowrap">${user.email}</td>
+                <td class="px-6 py-4 whitespace-nowrap">${fullName}</td>
+                <td class="px-6 py-4 whitespace-nowrap"><span class="px-2 py-1 bg-blue-100 text-blue-800 rounded text-sm">${user.role}</span></td>
+                <td class="px-6 py-4 whitespace-nowrap">
+                    ${approvedStatus} | ${activeStatus}
+                </td>
+                <td class="px-6 py-4 whitespace-nowrap">${idStatusBadge}</td>
+                <td class="px-6 py-4 whitespace-nowrap text-sm">
+                    <button onclick="editUser('${user.id}')" class="text-blue-600 hover:text-blue-800 mr-2">Edit</button>
+                    ${!user.is_approved ? `<button onclick="approveUser('${user.id}')" class="text-green-600 hover:text-green-800 mr-2">Approve</button>` : ''}
+                    ${user.is_approved ? (
+                        user.is_active ? 
+                            `<button onclick="suspendUser('${user.id}')" class="text-orange-600 hover:text-orange-800 mr-2">Suspend</button>` :
+                            `<button onclick="unsuspendUser('${user.id}')" class="text-green-600 hover:text-green-800 mr-2">Unsuspend</button>`
+                    ) : ''}
+                    ${user.file_urls && user.file_urls.length > 0 ? 
+                        `<button onclick="viewIdDocument('${user.file_urls[0]}')" class="text-purple-600 hover:text-purple-800 mr-2">View ID</button>` : ''}
+                    ${user.role === 'professional' && user.data && user.data.cv_resume_url ? 
+                        `<button onclick="viewIdDocument('${(user.data.cv_resume_url || '').replace(/'/g, "\\'")}')" class="text-indigo-600 hover:text-indigo-800 mr-2">View CV</button>` : ''}
+                    ${idStatus === 'pending' && user.file_urls && user.file_urls.length > 0 ? 
+                        `<button onclick="openIdVerificationModal('${user.id}', '${user.email}', '${(user.file_urls[0] || '').replace(/'/g, "\\'")}')" class="text-blue-600 hover:text-blue-800">Verify ID</button>` : ''}
+                    ${user.role === 'driver' ? 
+                        `<button onclick="openVehiclePhotosModal('${user.id}')" class="text-teal-600 hover:text-teal-800 ml-2">View car photos</button>` : ''}
+                </td>
+            </tr>
+        `;
+    }).join('');
+}
+
+// Update users pagination
+function updateUsersPagination(total, page) {
+    const totalPages = Math.ceil(total / itemsPerPage);
+    const pagination = document.getElementById('usersPagination');
+    
+    if (totalPages <= 1) {
+        pagination.classList.add('hidden');
+        return;
+    }
+    
+    pagination.classList.remove('hidden');
+    document.getElementById('usersPageInfo').textContent = `Page ${page + 1} of ${totalPages}`;
+    document.getElementById('usersPrevBtn').disabled = page === 0;
+    document.getElementById('usersNextBtn').disabled = page >= totalPages - 1;
+}
+
+function previousUsersPage() {
+    if (currentUsersPage > 0) {
+        loadUsers(currentUsersPage - 1);
+    }
+}
+
+function nextUsersPage() {
+    const totalPages = Math.ceil(usersTotal / itemsPerPage);
+    if (currentUsersPage < totalPages - 1) {
+        loadUsers(currentUsersPage + 1);
+    }
+}
+
+// Load service requests
+async function loadRequests(page = 0) {
+    const token = localStorage.getItem('token');
+    if (!token) return;
+    
+    try {
+        currentRequestsPage = page;
+        const params = new URLSearchParams({
+            limit: itemsPerPage,
+            offset: page * itemsPerPage
+        });
+        
+        const response = await fetch(`/api/admin/requests?${params}`, {
+            headers: {
+                'Authorization': `Bearer ${token}`
+            }
+        });
+        
+        const result = await response.json();
+        if (result.success) {
+            requestsTotal = result.data.total;
+            displayRequests(result.data.requests);
+            updateRequestsPagination(result.data.total, page);
+        }
+    } catch (error) {
+        console.error('Error loading requests:', error);
+        document.getElementById('requestsTableBody').innerHTML = '<tr><td colspan="6" class="px-6 py-4 text-center text-red-500">Error loading requests</td></tr>';
+    }
+}
+
+// Display service requests
+function displayRequests(requests) {
+    const tbody = document.getElementById('requestsTableBody');
+    
+    if (requests.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="6" class="px-6 py-4 text-center text-gray-500">No requests found</td></tr>';
+        return;
+    }
+    
+    tbody.innerHTML = requests.map(req => {
+        const statusColors = {
+            'pending': 'text-yellow-600 bg-yellow-100',
+            'accepted': 'text-blue-600 bg-blue-100',
+            'completed': 'text-green-600 bg-green-100',
+            'cancelled': 'text-red-600 bg-red-100'
+        };
+        const statusColor = statusColors[req.status] || 'text-gray-600 bg-gray-100';
+        const date = new Date(req.created_at).toLocaleDateString('en-ZA');
+        
+        return `
+            <tr class="hover:bg-gray-50">
+                <td class="px-6 py-4 whitespace-nowrap font-mono text-sm">${req.id}</td>
+                <td class="px-6 py-4 whitespace-nowrap"><span class="px-2 py-1 bg-purple-100 text-purple-800 rounded text-sm">${req.request_type}</span></td>
+                <td class="px-6 py-4 whitespace-nowrap">${req.requester_id ? req.requester_id.substring(0, 8) + '...' : 'N/A'}</td>
+                <td class="px-6 py-4 whitespace-nowrap"><span class="px-2 py-1 ${statusColor} rounded text-sm">${req.status}</span></td>
+                <td class="px-6 py-4 whitespace-nowrap">R${parseFloat(req.payment_amount || 0).toFixed(2)}</td>
+                <td class="px-6 py-4 whitespace-nowrap">${date}</td>
+            </tr>
+        `;
+    }).join('');
+}
+
+// Update requests pagination
+function updateRequestsPagination(total, page) {
+    const totalPages = Math.ceil(total / itemsPerPage);
+    const pagination = document.getElementById('requestsPagination');
+    
+    if (totalPages <= 1) {
+        pagination.classList.add('hidden');
+        return;
+    }
+    
+    pagination.classList.remove('hidden');
+    document.getElementById('requestsPageInfo').textContent = `Page ${page + 1} of ${totalPages}`;
+    document.getElementById('requestsPrevBtn').disabled = page === 0;
+    document.getElementById('requestsNextBtn').disabled = page >= totalPages - 1;
+}
+
+function previousRequestsPage() {
+    if (currentRequestsPage > 0) {
+        loadRequests(currentRequestsPage - 1);
+    }
+}
+
+function nextRequestsPage() {
+    const totalPages = Math.ceil(requestsTotal / itemsPerPage);
+    if (currentRequestsPage < totalPages - 1) {
+        loadRequests(currentRequestsPage + 1);
+    }
+}
+
+// Tab switching
+function switchTab(tab) {
+    // Update tab buttons
+    document.querySelectorAll('[id^="tab"]').forEach(btn => {
+        btn.classList.remove('border-b-2', 'border-blue-500', 'text-blue-600');
+        btn.classList.add('text-gray-600');
+    });
+    
+    // Hide all tabs
+    document.querySelectorAll('.tab-content').forEach(content => {
+        content.classList.add('hidden');
+    });
+    
+    // Show selected tab
+    if (tab === 'users') {
+        document.getElementById('tabUsers').classList.add('border-b-2', 'border-blue-500', 'text-blue-600');
+        document.getElementById('tabUsers').classList.remove('text-gray-600');
+        document.getElementById('usersTab').classList.remove('hidden');
+        loadUsers();
+    } else if (tab === 'requests') {
+        document.getElementById('tabRequests').classList.add('border-b-2', 'border-blue-500', 'text-blue-600');
+        document.getElementById('tabRequests').classList.remove('text-gray-600');
+        document.getElementById('requestsTab').classList.remove('hidden');
+        loadRequests();
+    } else if (tab === 'products') {
+        document.getElementById('tabProducts').classList.add('border-b-2', 'border-blue-500', 'text-blue-600');
+        document.getElementById('tabProducts').classList.remove('text-gray-600');
+        document.getElementById('productsTab').classList.remove('hidden');
+        loadProductFilterCategories();
+        loadProducts();
+    } else if (tab === 'faqs') {
+        document.getElementById('tabFaqs').classList.add('border-b-2', 'border-blue-500', 'text-blue-600');
+        document.getElementById('tabFaqs').classList.remove('text-gray-600');
+        document.getElementById('faqsTab').classList.remove('hidden');
+        loadFAQs();
+    } else if (tab === 'categories') {
+        document.getElementById('tabCategories').classList.add('border-b-2', 'border-blue-500', 'text-blue-600');
+        document.getElementById('tabCategories').classList.remove('text-gray-600');
+        document.getElementById('categoriesTab').classList.remove('hidden');
+        loadCategories();
+    } else if (tab === 'services') {
+        document.getElementById('tabServices').classList.add('border-b-2', 'border-blue-500', 'text-blue-600');
+        document.getElementById('tabServices').classList.remove('text-gray-600');
+        document.getElementById('servicesTab').classList.remove('hidden');
+        loadAvailableServices();
+    } else if (tab === 'sales') {
+        document.getElementById('tabSales').classList.add('border-b-2', 'border-blue-500', 'text-blue-600');
+        document.getElementById('tabSales').classList.remove('text-gray-600');
+        document.getElementById('salesTab').classList.remove('hidden');
+        loadUserSales();
+    } else if (tab === 'carousel') {
+        document.getElementById('tabCarousel').classList.add('border-b-2', 'border-blue-500', 'text-blue-600');
+        document.getElementById('tabCarousel').classList.remove('text-gray-600');
+        document.getElementById('carouselTab').classList.remove('hidden');
+        loadCarousel();
+    } else if (tab === 'cms') {
+        document.getElementById('tabCms').classList.add('border-b-2', 'border-blue-500', 'text-blue-600');
+        document.getElementById('tabCms').classList.remove('text-gray-600');
+        document.getElementById('cmsTab').classList.remove('hidden');
+        loadFooterCms();
+    } else if (tab === 'settings') {
+        document.getElementById('tabSettings').classList.add('border-b-2', 'border-blue-500', 'text-blue-600');
+        document.getElementById('tabSettings').classList.remove('text-gray-600');
+        document.getElementById('settingsTab').classList.remove('hidden');
+        loadSettingsCalloutFees();
+    } else if (tab === 'legal') {
+        document.getElementById('tabLegal').classList.add('border-b-2', 'border-blue-500', 'text-blue-600');
+        document.getElementById('tabLegal').classList.remove('text-gray-600');
+        document.getElementById('legalTab').classList.remove('hidden');
+        loadLegalContent();
+    } else if (tab === 'recons') {
+        document.getElementById('tabRecons').classList.add('border-b-2', 'border-blue-500', 'text-blue-600');
+        document.getElementById('tabRecons').classList.remove('text-gray-600');
+        document.getElementById('reconsTab').classList.remove('hidden');
+    } else if (tab === 'withdrawals') {
+        document.getElementById('tabWithdrawals').classList.add('border-b-2', 'border-blue-500', 'text-blue-600');
+        document.getElementById('tabWithdrawals').classList.remove('text-gray-600');
+        document.getElementById('withdrawalsTab').classList.remove('hidden');
+        loadWithdrawalsAdmin();
+    } else if (tab === 'agents') {
+        document.getElementById('tabAgents').classList.add('border-b-2', 'border-blue-500', 'text-blue-600');
+        document.getElementById('tabAgents').classList.remove('text-gray-600');
+        document.getElementById('agentsTab').classList.remove('hidden');
+        loadAgentsAdmin();
+    } else if (tab === 'pendingUpdates') {
+        document.getElementById('tabPendingUpdates').classList.add('border-b-2', 'border-blue-500', 'text-blue-600');
+        document.getElementById('tabPendingUpdates').classList.remove('text-gray-600');
+        document.getElementById('pendingUpdatesTab').classList.remove('hidden');
+        loadPendingProfileUpdates();
+    }
+}
+
+// Approve user
+async function approveUser(userId) {
+    const token = localStorage.getItem('token');
+    if (!token) return;
+    
+    if (!confirm('Are you sure you want to approve this user?')) return;
+    
+    try {
+        const response = await fetch(`/api/admin/users/${userId}/approve`, {
+            method: 'PATCH',
+            headers: {
+                'Authorization': `Bearer ${token}`
+            }
+        });
+        
+        const result = await response.json();
+        if (result.success) {
+            alert('User approved successfully');
+            loadUsers(currentUsersPage);
+        } else {
+            alert('Error: ' + (result.error?.message || 'Failed to approve user'));
+        }
+    } catch (error) {
+        console.error('Error approving user:', error);
+        alert('Error approving user: ' + error.message);
+    }
+}
+
+// Suspend user
+async function suspendUser(userId) {
+    const token = localStorage.getItem('token');
+    if (!token) return;
+    
+    if (!confirm('Are you sure you want to suspend this user? They will not be able to access the platform.')) return;
+    
+    try {
+        const response = await fetch(`/api/admin/users/${userId}/suspend`, {
+            method: 'PATCH',
+            headers: {
+                'Authorization': `Bearer ${token}`
+            }
+        });
+        
+        const result = await response.json();
+        if (result.success) {
+            alert('User suspended successfully');
+            loadUsers(currentUsersPage);
+        } else {
+            alert('Error: ' + (result.error?.message || 'Failed to suspend user'));
+        }
+    } catch (error) {
+        console.error('Error suspending user:', error);
+        alert('Error suspending user: ' + error.message);
+    }
+}
+
+// Unsuspend user
+async function unsuspendUser(userId) {
+    const token = localStorage.getItem('token');
+    if (!token) return;
+    
+    if (!confirm('Are you sure you want to unsuspend this user? They will be able to access the platform again.')) return;
+    
+    try {
+        const response = await fetch(`/api/admin/users/${userId}/unsuspend`, {
+            method: 'PATCH',
+            headers: {
+                'Authorization': `Bearer ${token}`
+            }
+        });
+        
+        const result = await response.json();
+        if (result.success) {
+            alert('User unsuspended successfully');
+            loadUsers(currentUsersPage);
+        } else {
+            alert('Error: ' + (result.error?.message || 'Failed to unsuspend user'));
+        }
+    } catch (error) {
+        console.error('Error unsuspending user:', error);
+        alert('Error unsuspending user: ' + error.message);
+    }
+}
+
+// Pending profile updates
+async function loadPendingProfileUpdates() {
+    const token = localStorage.getItem('token');
+    const el = document.getElementById('pendingUpdatesList');
+    if (!token) { el.innerHTML = '<p class="text-red-500">Not logged in.</p>'; return; }
+    el.innerHTML = '<p class="text-gray-500">Loading...</p>';
+    try {
+        const response = await fetch('/api/admin/pending-profile-updates', {
+            headers: { 'Authorization': 'Bearer ' + token }
+        });
+        const result = await response.json();
+        if (!result.success) {
+            el.innerHTML = '<p class="text-red-500">' + (result.error?.message || 'Failed to load') + '</p>';
+            return;
+        }
+        const list = Array.isArray(result.data) ? result.data : (result.data?.pending_updates || []);
+        if (list.length === 0) {
+            el.innerHTML = '<p class="text-gray-500">No pending profile updates.</p>';
+            return;
+        }
+        function formatPayloadSummary(payload) {
+            if (!payload || typeof payload !== 'object') return '—';
+            var parts = [];
+            if (payload.phone) parts.push('Phone');
+            if (payload.next_of_kin && Object.keys(payload.next_of_kin).length) parts.push('Next of kin');
+            if (payload.driver_services && (Array.isArray(payload.driver_services) ? payload.driver_services.length : 1)) parts.push('Driver services (Cars)');
+            if (payload.provider_services && (Array.isArray(payload.provider_services) ? payload.provider_services.length : 1)) parts.push('Add your services');
+            if (payload.professional_services && (Array.isArray(payload.professional_services) ? payload.professional_services.length : 1)) parts.push('Professional services');
+            if (payload.highest_qualification) parts.push('Highest qualification');
+            if (payload.professional_body) parts.push('Professional body');
+            if (payload.proof_of_residence_url) parts.push('Proof of residence');
+            if (payload.driver_license_url) parts.push('Driver\'s license');
+            if (payload.qualification_urls && payload.qualification_urls.length) parts.push('Qualification documents');
+            return parts.length ? parts.join(', ') : '—';
+        }
+        el.innerHTML = '<div class="overflow-x-auto"><table class="min-w-full divide-y divide-gray-200"><thead><tr class="bg-gray-50"><th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">User</th><th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Role</th><th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Submitted</th><th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Changes</th><th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Actions</th></tr></thead><tbody id="pendingUpdatesTableBody"></tbody></table></div>';
+        const tbody = document.getElementById('pendingUpdatesTableBody');
+        tbody.innerHTML = list.map(function (row) {
+            const changeSummary = formatPayloadSummary(row.payload);
+            return '<tr class="border-b"><td class="px-4 py-2">' + (row.user_email || '—') + '<br><span class="text-xs text-gray-500">' + (row.user_full_name || '') + '</span></td><td class="px-4 py-2">' + (row.user_role || '—') + '</td><td class="px-4 py-2">' + (row.created_at ? new Date(row.created_at).toLocaleString() : '—') + '</td><td class="px-4 py-2 text-sm">' + changeSummary + '</td><td class="px-4 py-2"><button type="button" onclick="approvePendingUpdate(\'' + row.id + '\')" class="px-2 py-1 bg-green-600 text-white rounded text-sm hover:bg-green-700">Approve</button> <button type="button" onclick="rejectPendingUpdate(\'' + row.id + '\')" class="px-2 py-1 bg-red-600 text-white rounded text-sm hover:bg-red-700">Reject</button></td></tr>';
+        }).join('');
+    } catch (err) {
+        el.innerHTML = '<p class="text-red-500">Error: ' + err.message + '</p>';
+    }
+}
+
+async function approvePendingUpdate(pendingId) {
+    const token = localStorage.getItem('token');
+    if (!token) return;
+    if (!confirm('Apply this user\'s pending changes to their profile?')) return;
+    try {
+        const response = await fetch('/api/admin/pending-profile-updates/' + pendingId + '/approve', {
+            method: 'POST',
+            headers: { 'Authorization': 'Bearer ' + token, 'Content-Type': 'application/json' }
+        });
+        const result = await response.json();
+        if (result.success) {
+            alert('Changes applied.');
+            loadPendingProfileUpdates();
+        } else {
+            alert('Error: ' + (result.error?.message || 'Failed to approve'));
+        }
+    } catch (err) {
+        alert('Error: ' + err.message);
+    }
+}
+
+async function rejectPendingUpdate(pendingId) {
+    const token = localStorage.getItem('token');
+    if (!token) return;
+    const reason = prompt('Rejection reason (optional):');
+    if (reason === null) return;
+    try {
+        const response = await fetch('/api/admin/pending-profile-updates/' + pendingId + '/reject', {
+            method: 'POST',
+            headers: { 'Authorization': 'Bearer ' + token, 'Content-Type': 'application/json' },
+            body: JSON.stringify({ rejection_reason: reason || '' })
+        });
+        const result = await response.json();
+        if (result.success) {
+            alert('Update rejected.');
+            loadPendingProfileUpdates();
+        } else {
+            alert('Error: ' + (result.error?.message || 'Failed to reject'));
+        }
+    } catch (err) {
+        alert('Error: ' + err.message);
+    }
+}
+
+// ID verification modal state
+let currentVerificationUserId = null;
+
+// Open ID verification modal
+async function openIdVerificationModal(userId, userEmail, idDocumentUrl = null) {
+    currentVerificationUserId = userId;
+    document.getElementById('idVerifyUserEmail').textContent = userEmail;
+    
+    // Load ID document if URL provided
+    if (idDocumentUrl) {
+        const fullUrl = idDocumentUrl.startsWith('http') ? idDocumentUrl : `${idDocumentUrl}`;
+        document.getElementById('idDocumentImage').src = fullUrl;
+        document.getElementById('idDocumentPreview').classList.remove('hidden');
+    } else {
+        // Try to load user data if URL not provided
+        const token = localStorage.getItem('token');
+        if (token) {
+            try {
+                const response = await fetch(`/api/admin/users?limit=1000&offset=0`, {
+                    headers: {
+                        'Authorization': `Bearer ${token}`
+                    }
+                });
+                
+                const result = await response.json();
+                if (result.success) {
+                    const user = result.data.users.find(u => u.id === userId);
+                    if (user && user.file_urls && user.file_urls.length > 0) {
+                        const idUrl = user.file_urls[0];
+                        document.getElementById('idDocumentImage').src = idUrl.startsWith('http') ? idUrl : `/uploads/${idUrl}`;
+                        document.getElementById('idDocumentPreview').classList.remove('hidden');
+                    } else {
+                        document.getElementById('idDocumentPreview').classList.add('hidden');
+                    }
+                }
+            } catch (error) {
+                console.error('Error loading user data:', error);
+                document.getElementById('idDocumentPreview').classList.add('hidden');
+            }
+        } else {
+            document.getElementById('idDocumentPreview').classList.add('hidden');
+        }
+    }
+    
+    // Reset form
+    document.getElementById('idVerifyStatus').value = 'verified';
+    document.getElementById('idRejectionReason').value = '';
+    document.getElementById('idRejectionReasonContainer').classList.add('hidden');
+    
+    // Show modal
+    document.getElementById('idVerificationModal').classList.remove('hidden');
+    
+    // Handle status change (remove old listeners first)
+    const statusSelect = document.getElementById('idVerifyStatus');
+    const newStatusSelect = statusSelect.cloneNode(true);
+    statusSelect.parentNode.replaceChild(newStatusSelect, statusSelect);
+    
+    newStatusSelect.addEventListener('change', function() {
+        if (this.value === 'rejected') {
+            document.getElementById('idRejectionReasonContainer').classList.remove('hidden');
+        } else {
+            document.getElementById('idRejectionReasonContainer').classList.add('hidden');
+        }
+    });
+}
+
+// Close ID verification modal
+function closeIdVerificationModal() {
+    document.getElementById('idVerificationModal').classList.add('hidden');
+    currentVerificationUserId = null;
+}
+
+// Submit ID verification
+async function submitIdVerification() {
+    if (!currentVerificationUserId) return;
+    
+    const status = document.getElementById('idVerifyStatus').value;
+    const reason = document.getElementById('idRejectionReason').value;
+    
+    if (status === 'rejected' && !reason.trim()) {
+        alert('Please enter a rejection reason');
+        return;
+    }
+    
+    await verifyUserId(currentVerificationUserId, status, reason);
+    closeIdVerificationModal();
+}
+
+// Verify user ID
+async function verifyUserId(userId, status, reason) {
+    const token = localStorage.getItem('token');
+    if (!token) return;
+    
+    try {
+        const response = await fetch(`/api/admin/users/${userId}/verify-id`, {
+            method: 'PATCH',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${token}`
+            },
+            body: JSON.stringify({ status, reason })
+        });
+        
+        const result = await response.json();
+        if (result.success) {
+            alert(`ID verification status updated to ${status}`);
+            loadUsers(currentUsersPage);
+        } else {
+            alert('Error: ' + (result.error?.message || 'Failed to verify ID'));
+        }
+    } catch (error) {
+        console.error('Error verifying ID:', error);
+        alert('Error verifying ID: ' + error.message);
+    }
+}
+
+// ID View Modal state
+let currentIdViewUrl = null;
+
+// View ID document (opens modal)
+function viewIdDocument(url) {
+    currentIdViewUrl = url;
+    // Handle different URL formats: full URL, absolute path, or relative filename
+    let fullUrl = url;
+    if (!url.startsWith('http') && !url.startsWith('/')) {
+        // If it's just a filename, add /uploads/ prefix
+        fullUrl = `/uploads/${url}`;
+    } else if (url.startsWith('/uploads/')) {
+        // If it already starts with /uploads/, use it as is
+        fullUrl = url;
+    } else if (!url.startsWith('http')) {
+        // If it starts with / but not /uploads/, assume it needs /uploads/
+        fullUrl = `/uploads${url}`;
+    }
+    document.getElementById('idViewDocumentImage').src = fullUrl;
+    document.getElementById('idViewModal').classList.remove('hidden');
+}
+
+// Close ID view modal
+function closeIdViewModal() {
+    document.getElementById('idViewModal').classList.add('hidden');
+    currentIdViewUrl = null;
+}
+
+// Vehicle photos modal (carousel)
+let vehiclePhotosUrls = [];
+let currentVehiclePhotoIndex = 0;
+
+function toFullUrl(path) {
+    if (!path) return '';
+    if (path.startsWith('http')) return path;
+    return (window.location.origin || '') + (path.startsWith('/') ? path : '/' + path);
+}
+
+async function openVehiclePhotosModal(userId) {
+    const token = localStorage.getItem('token');
+    if (!token) return;
+    try {
+        const r = await fetch('/api/admin/users/' + userId + '/vehicle-images', { headers: { 'Authorization': 'Bearer ' + token } });
+        const result = await r.json();
+        if (!result.success || !result.data) {
+            alert('No vehicle photos or failed to load.');
+            return;
+        }
+        vehiclePhotosUrls = (result.data.vehicle_images || []).map(function(img) { return toFullUrl(img.image_url); });
+        vehiclePhotosUrls = vehiclePhotosUrls.filter(Boolean);
+        currentVehiclePhotoIndex = 0;
+        const modal = document.getElementById('vehiclePhotosModal');
+        const imgEl = document.getElementById('vehiclePhotosImage');
+        const counterEl = document.getElementById('vehiclePhotosCounter');
+        const prevBtn = document.getElementById('vehiclePhotosPrev');
+        const nextBtn = document.getElementById('vehiclePhotosNext');
+        if (vehiclePhotosUrls.length === 0) {
+            imgEl.src = '';
+            imgEl.alt = 'No photos';
+            counterEl.textContent = 'No car photos uploaded';
+            prevBtn.style.visibility = 'hidden';
+            nextBtn.style.visibility = 'hidden';
+        } else {
+            imgEl.src = vehiclePhotosUrls[0];
+            imgEl.alt = 'Car photo 1';
+            counterEl.textContent = '1 / ' + vehiclePhotosUrls.length;
+            prevBtn.style.visibility = 'visible';
+            nextBtn.style.visibility = 'visible';
+        }
+        modal.classList.remove('hidden');
+    } catch (e) {
+        alert('Error loading car photos: ' + e.message);
+    }
+}
+
+function closeVehiclePhotosModal() {
+    document.getElementById('vehiclePhotosModal').classList.add('hidden');
+    vehiclePhotosUrls = [];
+    currentVehiclePhotoIndex = 0;
+}
+
+function vehiclePhotosPrev() {
+    if (vehiclePhotosUrls.length === 0) return;
+    currentVehiclePhotoIndex = (currentVehiclePhotoIndex - 1 + vehiclePhotosUrls.length) % vehiclePhotosUrls.length;
+    document.getElementById('vehiclePhotosImage').src = vehiclePhotosUrls[currentVehiclePhotoIndex];
+    document.getElementById('vehiclePhotosCounter').textContent = (currentVehiclePhotoIndex + 1) + ' / ' + vehiclePhotosUrls.length;
+}
+
+function vehiclePhotosNext() {
+    if (vehiclePhotosUrls.length === 0) return;
+    currentVehiclePhotoIndex = (currentVehiclePhotoIndex + 1) % vehiclePhotosUrls.length;
+    document.getElementById('vehiclePhotosImage').src = vehiclePhotosUrls[currentVehiclePhotoIndex];
+    document.getElementById('vehiclePhotosCounter').textContent = (currentVehiclePhotoIndex + 1) + ' / ' + vehiclePhotosUrls.length;
+}
+
+// Open ID document in new window
+function openIdDocumentInNewWindow() {
+    if (currentIdViewUrl) {
+        // Handle different URL formats: full URL, absolute path, or relative filename
+        let fullUrl = currentIdViewUrl;
+        if (!currentIdViewUrl.startsWith('http') && !currentIdViewUrl.startsWith('/')) {
+            // If it's just a filename, add /uploads/ prefix
+            fullUrl = `/uploads/${currentIdViewUrl}`;
+        } else if (currentIdViewUrl.startsWith('/uploads/')) {
+            // If it already starts with /uploads/, use it as is
+            fullUrl = currentIdViewUrl;
+        } else if (!currentIdViewUrl.startsWith('http')) {
+            // If it starts with / but not /uploads/, assume it needs /uploads/
+            fullUrl = `/uploads${currentIdViewUrl}`;
+        }
+        window.open(fullUrl, '_blank');
+    }
+}
+
+function showAdminDashboard() {
+    document.getElementById('adminLoading').classList.add('hidden');
+    document.getElementById('adminAccessDenied').classList.add('hidden');
+    document.getElementById('adminDashboard').classList.remove('hidden');
+    
+    // Load dashboard data
+    loadStats();
+    loadUsers();
+}
+
+// Products Management
+async function loadProducts(page = 0) {
+    const token = localStorage.getItem('token');
+    if (!token) return;
+    
+    try {
+        currentProductsPage = page;
+        const params = new URLSearchParams({
+            limit: itemsPerPage,
+            offset: page * itemsPerPage
+        });
+        const search = document.getElementById('productSearchName')?.value?.trim();
+        const status = document.getElementById('productFilterStatus')?.value?.trim();
+        const categoryId = document.getElementById('productFilterCategory')?.value?.trim();
+        const subcategoryId = document.getElementById('productFilterSubcategory')?.value?.trim();
+        if (search) params.set('search', search);
+        if (status) params.set('status', status);
+        if (categoryId) params.set('category_id', categoryId);
+        if (subcategoryId) params.set('subcategory_id', subcategoryId);
+        
+        const response = await fetch(`/api/admin/products?${params}`, {
+            headers: {
+                'Authorization': `Bearer ${token}`
+            }
+        });
+        
+        const result = await response.json();
+        if (result.success) {
+            productsTotal = result.data.total;
+            displayProducts(result.data.products);
+            updateProductsPagination(result.data.total, page);
+        }
+    } catch (error) {
+        console.error('Error loading products:', error);
+        document.getElementById('productsTableBody').innerHTML = '<tr><td colspan="5" class="px-6 py-4 text-center text-red-500">Error loading products</td></tr>';
+    }
+}
+
+function applyProductFilters() {
+    loadProducts(0);
+}
+
+async function loadProductFilterCategories() {
+    const token = localStorage.getItem('token');
+    if (!token) return;
+    const sel = document.getElementById('productFilterCategory');
+    if (!sel) return;
+    try {
+        const res = await fetch('/api/shop/categories', { headers: { 'Authorization': `Bearer ${token}` } });
+        const result = await res.json();
+        if (result.success && result.data.categories) {
+            sel.innerHTML = '<option value="">All</option>' + result.data.categories.map(c => `<option value="${c.id}">${(c.title || '').replace(/</g, '&lt;')}</option>`).join('');
+        }
+    } catch (e) { console.error(e); }
+}
+
+async function onProductFilterCategoryChange() {
+    const categoryId = document.getElementById('productFilterCategory')?.value?.trim();
+    const subSel = document.getElementById('productFilterSubcategory');
+    if (!subSel) return;
+    subSel.innerHTML = '<option value="">All</option>';
+    if (!categoryId) return;
+    const token = localStorage.getItem('token');
+    if (!token) return;
+    try {
+        const res = await fetch(`/api/shop/subcategories?category_id=${encodeURIComponent(categoryId)}`, { headers: { 'Authorization': `Bearer ${token}` } });
+        const result = await res.json();
+        if (result.success && result.data.subcategories) {
+            result.data.subcategories.forEach(s => {
+                const opt = document.createElement('option');
+                opt.value = s.id;
+                opt.textContent = s.title || s.id;
+                subSel.appendChild(opt);
+            });
+        }
+    } catch (e) { console.error(e); }
+}
+
+function displayProducts(products) {
+    const tbody = document.getElementById('productsTableBody');
+    
+    if (products.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="5" class="px-6 py-4 text-center text-gray-500">No products found</td></tr>';
+        return;
+    }
+    
+    tbody.innerHTML = products.map(product => {
+        const statusColor = product.status === 'active' ? 'text-green-600 bg-green-100' : 'text-red-600 bg-red-100';
+        const inventoryQty = product.inventory ? product.inventory.quantity : 0;
+        
+        return `
+            <tr class="hover:bg-gray-50">
+                <td class="px-6 py-4 whitespace-nowrap">${product.name}</td>
+                <td class="px-6 py-4 whitespace-nowrap">R${parseFloat(product.price || 0).toFixed(2)}</td>
+                <td class="px-6 py-4 whitespace-nowrap">
+                    <span class="px-2 py-1 ${statusColor} rounded text-sm">${product.status}</span>
+                </td>
+                <td class="px-6 py-4 whitespace-nowrap">
+                    <span class="font-semibold">${inventoryQty}</span>
+                    <button onclick="openInventoryModal('${product.id}', '${product.name.replace(/'/g, "\\'")}', ${inventoryQty})" class="ml-2 text-blue-600 hover:text-blue-800 text-sm">Update</button>
+                </td>
+                <td class="px-6 py-4 whitespace-nowrap text-sm">
+                    <button onclick="editProduct('${product.id}')" class="text-blue-600 hover:text-blue-800 mr-2">Edit</button>
+                    ${product.status === 'inactive' ? 
+                        `<button onclick="activateProduct('${product.id}')" class="text-green-600 hover:text-green-800 mr-2">Activate</button>` : 
+                        `<button onclick="deactivateProduct('${product.id}')" class="text-red-600 hover:text-red-800 mr-2">Deactivate</button>`
+                    }
+                </td>
+            </tr>
+        `;
+    }).join('');
+}
+
+function updateProductsPagination(total, page) {
+    const totalPages = Math.ceil(total / itemsPerPage);
+    const pagination = document.getElementById('productsPagination');
+    
+    if (totalPages <= 1) {
+        pagination.classList.add('hidden');
+        return;
+    }
+    
+    pagination.classList.remove('hidden');
+    document.getElementById('productsPageInfo').textContent = `Page ${page + 1} of ${totalPages}`;
+    document.getElementById('productsPrevBtn').disabled = page === 0;
+    document.getElementById('productsNextBtn').disabled = page >= totalPages - 1;
+}
+
+function previousProductsPage() {
+    if (currentProductsPage > 0) {
+        loadProducts(currentProductsPage - 1);
+    }
+}
+
+function nextProductsPage() {
+    const totalPages = Math.ceil(productsTotal / itemsPerPage);
+    if (currentProductsPage < totalPages - 1) {
+        loadProducts(currentProductsPage + 1);
+    }
+}
+
+// Product Modal Functions
+let deletedImageIds = [];
+let currentProductImages = [];
+
+async function openAddProductModal() {
+    document.getElementById('productModalTitle').textContent = 'Add New Product';
+    document.getElementById('productFormId').value = '';
+    document.getElementById('productForm').reset();
+    document.getElementById('productImagesList').innerHTML = '';
+    document.getElementById('productImageFiles').value = '';
+    deletedImageIds = [];
+    currentProductImages = [];
+    
+    // Load categories into product form dropdown
+    await loadProductFormCategories();
+    document.getElementById('productSubcategory').innerHTML = '<option value="">No Subcategory</option>';
+    
+    document.getElementById('productModal').classList.remove('hidden');
+}
+
+async function editProduct(productId) {
+    const token = localStorage.getItem('token');
+    if (!token) return;
+    
+    try {
+        const response = await fetch(`/api/admin/products/${productId}`, {
+            headers: {
+                'Authorization': `Bearer ${token}`
+            }
+        });
+        
+        const result = await response.json();
+        if (result.success) {
+            const product = result.data;
+            
+            document.getElementById('productModalTitle').textContent = 'Edit Product';
+            document.getElementById('productFormId').value = product.id;
+            document.getElementById('productName').value = product.name || '';
+            document.getElementById('productDescription').value = product.description || '';
+            document.getElementById('productPrice').value = product.price || 0;
+            document.getElementById('productQuantity').value = product.inventory?.quantity || 0;
+            
+            // Populate category dropdown, then set selected category
+            await loadProductFormCategories();
+            document.getElementById('productCategory').value = product.category_id || '';
+            
+            // Populate subcategory dropdown for selected category, then set selected subcategory
+            await loadSubcategoriesForProduct();
+            document.getElementById('productSubcategory').value = product.subcategory_id || '';
+            
+            // Display existing images
+            currentProductImages = product.images || [];
+            displayProductImages(currentProductImages);
+            
+            deletedImageIds = [];
+            document.getElementById('productImageFiles').value = '';
+            
+            document.getElementById('productModal').classList.remove('hidden');
+        } else {
+            alert('Failed to load product: ' + (result.error?.message || 'Unknown error'));
+        }
+    } catch (error) {
+        console.error('Error loading product:', error);
+        alert('Error loading product: ' + error.message);
+    }
+}
+
+function displayProductImages(images) {
+    const container = document.getElementById('productImagesList');
+    if (!images || images.length === 0) {
+        container.innerHTML = '<p class="text-sm text-gray-500">No images uploaded yet</p>';
+        return;
+    }
+    
+    container.innerHTML = images.map(img => `
+        <div class="flex items-center gap-3 p-3 border rounded bg-gray-50" data-image-id="${img.id}">
+            <img src="${img.image_url}" alt="Product image" class="w-20 h-20 object-cover rounded border">
+            <div class="flex-1">
+                <div class="flex items-center gap-2">
+                    ${img.is_primary ? '<span class="px-2 py-1 bg-blue-100 text-blue-800 text-xs rounded">Primary</span>' : ''}
+                    <button type="button" onclick="setPrimaryImage('${img.id}')" class="text-sm text-blue-600 hover:text-blue-800 ${img.is_primary ? 'hidden' : ''}">
+                        Set as Primary
+                    </button>
+                </div>
+            </div>
+            <button type="button" onclick="removeProductImage('${img.id}')" class="text-red-600 hover:text-red-800">Remove</button>
+        </div>
+    `).join('');
+}
+
+function removeProductImage(imageId) {
+    if (confirm('Are you sure you want to remove this image?')) {
+        deletedImageIds.push(imageId);
+        const imageElement = document.querySelector(`[data-image-id="${imageId}"]`);
+        if (imageElement) {
+            imageElement.remove();
+        }
+        // Update currentProductImages
+        currentProductImages = currentProductImages.filter(img => img.id !== imageId);
+    }
+}
+
+function setPrimaryImage(imageId) {
+    // Update UI
+    document.querySelectorAll('[data-image-id]').forEach(el => {
+        const imgId = el.getAttribute('data-image-id');
+        const flexContainer = el.querySelector('.flex-1 .flex');
+        const primaryBadge = flexContainer ? flexContainer.querySelector('.bg-blue-100') : null;
+        const setPrimaryBtn = el.querySelector('button[onclick^="setPrimaryImage"]');
+        
+        if (imgId === imageId) {
+            if (!primaryBadge && flexContainer) {
+                const badge = document.createElement('span');
+                badge.className = 'px-2 py-1 bg-blue-100 text-blue-800 text-xs rounded';
+                badge.textContent = 'Primary';
+                flexContainer.prepend(badge);
+            }
+            if (setPrimaryBtn) setPrimaryBtn.classList.add('hidden');
+        } else {
+            if (primaryBadge) primaryBadge.remove();
+            if (setPrimaryBtn) setPrimaryBtn.classList.remove('hidden');
+        }
+    });
+}
+
+async function loadSubcategoriesForProduct() {
+    const categoryId = document.getElementById('productCategory').value;
+    const subcategorySelect = document.getElementById('productSubcategory');
+    
+    subcategorySelect.innerHTML = '<option value="">No Subcategory</option>';
+    
+    if (!categoryId) {
+        return;
+    }
+    
+    const token = localStorage.getItem('token');
+    if (!token) return;
+    
+    try {
+        const response = await fetch(`/api/shop/subcategories?category_id=${categoryId}`, {
+            headers: {
+                'Authorization': `Bearer ${token}`
+            }
+        });
+        
+        const result = await response.json();
+        if (result.success) {
+            result.data.subcategories.forEach(subcat => {
+                const option = document.createElement('option');
+                option.value = subcat.id;
+                option.textContent = subcat.title;
+                subcategorySelect.appendChild(option);
+            });
+        }
+    } catch (error) {
+        console.error('Error loading subcategories:', error);
+    }
+}
+
+function closeProductModal() {
+    document.getElementById('productModal').classList.add('hidden');
+    deletedImageIds = [];
+    currentProductImages = [];
+}
+
+/** Populate the product modal's category dropdown (used in Add/Edit Product). */
+async function loadProductFormCategories() {
+    const token = localStorage.getItem('token');
+    if (!token) return;
+    
+    const categorySelect = document.getElementById('productCategory');
+    if (!categorySelect) return;
+    
+    try {
+        const response = await fetch('/api/shop/categories', {
+            headers: {
+                'Authorization': `Bearer ${token}`
+            }
+        });
+        
+        const result = await response.json();
+        if (result.success && result.data.categories) {
+            const currentValue = categorySelect.value;
+            categorySelect.innerHTML = '<option value="">No Category</option>';
+            result.data.categories.forEach(cat => {
+                const option = document.createElement('option');
+                option.value = cat.id;
+                option.textContent = cat.title || cat.id;
+                categorySelect.appendChild(option);
+            });
+            if (currentValue) {
+                categorySelect.value = currentValue;
+            }
+        }
+    } catch (error) {
+        console.error('Error loading categories for product form:', error);
+    }
+}
+
+async function saveProduct(event) {
+    event.preventDefault();
+    
+    const token = localStorage.getItem('token');
+    if (!token) return;
+    
+    const productId = document.getElementById('productFormId').value;
+    const isEdit = productId !== '';
+    
+    const productData = {
+        name: document.getElementById('productName').value,
+        description: document.getElementById('productDescription').value,
+        price: parseFloat(document.getElementById('productPrice').value),
+        category_id: document.getElementById('productCategory').value || null,
+        subcategory_id: document.getElementById('productSubcategory').value || null,
+        quantity: parseInt(document.getElementById('productQuantity').value)
+    };
+    
+    const imageFilesInput = document.getElementById('productImageFiles');
+    const imageFiles = imageFilesInput && imageFilesInput.files ? Array.from(imageFilesInput.files) : [];
+    
+    // Find primary image ID
+    const primaryImageElement = document.querySelector('[data-image-id] .bg-blue-100');
+    const primaryImageId = primaryImageElement ? primaryImageElement.closest('[data-image-id]').getAttribute('data-image-id') : null;
+    
+    try {
+        const url = isEdit ? `/api/admin/products/${productId}` : '/api/admin/products';
+        const method = isEdit ? 'PATCH' : 'POST';
+        
+        // Always use FormData for consistency and to support multiple images
+        const formData = new FormData();
+        formData.append('name', productData.name);
+        formData.append('description', productData.description || '');
+        formData.append('price', productData.price);
+        if (productData.category_id) {
+            formData.append('category_id', productData.category_id);
+        }
+        if (productData.subcategory_id) {
+            formData.append('subcategory_id', productData.subcategory_id);
+        }
+        formData.append('quantity', productData.quantity);
+        
+        // Add multiple image files
+        imageFiles.forEach(file => {
+            formData.append('image_files', file);
+        });
+        
+        // Add deleted image IDs
+        if (deletedImageIds.length > 0) {
+            formData.append('deleted_image_ids', JSON.stringify(deletedImageIds));
+        }
+        
+        // Add primary image ID
+        if (primaryImageId) {
+            formData.append('primary_image_id', primaryImageId);
+        }
+        
+        const response = await fetch(url, {
+            method: method,
+            headers: {
+                'Authorization': `Bearer ${token}`
+                // Let the browser set Content-Type for multipart/form-data
+            },
+            body: formData
+        });
+        
+        const result = await response.json();
+        if (result.success) {
+            alert(isEdit ? 'Product updated successfully' : 'Product created successfully');
+            closeProductModal();
+            loadProducts(currentProductsPage);
+        } else {
+            alert('Failed to save product: ' + (result.error?.message || 'Unknown error'));
+        }
+    } catch (error) {
+        console.error('Error saving product:', error);
+        alert('Error saving product: ' + error.message);
+    }
+}
+
+async function activateProduct(productId) {
+    const token = localStorage.getItem('token');
+    if (!token) return;
+    
+    if (!confirm('Are you sure you want to activate this product?')) return;
+    
+    try {
+        const response = await fetch(`/api/admin/products/${productId}/activate`, {
+            method: 'PATCH',
+            headers: {
+                'Authorization': `Bearer ${token}`
+            }
+        });
+        
+        const result = await response.json();
+        if (result.success) {
+            alert('Product activated successfully');
+            loadProducts(currentProductsPage);
+        } else {
+            alert('Error: ' + (result.error?.message || 'Failed to activate product'));
+        }
+    } catch (error) {
+        console.error('Error activating product:', error);
+        alert('Error activating product: ' + error.message);
+    }
+}
+
+async function deactivateProduct(productId) {
+    const token = localStorage.getItem('token');
+    if (!token) return;
+    
+    if (!confirm('Are you sure you want to deactivate this product?')) return;
+    
+    try {
+        const response = await fetch(`/api/admin/products/${productId}/deactivate`, {
+            method: 'PATCH',
+            headers: {
+                'Authorization': `Bearer ${token}`
+            }
+        });
+        
+        const result = await response.json();
+        if (result.success) {
+            alert('Product deactivated successfully');
+            loadProducts(currentProductsPage);
+        } else {
+            alert('Error: ' + (result.error?.message || 'Failed to deactivate product'));
+        }
+    } catch (error) {
+        console.error('Error deactivating product:', error);
+        alert('Error deactivating product: ' + error.message);
+    }
+}
+
+// Inventory Modal Functions
+function openInventoryModal(productId, productName, currentQuantity) {
+    document.getElementById('inventoryProductId').value = productId;
+    document.getElementById('inventoryProductName').textContent = productName;
+    document.getElementById('inventoryQuantity').value = currentQuantity;
+    document.getElementById('inventoryModal').classList.remove('hidden');
+}
+
+function closeInventoryModal() {
+    document.getElementById('inventoryModal').classList.add('hidden');
+}
+
+async function updateInventoryQuantity(event) {
+    event.preventDefault();
+    
+    const token = localStorage.getItem('token');
+    if (!token) return;
+    
+    const productId = document.getElementById('inventoryProductId').value;
+    const quantity = parseInt(document.getElementById('inventoryQuantity').value);
+    
+    try {
+        const response = await fetch(`/api/admin/products/${productId}/inventory`, {
+            method: 'PATCH',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${token}`
+            },
+            body: JSON.stringify({ quantity })
+        });
+        
+        const result = await response.json();
+        if (result.success) {
+            alert('Inventory updated successfully');
+            closeInventoryModal();
+            loadProducts(currentProductsPage);
+        } else {
+            alert('Error: ' + (result.error?.message || 'Failed to update inventory'));
+        }
+    } catch (error) {
+        console.error('Error updating inventory:', error);
+        alert('Error updating inventory: ' + error.message);
+    }
+}
+
+// FAQ Management Functions
+async function loadFAQs() {
+    const token = localStorage.getItem('token');
+    if (!token) return;
+    
+    try {
+        const response = await fetch('/api/admin/faqs', {
+            headers: {
+                'Authorization': `Bearer ${token}`
+            }
+        });
+        
+        const result = await response.json();
+        if (result.success) {
+            const faqs = result.data.faqs || [];
+            const tbody = document.getElementById('faqsTableBody');
+            
+            if (faqs.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="4" class="px-6 py-4 text-center text-gray-500">No FAQs found</td></tr>';
+                return;
+            }
+            
+            tbody.innerHTML = faqs.map(faq => `
+                <tr>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">${faq.order}</td>
+                    <td class="px-6 py-4 text-sm text-gray-900">${faq.question}</td>
+                    <td class="px-6 py-4 whitespace-nowrap">
+                        <span class="px-2 py-1 text-xs rounded-full ${faq.is_active ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800'}">
+                            ${faq.is_active ? 'Active' : 'Inactive'}
+                        </span>
+                    </td>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm font-medium">
+                        <button onclick="editFAQ('${faq.id}')" class="text-blue-600 hover:text-blue-900 mr-3">Edit</button>
+                        <button onclick="deleteFAQ('${faq.id}')" class="text-red-600 hover:text-red-900">Delete</button>
+                    </td>
+                </tr>
+            `).join('');
+        }
+    } catch (error) {
+        console.error('Error loading FAQs:', error);
+        alert('Failed to load FAQs');
+    }
+}
+
+// Load Categories and Subcategories
+async function loadCategories() {
+    const token = localStorage.getItem('token');
+    if (!token) return;
+    
+    try {
+        const [categoriesRes, subcategoriesRes] = await Promise.all([
+            fetch('/api/shop/categories', {
+                headers: { 'Authorization': `Bearer ${token}` }
+            }),
+            fetch('/api/shop/subcategories', {
+                headers: { 'Authorization': `Bearer ${token}` }
+            })
+        ]);
+        
+        const categoriesResult = await categoriesRes.json();
+        const subcategoriesResult = await subcategoriesRes.json();
+        
+        if (categoriesResult.success && subcategoriesResult.success) {
+            const categories = categoriesResult.data.categories || [];
+            const subcategories = subcategoriesResult.data.subcategories || [];
+            
+            const tbody = document.getElementById('categoriesTableBody');
+            
+            if (categories.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="3" class="px-6 py-4 text-center text-gray-500">No categories found</td></tr>';
+                return;
+            }
+            
+            tbody.innerHTML = categories.map(cat => {
+                const catSubcategories = subcategories.filter(sub => sub.category_id === cat.id);
+                const subcatList = catSubcategories.length > 0 
+                    ? catSubcategories.map(sub => `
+                        <span class="inline-flex items-center gap-1 bg-gray-100 text-gray-800 px-2 py-1 rounded text-xs mr-1 mb-1">
+                            ${sub.title}
+                            <button type="button" onclick="event.stopPropagation(); editSubcategory('${sub.id}', '${sub.title.replace(/'/g, "\\'")}')" class="text-blue-600 hover:text-blue-800" title="Edit">✎</button>
+                            <button type="button" onclick="event.stopPropagation(); deleteSubcategory('${sub.id}', '${sub.title.replace(/'/g, "\\'")}')" class="text-red-600 hover:text-red-800" title="Delete">×</button>
+                        </span>
+                    `).join('')
+                    : '<span class="text-gray-400 text-sm">No subcategories</span>';
+                
+                return `
+                    <tr>
+                        <td class="px-6 py-4 whitespace-nowrap font-semibold">${cat.title}</td>
+                        <td class="px-6 py-4">${subcatList}</td>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm font-medium">
+                            <button type="button" class="add-subcategory-for-category text-green-600 hover:text-green-800 mr-2" data-category-id="${cat.id}" data-category-title="${(cat.title || '').replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;')}">Add sub category</button>
+                            <button onclick="editCategory('${cat.id}')" class="text-blue-600 hover:text-blue-800 mr-2">Edit</button>
+                            <button onclick="deleteCategory('${cat.id}')" class="text-red-600 hover:text-red-800">Delete</button>
+                        </td>
+                    </tr>
+                `;
+            }).join('');
+            tbody.querySelectorAll('.add-subcategory-for-category').forEach(btn => {
+                btn.onclick = () => openAddSubcategoryModalForCategory(btn.dataset.categoryId, btn.dataset.categoryTitle || '');
+            });
+        }
+    } catch (error) {
+        console.error('Error loading categories:', error);
+        document.getElementById('categoriesTableBody').innerHTML = '<tr><td colspan="3" class="px-6 py-4 text-center text-red-500">Error loading categories</td></tr>';
+    }
+}
+
+// Load Available Services
+async function loadAvailableServices() {
+    const token = localStorage.getItem('token');
+    if (!token) return;
+    
+    try {
+        const response = await fetch('/api/admin/service-types', {
+            headers: { 'Authorization': `Bearer ${token}` }
+        });
+        
+        const result = await response.json();
+        if (result.success) {
+            const services = result.data.service_types || [];
+            const tbody = document.getElementById('servicesTableBody');
+            
+            if (services.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="6" class="px-6 py-4 text-center text-gray-500">No services found</td></tr>';
+                return;
+            }
+            
+            tbody.innerHTML = services.map(svc => `
+                <tr>
+                    <td class="px-6 py-4 whitespace-nowrap font-semibold">${svc.name}</td>
+                    <td class="px-6 py-4 whitespace-nowrap"><span class="px-2 py-1 bg-blue-100 text-blue-800 rounded text-xs">${svc.category}</span></td>
+                    <td class="px-6 py-4 text-sm text-gray-600">${svc.description || 'N/A'}</td>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm">${svc.order || 0}</td>
+                    <td class="px-6 py-4 whitespace-nowrap">
+                        <span class="px-2 py-1 text-xs rounded-full ${svc.is_active ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800'}">
+                            ${svc.is_active ? 'Active' : 'Inactive'}
+                        </span>
+                    </td>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm font-medium">
+                        <button onclick="editService('${svc.id}')" class="text-blue-600 hover:text-blue-800 mr-2">Edit</button>
+                        <button onclick="deleteService('${svc.id}')" class="text-red-600 hover:text-red-800">Delete</button>
+                    </td>
+                </tr>
+            `).join('');
+        }
+    } catch (error) {
+        console.error('Error loading services:', error);
+        document.getElementById('servicesTableBody').innerHTML = '<tr><td colspan="6" class="px-6 py-4 text-center text-red-500">Error loading services</td></tr>';
+    }
+}
+
+// Load User Sales
+async function loadUserSales() {
+    const token = localStorage.getItem('token');
+    if (!token) return;
+    
+    try {
+        // Load orders and payments
+        const [ordersRes, paymentsRes] = await Promise.all([
+            fetch('/api/admin/orders', {
+                headers: { 'Authorization': `Bearer ${token}` }
+            }).catch(() => ({ json: () => ({ success: false, data: { orders: [] } }) })),
+            fetch('/api/admin/payments', {
+                headers: { 'Authorization': `Bearer ${token}` }
+            }).catch(() => ({ json: () => ({ success: false, data: { payments: [] } }) }))
+        ]);
+        
+        const ordersResult = await ordersRes.json();
+        const paymentsResult = await paymentsRes.json();
+        
+        const tbody = document.getElementById('salesTableBody');
+        const sales = [];
+        
+        // Process orders
+        if (ordersResult.success && ordersResult.data.orders) {
+            ordersResult.data.orders.forEach(order => {
+                sales.push({
+                    date: order.placed_at || order.created_at,
+                    user: order.customer_email || 'N/A',
+                    type: 'Order',
+                    amount: order.total || 0,
+                    status: order.status,
+                    details: `Order #${order.id}`
+                });
+            });
+        }
+        
+        // Process payments
+        if (paymentsResult.success && paymentsResult.data.payments) {
+            paymentsResult.data.payments.forEach(payment => {
+                sales.push({
+                    date: payment.created_at,
+                    user: payment.user_email || 'N/A',
+                    type: payment.payment_method === 'yoco' ? 'Registration Fee' : 'Payment',
+                    amount: payment.amount || 0,
+                    status: payment.status,
+                    details: `Payment #${payment.id}`
+                });
+            });
+        }
+        
+        // Sort by date (newest first)
+        sales.sort((a, b) => new Date(b.date) - new Date(a.date));
+        
+        if (sales.length === 0) {
+            tbody.innerHTML = '<tr><td colspan="6" class="px-6 py-4 text-center text-gray-500">No sales data found</td></tr>';
+            return;
+        }
+        
+        tbody.innerHTML = sales.map(sale => {
+            const date = new Date(sale.date).toLocaleDateString();
+            const statusBadge = sale.status === 'completed' || sale.status === 'paid' 
+                ? '<span class="px-2 py-1 text-xs rounded-full bg-green-100 text-green-800">Completed</span>'
+                : sale.status === 'pending'
+                ? '<span class="px-2 py-1 text-xs rounded-full bg-yellow-100 text-yellow-800">Pending</span>'
+                : '<span class="px-2 py-1 text-xs rounded-full bg-red-100 text-red-800">Failed</span>';
+            
+            return `
+                <tr>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm">${date}</td>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm">${sale.user}</td>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm">${sale.type}</td>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm font-semibold">R${parseFloat(sale.amount).toFixed(2)}</td>
+                    <td class="px-6 py-4 whitespace-nowrap">${statusBadge}</td>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-600">${sale.details}</td>
+                </tr>
+            `;
+        }).join('');
+    } catch (error) {
+        console.error('Error loading user sales:', error);
+        document.getElementById('salesTableBody').innerHTML = '<tr><td colspan="6" class="px-6 py-4 text-center text-red-500">Error loading sales data</td></tr>';
+    }
+}
+
+// Category Management Functions
+function openAddCategoryModal() {
+    // Simple prompt for now - can be enhanced with a proper modal
+    const title = prompt('Enter category title:');
+    if (title && title.trim()) {
+        createCategory(title.trim());
+    }
+}
+
+function editCategory(categoryId) {
+    const title = prompt('Enter new category title:');
+    if (title && title.trim()) {
+        updateCategory(categoryId, title.trim());
+    }
+}
+
+function deleteCategory(categoryId) {
+    if (confirm('Are you sure you want to delete this category? This will also delete all associated subcategories.')) {
+        const token = localStorage.getItem('token');
+        fetch(`/api/admin/categories/${categoryId}`, {
+            method: 'DELETE',
+            headers: { 'Authorization': `Bearer ${token}` }
+        })
+        .then(res => res.json())
+        .then(result => {
+            if (result.success) {
+                alert('Category deleted successfully');
+                loadCategories();
+            } else {
+                alert('Error: ' + (result.error?.message || 'Failed to delete category'));
+            }
+        })
+        .catch(error => {
+            console.error('Error deleting category:', error);
+            alert('Error deleting category: ' + error.message);
+        });
+    }
+}
+
+async function createCategory(title) {
+    const token = localStorage.getItem('token');
+    try {
+        const response = await fetch('/api/admin/categories', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${token}`
+            },
+            body: JSON.stringify({ title })
+        });
+        const result = await response.json();
+        if (result.success) {
+            alert('Category created successfully');
+            loadCategories();
+        } else {
+            alert('Error: ' + (result.error?.message || 'Failed to create category'));
+        }
+    } catch (error) {
+        console.error('Error creating category:', error);
+        alert('Error creating category: ' + error.message);
+    }
+}
+
+async function updateCategory(categoryId, title) {
+    const token = localStorage.getItem('token');
+    try {
+        const response = await fetch(`/api/admin/categories/${categoryId}`, {
+            method: 'PUT',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${token}`
+            },
+            body: JSON.stringify({ title })
+        });
+        const result = await response.json();
+        if (result.success) {
+            alert('Category updated successfully');
+            loadCategories();
+        } else {
+            alert('Error: ' + (result.error?.message || 'Failed to update category'));
+        }
+    } catch (error) {
+        console.error('Error updating category:', error);
+        alert('Error updating category: ' + error.message);
+    }
+}
+
+// Subcategory Management Functions
+function openAddSubcategoryModalForCategory(categoryId, categoryTitle) {
+    document.getElementById('subcategoryCategoryId').value = categoryId || '';
+    document.getElementById('subcategoryCategoryName').textContent = categoryTitle || categoryId || '';
+    document.getElementById('subcategoryCategoryDisplay').classList.remove('hidden');
+    document.getElementById('subcategoryCategorySelectWrap').classList.add('hidden');
+    document.getElementById('subcategoryTitle').value = '';
+    document.getElementById('addSubcategoryModal').classList.remove('hidden');
+}
+
+function openAddSubcategoryModal() {
+    document.getElementById('subcategoryCategoryDisplay').classList.add('hidden');
+    document.getElementById('subcategoryCategorySelectWrap').classList.remove('hidden');
+    document.getElementById('subcategoryCategoryId').value = '';
+    document.getElementById('subcategoryTitle').value = '';
+    const token = localStorage.getItem('token');
+    fetch('/api/shop/categories', { headers: { 'Authorization': `Bearer ${token}` } })
+        .then(res => res.json())
+        .then(result => {
+            if (result.success && result.data.categories && result.data.categories.length > 0) {
+                const sel = document.getElementById('subcategoryCategorySelect');
+                sel.innerHTML = '<option value="">Select category</option>' + result.data.categories.map(c => `<option value="${c.id}">${(c.title || '').replace(/</g, '&lt;')}</option>`).join('');
+            }
+            document.getElementById('addSubcategoryModal').classList.remove('hidden');
+        })
+        .catch(err => { console.error(err); alert('Error loading categories'); });
+}
+
+function closeAddSubcategoryModal() {
+    document.getElementById('addSubcategoryModal').classList.add('hidden');
+}
+
+async function saveSubcategoryFromModal(event) {
+    event.preventDefault();
+    const categoryId = document.getElementById('subcategoryCategoryId').value || document.getElementById('subcategoryCategorySelect').value;
+    const title = document.getElementById('subcategoryTitle').value.trim();
+    if (!categoryId) {
+        alert('Please select a category.');
+        return;
+    }
+    if (!title) {
+        alert('Please enter a subcategory title.');
+        return;
+    }
+    await createSubcategory(categoryId, title);
+    closeAddSubcategoryModal();
+}
+
+async function createSubcategory(categoryId, title) {
+    const token = localStorage.getItem('token');
+    try {
+        const response = await fetch('/api/admin/subcategories', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${token}`
+            },
+            body: JSON.stringify({ category_id: categoryId, title })
+        });
+        const result = await response.json();
+        if (result.success) {
+            alert('Subcategory created successfully');
+            loadCategories();
+        } else {
+            alert('Error: ' + (result.error?.message || 'Failed to create subcategory'));
+        }
+    } catch (error) {
+        console.error('Error creating subcategory:', error);
+        alert('Error creating subcategory: ' + error.message);
+    }
+}
+
+async function editSubcategory(subcategoryId, currentTitle) {
+    const title = prompt('Enter new subcategory title:', currentTitle || '');
+    if (title === null || !title.trim()) return;
+    const token = localStorage.getItem('token');
+    try {
+        const response = await fetch(`/api/admin/subcategories/${subcategoryId}`, {
+            method: 'PUT',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${token}`
+            },
+            body: JSON.stringify({ title: title.trim() })
+        });
+        const result = await response.json();
+        if (result.success) {
+            alert('Subcategory updated successfully');
+            loadCategories();
+        } else {
+            alert('Error: ' + (result.error?.message || 'Failed to update subcategory'));
+        }
+    } catch (error) {
+        console.error('Error updating subcategory:', error);
+        alert('Error updating subcategory: ' + error.message);
+    }
+}
+
+async function deleteSubcategory(subcategoryId, subcategoryTitle) {
+    if (!confirm(`Delete subcategory "${subcategoryTitle || subcategoryId}"? Products in this subcategory may be affected.`)) return;
+    const token = localStorage.getItem('token');
+    try {
+        const response = await fetch(`/api/admin/subcategories/${subcategoryId}`, {
+            method: 'DELETE',
+            headers: { 'Authorization': `Bearer ${token}` }
+        });
+        const result = await response.json();
+        if (result.success) {
+            alert('Subcategory deleted successfully');
+            loadCategories();
+        } else {
+            alert('Error: ' + (result.error?.message || 'Failed to delete subcategory'));
+        }
+    } catch (error) {
+        console.error('Error deleting subcategory:', error);
+        alert('Error deleting subcategory: ' + error.message);
+    }
+}
+
+// Service Type Management Functions
+function openAddServiceModal() {
+    const name = prompt('Enter service name:');
+    if (!name || !name.trim()) return;
+    
+    const category = prompt('Enter category (professional, service-provider, or driver):');
+    if (!category) return;
+    
+    const description = prompt('Enter description (optional):') || '';
+    
+    createServiceType(name.trim(), category.trim(), description);
+}
+
+function editService(serviceId) {
+    const token = localStorage.getItem('token');
+    fetch(`/api/admin/service-types`, {
+        headers: { 'Authorization': `Bearer ${token}` }
+    })
+    .then(res => res.json())
+    .then(result => {
+        if (result.success) {
+            const service = result.data.service_types.find(s => s.id === serviceId);
+            if (service) {
+                const name = prompt('Enter service name:', service.name) || service.name;
+                const description = prompt('Enter description:', service.description || '') || '';
+                const order = prompt('Enter order:', service.order || 0) || 0;
+                const isActive = confirm('Is this service active?') ? true : false;
+                
+                updateServiceType(serviceId, name, description, order, isActive);
+            }
+        }
+    })
+    .catch(error => {
+        console.error('Error loading service:', error);
+        alert('Error loading service');
+    });
+}
+
+function deleteService(serviceId) {
+    if (confirm('Are you sure you want to delete this service type?')) {
+        const token = localStorage.getItem('token');
+        fetch(`/api/admin/service-types/${serviceId}`, {
+            method: 'DELETE',
+            headers: { 'Authorization': `Bearer ${token}` }
+        })
+        .then(res => res.json())
+        .then(result => {
+            if (result.success) {
+                alert('Service type deleted successfully');
+                loadAvailableServices();
+            } else {
+                alert('Error: ' + (result.error?.message || 'Failed to delete service type'));
+            }
+        })
+        .catch(error => {
+            console.error('Error deleting service type:', error);
+            alert('Error deleting service type: ' + error.message);
+        });
+    }
+}
+
+async function createServiceType(name, category, description) {
+    const token = localStorage.getItem('token');
+    try {
+        const response = await fetch('/api/admin/service-types', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${token}`
+            },
+            body: JSON.stringify({
+                name,
+                category,
+                description,
+                order: 0,
+                is_active: true
+            })
+        });
+        const result = await response.json();
+        if (result.success) {
+            alert('Service type created successfully');
+            loadAvailableServices();
+        } else {
+            alert('Error: ' + (result.error?.message || 'Failed to create service type'));
+        }
+    } catch (error) {
+        console.error('Error creating service type:', error);
+        alert('Error creating service type: ' + error.message);
+    }
+}
+
+async function updateServiceType(serviceId, name, description, order, isActive) {
+    const token = localStorage.getItem('token');
+    try {
+        const response = await fetch(`/api/admin/service-types/${serviceId}`, {
+            method: 'PUT',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${token}`
+            },
+            body: JSON.stringify({
+                name,
+                description,
+                order: parseInt(order) || 0,
+                is_active: isActive
+            })
+        });
+        const result = await response.json();
+        if (result.success) {
+            alert('Service type updated successfully');
+            loadAvailableServices();
+        } else {
+            alert('Error: ' + (result.error?.message || 'Failed to update service type'));
+        }
+    } catch (error) {
+        console.error('Error updating service type:', error);
+        alert('Error updating service type: ' + error.message);
+    }
+}
+
+function openAddFAQModal() {
+    document.getElementById('faqModalTitle').textContent = 'Add FAQ';
+    document.getElementById('faqForm').reset();
+    document.getElementById('faqId').value = '';
+    document.getElementById('faqOrder').value = '0';
+    document.getElementById('faqIsActive').value = 'true';
+    document.getElementById('faqModal').classList.remove('hidden');
+}
+
+function editFAQ(faqId) {
+    const token = localStorage.getItem('token');
+    if (!token) return;
+    
+    fetch(`/api/admin/faqs`, {
+        headers: {
+            'Authorization': `Bearer ${token}`
+        }
+    })
+    .then(res => res.json())
+    .then(result => {
+        if (result.success) {
+            const faq = result.data.faqs.find(f => f.id === faqId);
+            if (faq) {
+                document.getElementById('faqModalTitle').textContent = 'Edit FAQ';
+                document.getElementById('faqId').value = faq.id;
+                document.getElementById('faqQuestion').value = faq.question;
+                document.getElementById('faqAnswer').value = faq.answer;
+                document.getElementById('faqOrder').value = faq.order;
+                document.getElementById('faqIsActive').value = faq.is_active.toString();
+                document.getElementById('faqModal').classList.remove('hidden');
+            }
+        }
+    })
+    .catch(error => {
+        console.error('Error loading FAQ:', error);
+        alert('Failed to load FAQ');
+    });
+}
+
+function closeFAQModal() {
+    document.getElementById('faqModal').classList.add('hidden');
+}
+
+async function saveFAQ(event) {
+    event.preventDefault();
+    
+    const token = localStorage.getItem('token');
+    if (!token) return;
+    
+    const faqId = document.getElementById('faqId').value;
+    const question = document.getElementById('faqQuestion').value;
+    const answer = document.getElementById('faqAnswer').value;
+    const order = parseInt(document.getElementById('faqOrder').value) || 0;
+    const isActive = document.getElementById('faqIsActive').value === 'true';
+    
+    if (!question || !answer) {
+        alert('Question and answer are required');
+        return;
+    }
+    
+    try {
+        const url = faqId ? `/api/admin/faqs/${faqId}` : '/api/admin/faqs';
+        const method = faqId ? 'PUT' : 'POST';
+        
+        const response = await fetch(url, {
+            method: method,
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${token}`
+            },
+            body: JSON.stringify({
+                question,
+                answer,
+                order,
+                is_active: isActive
+            })
+        });
+        
+        const result = await response.json();
+        if (result.success) {
+            closeFAQModal();
+            loadFAQs();
+        } else {
+            alert(result.error?.message || 'Failed to save FAQ');
+        }
+    } catch (error) {
+        console.error('Error saving FAQ:', error);
+        alert('Failed to save FAQ');
+    }
+}
+
+async function deleteFAQ(faqId) {
+    if (!confirm('Are you sure you want to delete this FAQ?')) return;
+    
+    const token = localStorage.getItem('token');
+    if (!token) return;
+    
+    try {
+        const response = await fetch(`/api/admin/faqs/${faqId}`, {
+            method: 'DELETE',
+            headers: {
+                'Authorization': `Bearer ${token}`
+            }
+        });
+        
+        const result = await response.json();
+        if (result.success) {
+            loadFAQs();
+        } else {
+            alert(result.error?.message || 'Failed to delete FAQ');
+        }
+    } catch (error) {
+        console.error('Error deleting FAQ:', error);
+        alert('Failed to delete FAQ');
+    }
+}
+
+// ---------- Carousel ----------
+async function loadCarousel() {
+    const token = localStorage.getItem('token');
+    if (!token) return;
+    const tbody = document.getElementById('carouselTableBody');
+    tbody.innerHTML = '<tr><td colspan="6" class="px-6 py-4 text-center text-gray-500">Loading...</td></tr>';
+    try {
+        const response = await fetch('/api/admin/carousel', {
+            headers: { 'Authorization': `Bearer ${token}` }
+        });
+        const result = await response.json();
+        if (result.success && result.data && result.data.items) {
+            const items = result.data.items;
+            if (items.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="6" class="px-6 py-4 text-center text-gray-500">No carousel items. Add one to show on the home page.</td></tr>';
+                return;
+            }
+            tbody.innerHTML = items.map(item => `
+                <tr>
+                    <td class="px-6 py-4">
+                        ${item.image_url ? `<img src="${item.image_url}" alt="" class="h-12 w-20 object-cover rounded">` : '<span class="text-gray-400">—</span>'}
+                    </td>
+                    <td class="px-6 py-4 text-sm">${item.cta_link || '—'}</td>
+                    <td class="px-6 py-4 text-sm">${item.cta_text || '—'}</td>
+                    <td class="px-6 py-4">${item.order}</td>
+                    <td class="px-6 py-4">${item.is_active ? 'Yes' : 'No'}</td>
+                    <td class="px-6 py-4">
+                        <button onclick="editCarouselItem('${item.id}')" class="text-blue-600 hover:text-blue-800 mr-2">Edit</button>
+                        <button onclick="deleteCarouselItem('${item.id}')" class="text-red-600 hover:text-red-800">Delete</button>
+                    </td>
+                </tr>
+            `).join('');
+        } else {
+            tbody.innerHTML = '<tr><td colspan="6" class="px-6 py-4 text-center text-red-500">Error loading carousel</td></tr>';
+        }
+    } catch (error) {
+        console.error('Error loading carousel:', error);
+        tbody.innerHTML = '<tr><td colspan="6" class="px-6 py-4 text-center text-red-500">Error loading carousel</td></tr>';
+    }
+}
+
+function openAddCarouselModal() {
+    document.getElementById('carouselModalTitle').textContent = 'Add Carousel Item';
+    document.getElementById('carouselForm').reset();
+    document.getElementById('carouselItemId').value = '';
+    document.getElementById('carouselOrder').value = '0';
+    document.getElementById('carouselIsActive').value = 'true';
+    document.getElementById('carouselImageFile').value = '';
+    document.getElementById('carouselModal').classList.remove('hidden');
+}
+
+function editCarouselItem(itemId) {
+    const token = localStorage.getItem('token');
+    if (!token) return;
+    fetch('/api/admin/carousel', { headers: { 'Authorization': `Bearer ${token}` } })
+        .then(res => res.json())
+        .then(result => {
+            if (result.success && result.data && result.data.items) {
+                const item = result.data.items.find(i => i.id === itemId);
+                if (item) {
+                    document.getElementById('carouselModalTitle').textContent = 'Edit Carousel Item';
+                    document.getElementById('carouselItemId').value = item.id;
+                    document.getElementById('carouselCtaLink').value = item.cta_link || '';
+                    document.getElementById('carouselCtaText').value = item.cta_text || '';
+                    document.getElementById('carouselOrder').value = item.order;
+                    document.getElementById('carouselIsActive').value = item.is_active ? 'true' : 'false';
+                    document.getElementById('carouselImageFile').value = '';
+                    document.getElementById('carouselModal').classList.remove('hidden');
+                }
+            }
+        })
+        .catch(err => { console.error(err); alert('Failed to load carousel item'); });
+}
+
+function closeCarouselModal() {
+    document.getElementById('carouselModal').classList.add('hidden');
+}
+
+async function saveCarouselItem(event) {
+    event.preventDefault();
+    const token = localStorage.getItem('token');
+    if (!token) return;
+    const itemId = document.getElementById('carouselItemId').value;
+    const ctaLink = document.getElementById('carouselCtaLink').value.trim() || null;
+    const ctaText = document.getElementById('carouselCtaText').value.trim() || null;
+    const order = parseInt(document.getElementById('carouselOrder').value) || 0;
+    const isActive = document.getElementById('carouselIsActive').value === 'true';
+    const imageFile = document.getElementById('carouselImageFile').files[0];
+    const formData = new FormData();
+    formData.append('cta_link', ctaLink || '');
+    formData.append('cta_text', ctaText || '');
+    formData.append('order', order);
+    formData.append('is_active', isActive);
+    if (imageFile) formData.append('image_file', imageFile);
+    const url = itemId ? `/api/admin/carousel/${itemId}` : '/api/admin/carousel';
+    const method = itemId ? 'PATCH' : 'POST';
+    try {
+        const response = await fetch(url, {
+            method,
+            headers: { 'Authorization': `Bearer ${token}` },
+            body: formData
+        });
+        const result = await response.json();
+        if (result.success) {
+            closeCarouselModal();
+            loadCarousel();
+        } else {
+            alert(result.error?.message || 'Failed to save carousel item');
+        }
+    } catch (error) {
+        console.error('Error saving carousel item:', error);
+        alert('Failed to save carousel item');
+    }
+}
+
+async function deleteCarouselItem(itemId) {
+    if (!confirm('Delete this carousel item?')) return;
+    const token = localStorage.getItem('token');
+    if (!token) return;
+    try {
+        const response = await fetch(`/api/admin/carousel/${itemId}`, {
+            method: 'DELETE',
+            headers: { 'Authorization': `Bearer ${token}` }
+        });
+        const result = await response.json();
+        if (result.success) loadCarousel();
+        else alert(result.error?.message || 'Failed to delete');
+    } catch (error) {
+        console.error(error);
+        alert('Failed to delete carousel item');
+    }
+}
+
+// ---------- Footer CMS ----------
+async function loadFooterCms() {
+    const token = localStorage.getItem('token');
+    if (!token) return;
+    try {
+        const response = await fetch('/api/admin/footer', {
+            headers: { 'Authorization': `Bearer ${token}` }
+        });
+        const result = await response.json();
+        if (result.success && result.data) {
+            const f = result.data;
+            document.getElementById('cmsCompanyName').value = f.company_name || '';
+            document.getElementById('cmsEmail').value = f.email || '';
+            document.getElementById('cmsPhone').value = f.phone || '';
+            document.getElementById('cmsPhysicalAddress').value = f.physical_address || '';
+        }
+    } catch (error) {
+        console.error('Error loading footer CMS:', error);
+    }
+}
+
+async function saveFooterCms(event) {
+    event.preventDefault();
+    const token = localStorage.getItem('token');
+    if (!token) return;
+    const companyName = document.getElementById('cmsCompanyName').value.trim();
+    const email = document.getElementById('cmsEmail').value.trim() || null;
+    const phone = document.getElementById('cmsPhone').value.trim() || null;
+    const physicalAddress = document.getElementById('cmsPhysicalAddress').value.trim() || null;
+    try {
+        const response = await fetch('/api/admin/footer', {
+            method: 'PATCH',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${token}`
+            },
+            body: JSON.stringify({
+                company_name: companyName || 'MzansiServe',
+                email,
+                phone,
+                physical_address: physicalAddress
+            })
+        });
+        const result = await response.json();
+        if (result.success) {
+            alert('Footer content saved.');
+        } else {
+            alert(result.error?.message || 'Failed to save footer');
+        }
+    } catch (error) {
+        console.error('Error saving footer:', error);
+        alert('Failed to save footer');
+    }
+}
+
+// ---------- Recons ----------
+async function triggerRecon(event) {
+    event.preventDefault();
+    const token = localStorage.getItem('token');
+    if (!token) return;
+    const month = document.getElementById('reconMonth').value.trim();
+    if (!month || !/^\d{4}-\d{2}$/.test(month)) {
+        alert('Enter month as YYYY-MM (e.g. 2026-01).');
+        return;
+    }
+    const resultEl = document.getElementById('reconResult');
+    resultEl.classList.remove('hidden');
+    resultEl.textContent = 'Running...';
+    try {
+        const r = await fetch('/api/admin/recon/trigger', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token },
+            body: JSON.stringify({ month: month })
+        });
+        const result = await r.json();
+        if (result.success) {
+            const transferred = result.data && result.data.transferred ? result.data.transferred : [];
+            resultEl.textContent = 'Done. Transferred: ' + transferred.length + ' record(s).';
+        } else {
+            resultEl.textContent = 'Error: ' + (result.error?.message || 'Failed');
+        }
+    } catch (e) {
+        resultEl.textContent = 'Error: ' + e.message;
+    }
+}
+
+// ---------- Withdrawals Admin ----------
+async function loadWithdrawalsAdmin() {
+    const token = localStorage.getItem('token');
+    if (!token) return;
+    const container = document.getElementById('withdrawalsList');
+    try {
+        const r = await fetch('/api/admin/withdrawal-requests', { headers: { 'Authorization': 'Bearer ' + token } });
+        const result = await r.json();
+        if (result.success && result.data && result.data.withdrawal_requests) {
+            const list = result.data.withdrawal_requests;
+            if (list.length === 0) {
+                container.innerHTML = '<p class="text-gray-500">No withdrawal requests.</p>';
+                return;
+            }
+            container.innerHTML = '<table class="min-w-full divide-y divide-gray-200"><thead><tr class="bg-gray-50"><th class="px-4 py-2 text-left text-xs font-medium text-gray-500">User</th><th class="px-4 py-2 text-left text-xs font-medium text-gray-500">Amount</th><th class="px-4 py-2 text-left text-xs font-medium text-gray-500">Status</th><th class="px-4 py-2 text-left text-xs font-medium text-gray-500">Requested</th><th class="px-4 py-2 text-left text-xs font-medium text-gray-500">Actions</th></tr></thead><tbody>' +
+                list.map(function(w) {
+                    const date = w.requested_at ? new Date(w.requested_at).toLocaleDateString('en-ZA', { year: 'numeric', month: 'short', day: 'numeric' }) : '-';
+                    return '<tr class="border-b"><td class="px-4 py-2">' + (w.user_name || w.user_email || w.user_id) + ' <span class="text-xs text-gray-500">' + (w.user_role || '') + '</span></td><td class="px-4 py-2">R' + parseFloat(w.amount || 0).toFixed(2) + '</td><td class="px-4 py-2"><span id="wr-status-' + w.id + '">' + (w.status || 'pending') + '</span></td><td class="px-4 py-2">' + date + '</td><td class="px-4 py-2"><select onchange="updateWithdrawalStatus(\'' + w.id + '\', this.value)" class="text-sm border rounded px-2 py-1"><option value="">Update</option><option value="pending"' + (w.status === 'pending' ? ' selected' : '') + '>Pending</option><option value="paid"' + (w.status === 'paid' ? ' selected' : '') + '>Paid</option><option value="reversed"' + (w.status === 'reversed' ? ' selected' : '') + '>Reversed</option></select></td></tr>';
+                }).join('') + '</tbody></table>';
+        } else {
+            container.innerHTML = '<p class="text-gray-500">Failed to load.</p>';
+        }
+    } catch (e) {
+        container.innerHTML = '<p class="text-gray-500">Error loading.</p>';
+    }
+}
+
+async function updateWithdrawalStatus(wrId, status) {
+    if (!status) return;
+    const token = localStorage.getItem('token');
+    if (!token) return;
+    try {
+        const r = await fetch('/api/admin/withdrawal-requests/' + wrId, {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token },
+            body: JSON.stringify({ status: status })
+        });
+        const result = await r.json();
+        if (result.success) {
+            var el = document.getElementById('wr-status-' + wrId);
+            if (el) el.textContent = status;
+        } else {
+            alert(result.error?.message || 'Update failed');
+        }
+    } catch (e) {
+        alert('Error: ' + e.message);
+    }
+}
+
+// ---------- Agents Admin ----------
+async function loadAgentsAdmin() {
+    const token = localStorage.getItem('token');
+    if (!token) return;
+    const container = document.getElementById('agentsList');
+    if (!container) return;
+    try {
+        const r = await fetch('/api/admin/agents', { headers: { 'Authorization': 'Bearer ' + token } });
+        const result = await r.json();
+        if (result.success && Array.isArray(result.data)) {
+            if (result.data.length === 0) {
+                container.innerHTML = '<p class="text-gray-500">No agents. Add one above.</p>';
+                return;
+            }
+            container.innerHTML = '<table class="min-w-full divide-y divide-gray-200"><thead><tr class="bg-gray-50"><th class="px-4 py-2 text-left text-xs font-medium text-gray-500">Agent ID</th><th class="px-4 py-2 text-left text-xs font-medium text-gray-500">Name</th><th class="px-4 py-2 text-left text-xs font-medium text-gray-500">Surname</th><th class="px-4 py-2 text-left text-xs font-medium text-gray-500">ID Number</th><th class="px-4 py-2 text-left text-xs font-medium text-gray-500">Actions</th></tr></thead><tbody>' +
+                result.data.map(function(a) {
+                    return '<tr class="border-b"><td class="px-4 py-2 font-mono">' + (a.agent_id || '') + '</td><td class="px-4 py-2">' + (a.name || '') + '</td><td class="px-4 py-2">' + (a.surname || '') + '</td><td class="px-4 py-2">' + (a.id_number || '—') + '</td><td class="px-4 py-2"><button type="button" onclick="editAgent(\'' + a.id + '\')" class="text-blue-600 hover:underline mr-2">Edit</button><button type="button" onclick="deleteAgent(\'' + a.id + '\')" class="text-red-600 hover:underline">Delete</button></td></tr>';
+                }).join('') + '</tbody></table>';
+        } else {
+            container.innerHTML = '<p class="text-gray-500">Failed to load.</p>';
+        }
+    } catch (e) {
+        container.innerHTML = '<p class="text-gray-500">Error loading.</p>';
+    }
+}
+
+function editAgent(id) {
+    const token = localStorage.getItem('token');
+    if (!token) return;
+    fetch('/api/admin/agents', { headers: { 'Authorization': 'Bearer ' + token } })
+        .then(r => r.json())
+        .then(result => {
+            if (!result.success || !result.data) return;
+            const agent = result.data.find(a => a.id === id);
+            if (!agent) return;
+            document.getElementById('agentEditId').value = agent.id;
+            document.getElementById('agentName').value = agent.name || '';
+            document.getElementById('agentSurname').value = agent.surname || '';
+            document.getElementById('agentIdNumber').value = agent.id_number || '';
+            document.getElementById('agentDisplayId').value = agent.agent_id || '';
+            document.getElementById('agentFormTitle').textContent = 'Edit Agent';
+            document.getElementById('agentCancelBtn').classList.remove('hidden');
+        })
+        .catch(() => alert('Error loading agent'));
+}
+
+function cancelAgentEdit() {
+    document.getElementById('agentEditId').value = '';
+    document.getElementById('agentForm').reset();
+    document.getElementById('agentFormTitle').textContent = 'Add Agent';
+    document.getElementById('agentCancelBtn').classList.add('hidden');
+}
+
+async function saveAgent(event) {
+    event.preventDefault();
+    const token = localStorage.getItem('token');
+    if (!token) return;
+    const editId = document.getElementById('agentEditId').value.trim();
+    const payload = {
+        name: document.getElementById('agentName').value.trim(),
+        surname: document.getElementById('agentSurname').value.trim(),
+        id_number: document.getElementById('agentIdNumber').value.trim() || null,
+        agent_id: document.getElementById('agentDisplayId').value.trim() || null
+    };
+    const url = editId ? '/api/admin/agents/' + editId : '/api/admin/agents';
+    const method = editId ? 'PUT' : 'POST';
+    try {
+        const r = await fetch(url, {
+            method: method,
+            headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token },
+            body: JSON.stringify(payload)
+        });
+        const result = await r.json();
+        if (result.success) {
+            cancelAgentEdit();
+            loadAgentsAdmin();
+        } else {
+            alert(result.error?.message || 'Save failed');
+        }
+    } catch (e) {
+        alert('Error: ' + e.message);
+    }
+}
+
+async function deleteAgent(id) {
+    if (!confirm('Delete this agent? Users who selected them will keep their selection but the agent record will be removed.')) return;
+    const token = localStorage.getItem('token');
+    if (!token) return;
+    try {
+        const r = await fetch('/api/admin/agents/' + id, { method: 'DELETE', headers: { 'Authorization': 'Bearer ' + token } });
+        const result = await r.json();
+        if (result.success) {
+            loadAgentsAdmin();
+            cancelAgentEdit();
+        } else {
+            alert(result.error?.message || 'Delete failed');
+        }
+    } catch (e) {
+        alert('Error: ' + e.message);
+    }
+}
+
+// ---------- Legal (Terms of Use, Privacy Policy) ----------
+function toggleLegalInputs(page, contentType) {
+    var textWrap = document.getElementById(page + 'TextWrap');
+    var pdfWrap = document.getElementById(page + 'PdfWrap');
+    if (contentType === 'text') {
+        textWrap.classList.remove('hidden');
+        pdfWrap.classList.add('hidden');
+    } else {
+        textWrap.classList.add('hidden');
+        pdfWrap.classList.remove('hidden');
+    }
+}
+
+async function loadLegalContent() {
+    const token = localStorage.getItem('token');
+    if (!token) return;
+    for (var page of ['terms', 'privacy']) {
+        try {
+            const response = await fetch('/api/admin/legal/' + page, { headers: { 'Authorization': 'Bearer ' + token } });
+            const result = await response.json();
+            if (result.success && result.data) {
+                var d = result.data;
+                document.querySelector('input[name="' + page + 'ContentType"][value="' + (d.content_type || 'text') + '"]').checked = true;
+                toggleLegalInputs(page, d.content_type || 'text');
+                document.getElementById('legal' + (page === 'terms' ? 'Terms' : 'Privacy') + 'Text').value = d.text || '';
+                document.getElementById('legal' + (page === 'terms' ? 'Terms' : 'Privacy') + 'File').value = '';
+            }
+        } catch (e) { console.error('Load legal ' + page, e); }
+    }
+}
+
+async function saveLegalContent(event, page) {
+    event.preventDefault();
+    const token = localStorage.getItem('token');
+    if (!token) return;
+    var contentType = document.querySelector('input[name="' + page + 'ContentType"]:checked').value;
+    var formData = new FormData();
+    formData.append('content_type', contentType);
+    if (contentType === 'text') {
+        formData.append('text', document.getElementById('legal' + (page === 'terms' ? 'Terms' : 'Privacy') + 'Text').value);
+    } else {
+        var fileInput = document.getElementById('legal' + (page === 'terms' ? 'Terms' : 'Privacy') + 'File');
+        if (!fileInput.files || !fileInput.files[0]) {
+            alert('Please select a PDF file.');
+            return;
+        }
+        formData.append('file', fileInput.files[0]);
+    }
+    try {
+        const response = await fetch('/api/admin/legal/' + page, {
+            method: 'PATCH',
+            headers: { 'Authorization': 'Bearer ' + token },
+            body: formData
+        });
+        const result = await response.json();
+        if (result.success) {
+            alert(page === 'terms' ? 'Terms of Use saved.' : 'Privacy Policy saved.');
+            loadLegalContent();
+        } else {
+            alert(result.error?.message || 'Failed to save');
+        }
+    } catch (e) {
+        console.error(e);
+        alert('Failed to save');
+    }
+}
+
+// ---------- Settings: Call-out Fees ----------
+async function loadSettingsCalloutFees() {
+    const token = localStorage.getItem('token');
+    if (!token) return;
+    try {
+        const response = await fetch('/api/admin/settings/callout-fees', {
+            headers: { 'Authorization': `Bearer ${token}` }
+        });
+        const result = await response.json();
+        if (result.success && result.data) {
+            document.getElementById('settingsProfessionalCalloutFee').value = result.data.professional_callout_fee ?? '';
+            document.getElementById('settingsProviderCalloutFee').value = result.data.provider_callout_fee ?? '';
+        }
+    } catch (error) {
+        console.error('Error loading call-out fees:', error);
+    }
+}
+
+async function saveCalloutFees(event) {
+    event.preventDefault();
+    const token = localStorage.getItem('token');
+    if (!token) return;
+    const professionalFee = parseFloat(document.getElementById('settingsProfessionalCalloutFee').value);
+    const providerFee = parseFloat(document.getElementById('settingsProviderCalloutFee').value);
+    if (isNaN(professionalFee) && isNaN(providerFee)) {
+        alert('Enter at least one call-out fee.');
+        return;
+    }
+    const body = {};
+    if (!isNaN(professionalFee) && professionalFee >= 0) body.professional_callout_fee = professionalFee;
+    if (!isNaN(providerFee) && providerFee >= 0) body.provider_callout_fee = providerFee;
+    if (Object.keys(body).length === 0) {
+        alert('Enter valid non-negative fee(s).');
+        return;
+    }
+    try {
+        const response = await fetch('/api/admin/settings/callout-fees', {
+            method: 'PATCH',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${token}`
+            },
+            body: JSON.stringify(body)
+        });
+        const result = await response.json();
+        if (result.success) {
+            alert('Call-out fees saved.');
+        } else {
+            alert(result.error?.message || 'Failed to save call-out fees');
+        }
+    } catch (error) {
+        console.error('Error saving call-out fees:', error);
+        alert('Failed to save call-out fees');
+    }
+}
+
+// Edit User Functions
+let professionalServiceCount = 0;
+let providerServiceCount = 0;
+let driverServiceCount = 0;
+
+async function editUser(userId) {
+    const token = localStorage.getItem('token');
+    if (!token) return;
+    
+    try {
+        const response = await fetch(`/api/admin/users/${userId}`, {
+            headers: {
+                'Authorization': `Bearer ${token}`
+            }
+        });
+        
+        const result = await response.json();
+        if (result.success) {
+            const user = result.data.user;
+            const profileData = result.data.profile_data || {};
+            
+            // Profile photo
+            const profileImg = document.getElementById('editUserProfilePhotoImg');
+            const profilePlaceholder = document.getElementById('editUserProfilePhotoPlaceholder');
+            if (user.profile_image_url) {
+                const url = user.profile_image_url.startsWith('http') ? user.profile_image_url : (user.profile_image_url.startsWith('/') ? window.location.origin + user.profile_image_url : window.location.origin + '/' + user.profile_image_url);
+                if (profileImg) {
+                    profileImg.src = url;
+                    profileImg.classList.remove('hidden');
+                }
+                if (profilePlaceholder) profilePlaceholder.classList.add('hidden');
+            } else {
+                if (profileImg) {
+                    profileImg.src = '';
+                    profileImg.classList.add('hidden');
+                }
+                if (profilePlaceholder) profilePlaceholder.classList.remove('hidden');
+            }
+            const profilePhotoInput = document.getElementById('editUserProfilePhoto');
+            if (profilePhotoInput) profilePhotoInput.value = '';
+            
+            // Set basic fields
+            document.getElementById('editUserId').value = user.id;
+            document.getElementById('editUserEmail').value = user.email;
+            document.getElementById('editUserRole').value = user.role;
+            document.getElementById('editUserFullName').value = profileData.full_name || '';
+            document.getElementById('editUserSurname').value = profileData.surname || '';
+            document.getElementById('editUserPhone').value = profileData.phone || '';
+            document.getElementById('editUserGender').value = profileData.gender || '';
+            document.getElementById('editUserSaCitizen').checked = profileData.sa_citizen || false;
+            document.getElementById('editUserSaId').value = profileData.sa_id || '';
+            document.getElementById('editUserSaIdContainer').classList.toggle('hidden', !profileData.sa_citizen);
+            
+            // Next of Kin
+            const nextOfKin = profileData.next_of_kin || {};
+            document.getElementById('editUserNextOfKinName').value = nextOfKin.full_name || '';
+            document.getElementById('editUserNextOfKinPhone').value = nextOfKin.contact_number || '';
+            document.getElementById('editUserNextOfKinEmail').value = nextOfKin.contact_email || '';
+            
+            // Status flags
+            document.getElementById('editUserIsPaid').checked = user.is_paid;
+            document.getElementById('editUserIsApproved').checked = user.is_approved;
+            document.getElementById('editUserIsActive').checked = user.is_active;
+            document.getElementById('editUserEmailVerified').checked = user.email_verified;
+            
+            // Show/hide role-specific fields
+            document.getElementById('editUserProfessionalFields').classList.add('hidden');
+            document.getElementById('editUserProviderFields').classList.add('hidden');
+            document.getElementById('editUserDriverFields').classList.add('hidden');
+            
+            if (user.role === 'professional') {
+                document.getElementById('editUserProfessionalFields').classList.remove('hidden');
+                document.getElementById('editUserHighestQualification').value = profileData.highest_qualification || '';
+                document.getElementById('editUserProfessionalBody').value = profileData.professional_body || '';
+                
+                // Load professional services
+                professionalServiceCount = 0;
+                const servicesContainer = document.getElementById('editUserProfessionalServices');
+                servicesContainer.innerHTML = '';
+                const services = profileData.professional_services || [];
+                services.forEach(service => {
+                    addProfessionalService(service);
+                });
+            } else if (user.role === 'service-provider') {
+                document.getElementById('editUserProviderFields').classList.remove('hidden');
+                
+                // Load provider services from selected_services (UserSelectedService model)
+                providerServiceCount = 0;
+                const servicesContainer = document.getElementById('editUserProviderServices');
+                servicesContainer.innerHTML = '';
+                const services = profileData.selected_services || profileData.provider_services || [];
+                services.forEach(service => {
+                    // Handle both UserSelectedService format and legacy format
+                    const serviceData = service.service_type ? {
+                        service_type_id: service.service_type.id || service.service_type_id,
+                        service_type: service.service_type,
+                        personalized_description: service.personalized_description || service.description
+                    } : service;
+                    addAdminProviderService(serviceData);
+                });
+            } else if (user.role === 'driver') {
+                document.getElementById('editUserDriverFields').classList.remove('hidden');
+                
+                // Load driver services
+                driverServiceCount = 0;
+                const servicesContainer = document.getElementById('editUserDriverServices');
+                servicesContainer.innerHTML = '';
+                const services = profileData.driver_services || [];
+                services.forEach(service => {
+                    addDriverService(service);
+                });
+            }
+            
+            document.getElementById('editUserModal').classList.remove('hidden');
+        } else {
+            alert('Failed to load user: ' + (result.error?.message || 'Unknown error'));
+        }
+    } catch (error) {
+        console.error('Error loading user:', error);
+        alert('Error loading user: ' + error.message);
+    }
+}
+
+function closeEditUserModal() {
+    document.getElementById('editUserModal').classList.add('hidden');
+    document.getElementById('editUserForm').reset();
+}
+
+function addProfessionalService(service = null) {
+    const container = document.getElementById('editUserProfessionalServices');
+    const index = professionalServiceCount++;
+    const serviceDiv = document.createElement('div');
+    serviceDiv.className = 'border p-3 rounded bg-gray-50';
+    serviceDiv.innerHTML = `
+        <div class="grid grid-cols-3 gap-2">
+            <input type="text" placeholder="Service Name" value="${service?.name || ''}" class="px-2 py-1 border rounded service-name" required>
+            <input type="text" placeholder="Description" value="${service?.description || ''}" class="px-2 py-1 border rounded service-desc">
+            <div class="flex items-center gap-2">
+                <input type="number" placeholder="Hourly Rate" value="${service?.hourly_rate || ''}" step="0.01" class="px-2 py-1 border rounded service-rate flex-1">
+                <button type="button" onclick="this.parentElement.parentElement.parentElement.remove()" class="text-red-600 hover:text-red-800">×</button>
+            </div>
+        </div>
+    `;
+    container.appendChild(serviceDiv);
+}
+
+let adminSelectedServiceIds = new Set();
+let adminCurrentServiceEditIndex = null;
+let adminAvailableServices = [];
+
+async function addAdminProviderService(serviceData = null) {
+    const container = document.getElementById('editUserProviderServices');
+    const index = container.children.length;
+    const serviceDiv = document.createElement('div');
+    serviceDiv.className = 'border p-3 rounded bg-gray-50';
+    serviceDiv.dataset.index = index;
+    
+    const serviceId = serviceData?.service_type_id || serviceData?.service_type?.id || '';
+    const serviceName = serviceData?.service_type?.name || serviceData?.name || '';
+    const description = serviceData?.personalized_description || serviceData?.description || '';
+    
+    serviceDiv.innerHTML = `
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-2">
+            <div>
+                <label class="block text-xs text-gray-600 mb-1">Service Name *</label>
+                <div class="flex gap-2">
+                    <input type="text" class="service-name-input w-full px-2 py-1 border rounded bg-gray-100" 
+                           value="${serviceName}" readonly required>
+                    <input type="hidden" class="service-type-id" value="${serviceId}">
+                    <button type="button" onclick="openAdminServiceModal(${index})" class="bg-blue-500 text-white px-2 py-1 rounded hover:bg-blue-600 text-xs">
+                        Edit
+                    </button>
+                </div>
+            </div>
+            <div class="md:col-span-2">
+                <label class="block text-xs text-gray-600 mb-1">Description (optional)</label>
+                <textarea class="service-description-input w-full px-2 py-1 border rounded" rows="2" 
+                          placeholder="Add your personalized description">${description}</textarea>
+            </div>
+        </div>
+        <div class="mt-2 flex justify-end">
+            <button type="button" onclick="this.parentElement.parentElement.remove(); updateAdminSelectedServiceIds();" class="text-red-600 hover:text-red-800 text-sm">Remove</button>
+        </div>
+    `;
+    container.appendChild(serviceDiv);
+    
+    if (serviceId) {
+        adminSelectedServiceIds.add(serviceId);
+    }
+}
+
+function updateAdminSelectedServiceIds() {
+    adminSelectedServiceIds.clear();
+    document.querySelectorAll('#editUserProviderServices .service-type-id').forEach(input => {
+        const serviceId = input.value;
+        if (serviceId) {
+            adminSelectedServiceIds.add(serviceId);
+        }
+    });
+}
+
+async function openAdminServiceModal(index) {
+    adminCurrentServiceEditIndex = index;
+    const modal = document.getElementById('adminServiceSelectionModal');
+    const list = document.getElementById('adminAvailableServicesList');
+    
+    // Load available services if not already loaded
+    if (adminAvailableServices.length === 0) {
+        const token = localStorage.getItem('token');
+        try {
+            const response = await fetch('/api/auth/service-types?category=service-provider&is_active=true', {
+                headers: { 'Authorization': `Bearer ${token}` }
+            });
+            const result = await response.json();
+            if (result.success) {
+                adminAvailableServices = result.data.service_types || [];
+            }
+        } catch (error) {
+            console.error('Error loading services:', error);
+        }
+    }
+    
+    // Get currently selected service IDs (excluding the one being edited)
+    const currentSelected = new Set(adminSelectedServiceIds);
+    const currentRow = document.querySelector(`#editUserProviderServices > div[data-index="${index}"]`);
+    if (currentRow) {
+        const currentServiceId = currentRow.querySelector('.service-type-id').value;
+        if (currentServiceId) {
+            currentSelected.delete(currentServiceId);
+        }
+    }
+    
+    // Filter out already selected services
+    const available = adminAvailableServices.filter(svc => !currentSelected.has(svc.id));
+    
+    if (available.length === 0) {
+        list.innerHTML = '<p class="text-gray-600">No available services. All services have been selected.</p>';
+    } else {
+        list.innerHTML = available.map(svc => `
+            <button type="button" onclick="selectAdminService('${svc.id}', '${svc.name.replace(/'/g, "\\'")}')" 
+                    class="w-full text-left p-3 border rounded hover:bg-gray-100">
+                <div class="font-semibold">${svc.name}</div>
+                ${svc.description ? `<div class="text-sm text-gray-600">${svc.description}</div>` : ''}
+            </button>
+        `).join('');
+    }
+    
+    modal.classList.remove('hidden');
+}
+
+function selectAdminService(serviceId, serviceName) {
+    if (adminCurrentServiceEditIndex !== null) {
+        const row = document.querySelector(`#editUserProviderServices > div[data-index="${adminCurrentServiceEditIndex}"]`);
+        if (row) {
+            // Remove old service ID from selected set
+            const oldServiceId = row.querySelector('.service-type-id').value;
+            if (oldServiceId) {
+                adminSelectedServiceIds.delete(oldServiceId);
+            }
+            
+            // Update row
+            row.querySelector('.service-name-input').value = serviceName;
+            row.querySelector('.service-type-id').value = serviceId;
+            adminSelectedServiceIds.add(serviceId);
+        }
+    }
+    closeAdminServiceModal();
+}
+
+function closeAdminServiceModal() {
+    document.getElementById('adminServiceSelectionModal').classList.add('hidden');
+    adminCurrentServiceEditIndex = null;
+}
+
+function addDriverService(service = null) {
+    const container = document.getElementById('editUserDriverServices');
+    const index = driverServiceCount++;
+    const serviceDiv = document.createElement('div');
+    serviceDiv.className = 'border p-3 rounded bg-gray-50';
+    serviceDiv.innerHTML = `
+        <div class="space-y-2">
+            <div class="grid grid-cols-2 gap-2">
+                <input type="text" placeholder="Car Make" value="${service?.car_make || ''}" class="px-2 py-1 border rounded car-make" required>
+                <input type="text" placeholder="Car Model" value="${service?.car_model || ''}" class="px-2 py-1 border rounded car-model" required>
+            </div>
+            <div class="grid grid-cols-3 gap-2 items-center">
+                <input type="number" placeholder="Year" value="${service?.car_year || ''}" class="px-2 py-1 border rounded car-year">
+                <input type="text" placeholder="Registration Number" value="${service?.registration_number || ''}" class="px-2 py-1 border rounded car-reg">
+                <select class="px-2 py-1 border rounded car-type" required>
+                    <option value="">Car Type</option>
+                    <option value="standard" ${service?.car_type === 'standard' ? 'selected' : ''}>Standard</option>
+                    <option value="premium" ${service?.car_type === 'premium' ? 'selected' : ''}>Premium</option>
+                    <option value="suv" ${service?.car_type === 'suv' ? 'selected' : ''}>SUV</option>
+                </select>
+                <button type="button" onclick="this.parentElement.parentElement.remove()" class="text-red-600 hover:text-red-800">×</button>
+            </div>
+        </div>
+    `;
+    container.appendChild(serviceDiv);
+}
+
+// Handle SA Citizen checkbox
+document.getElementById('editUserSaCitizen')?.addEventListener('change', function() {
+    document.getElementById('editUserSaIdContainer').classList.toggle('hidden', !this.checked);
+    if (!this.checked) {
+        document.getElementById('editUserSaId').value = '';
+    }
+});
+
+async function saveUserProfile(event) {
+    event.preventDefault();
+    
+    const token = localStorage.getItem('token');
+    if (!token) return;
+    
+    const userId = document.getElementById('editUserId').value;
+    const role = document.getElementById('editUserRole').value;
+    
+    // Build request data
+    const requestData = {
+        full_name: document.getElementById('editUserFullName').value || null,
+        surname: document.getElementById('editUserSurname').value || null,
+        phone: document.getElementById('editUserPhone').value || null,
+        gender: document.getElementById('editUserGender').value || null,
+        sa_citizen: document.getElementById('editUserSaCitizen').checked,
+        sa_id: document.getElementById('editUserSaId').value || null,
+        next_of_kin: {
+            full_name: document.getElementById('editUserNextOfKinName').value || null,
+            contact_number: document.getElementById('editUserNextOfKinPhone').value || null,
+            contact_email: document.getElementById('editUserNextOfKinEmail').value || null
+        },
+        is_paid: document.getElementById('editUserIsPaid').checked,
+        is_approved: document.getElementById('editUserIsApproved').checked,
+        is_active: document.getElementById('editUserIsActive').checked,
+        email_verified: document.getElementById('editUserEmailVerified').checked
+    };
+    
+    // Add role-specific fields
+    if (role === 'professional') {
+        requestData.highest_qualification = document.getElementById('editUserHighestQualification').value || null;
+        requestData.professional_body = document.getElementById('editUserProfessionalBody').value || null;
+        
+        // Collect professional services
+        const services = [];
+        document.querySelectorAll('#editUserProfessionalServices > div').forEach(div => {
+            const name = div.querySelector('.service-name').value;
+            if (name) {
+                services.push({
+                    name: name,
+                    description: div.querySelector('.service-desc').value || null,
+                    hourly_rate: parseFloat(div.querySelector('.service-rate').value) || null
+                });
+            }
+        });
+        requestData.professional_services = services;
+    } else if (role === 'service-provider') {
+        // Collect provider services (using UserSelectedService format)
+        const services = [];
+        document.querySelectorAll('#editUserProviderServices > div').forEach(div => {
+            const serviceTypeId = div.querySelector('.service-type-id').value;
+            const description = div.querySelector('.service-description-input').value;
+            if (serviceTypeId) {
+                services.push({
+                    service_type_id: serviceTypeId,
+                    personalized_description: description || null
+                });
+            }
+        });
+        requestData.provider_services = services;
+    } else if (role === 'driver') {
+        // Collect driver services
+        const services = [];
+        document.querySelectorAll('#editUserDriverServices > div').forEach(div => {
+            const make = div.querySelector('.car-make').value;
+            const model = div.querySelector('.car-model').value;
+            const type = div.querySelector('.car-type').value;
+            if (make && model && type) {
+                services.push({
+                    car_make: make,
+                    car_model: model,
+                    car_year: parseInt(div.querySelector('.car-year').value) || null,
+                    registration_number: div.querySelector('.car-reg').value || null,
+                    car_type: type
+                });
+            }
+        });
+        requestData.driver_services = services;
+    }
+    
+    const profilePhotoInput = document.getElementById('editUserProfilePhoto');
+    const profilePhotoFile = profilePhotoInput ? profilePhotoInput.files[0] : null;
+    const useFormData = profilePhotoFile && profilePhotoFile.size > 0;
+    
+    try {
+        let fetchOptions;
+        if (useFormData) {
+            const formData = new FormData();
+            formData.append('full_name', requestData.full_name || '');
+            formData.append('surname', requestData.surname || '');
+            formData.append('phone', requestData.phone || '');
+            formData.append('gender', requestData.gender || '');
+            formData.append('sa_citizen', String(requestData.sa_citizen));
+            formData.append('sa_id', requestData.sa_id || '');
+            formData.append('next_of_kin', JSON.stringify(requestData.next_of_kin));
+            formData.append('is_paid', String(requestData.is_paid));
+            formData.append('is_approved', String(requestData.is_approved));
+            formData.append('is_active', String(requestData.is_active));
+            formData.append('email_verified', String(requestData.email_verified));
+            if (requestData.highest_qualification !== undefined) formData.append('highest_qualification', requestData.highest_qualification || '');
+            if (requestData.professional_body !== undefined) formData.append('professional_body', requestData.professional_body || '');
+            if (requestData.professional_services !== undefined) formData.append('professional_services', JSON.stringify(requestData.professional_services));
+            if (requestData.provider_services !== undefined) formData.append('provider_services', JSON.stringify(requestData.provider_services));
+            if (requestData.driver_services !== undefined) formData.append('driver_services', JSON.stringify(requestData.driver_services));
+            formData.append('profile_image', profilePhotoFile);
+            fetchOptions = {
+                method: 'PUT',
+                headers: { 'Authorization': `Bearer ${token}` },
+                body: formData
+            };
+        } else {
+            fetchOptions = {
+                method: 'PUT',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${token}`
+                },
+                body: JSON.stringify(requestData)
+            };
+        }
+        
+        const response = await fetch(`/api/admin/users/${userId}`, fetchOptions);
+        
+        const result = await response.json();
+        if (result.success) {
+            closeEditUserModal();
+            loadUsers(currentUsersPage);
+            alert('User profile updated successfully');
+        } else {
+            alert('Failed to update user: ' + (result.error?.message || 'Unknown error'));
+        }
+    } catch (error) {
+        console.error('Error updating user:', error);
+        alert('Error updating user: ' + error.message);
+    }
+}
+
+// Check access on page load
+document.addEventListener('DOMContentLoaded', function() {
+    // Double-check modal is hidden
+    const loginModal = document.getElementById('loginRequiredModal');
+    if (loginModal) {
+        loginModal.classList.add('hidden');
+        loginModal.style.display = 'none';
+        loginModal.style.visibility = 'hidden';
+    }
+    
+    checkAdminAccess();
+});
+</script>
+{% endblock %}
+

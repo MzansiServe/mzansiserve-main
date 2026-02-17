@@ -1,0 +1,1251 @@
+{% extends "base.html" %}
+
+{% block title %}Register - MzansiServe{% endblock %}
+
+{% block extra_head %}
+<style>
+    .register-container {
+        animation: fadeInFromTop 0.8s ease-out;
+    }
+    
+    @keyframes fadeInFromTop {
+        from {
+            opacity: 0;
+            transform: translateY(-30px);
+        }
+        to {
+            opacity: 1;
+            transform: translateY(0);
+        }
+    }
+    
+    .role-section {
+        display: none;
+    }
+    
+    .role-section.active {
+        display: block;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="max-w-4xl mx-auto mt-8 register-container">
+    <h2 class="text-2xl font-bold mb-6">Register</h2>
+    
+    <!-- Payment Status Modal -->
+    <div id="paymentStatusModal" class="hidden fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+        <div class="bg-white p-8 rounded-lg max-w-md w-full mx-4">
+            <h3 class="text-2xl font-bold mb-4" id="paymentStatusTitle">Payment Status</h3>
+            <p id="paymentStatusMessage" class="mb-6"></p>
+            <button onclick="closePaymentStatusModal()" class="w-full bg-blue-500 text-white py-2 rounded hover:bg-blue-600">
+                OK
+            </button>
+        </div>
+    </div>
+    
+    <!-- Service Selection Modal (for Service Providers) -->
+    <div id="serviceSelectionModal" class="hidden fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+        <div class="bg-white p-8 rounded-lg max-w-2xl w-full mx-4 max-h-[80vh] overflow-y-auto">
+            <h3 class="text-2xl font-bold mb-4">Select Service</h3>
+            <div id="availableServicesList" class="space-y-2 mb-4">
+                <!-- Services will be loaded here -->
+            </div>
+            <button onclick="closeServiceModal()" class="w-full bg-gray-300 text-gray-700 py-2 rounded hover:bg-gray-400">
+                Cancel
+            </button>
+        </div>
+    </div>
+    
+    <!-- Profession Selection Modal (for Professionals) -->
+    <div id="professionSelectionModal" class="hidden fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+        <div class="bg-white p-8 rounded-lg max-w-2xl w-full mx-4 max-h-[80vh] overflow-y-auto">
+            <h3 class="text-2xl font-bold mb-4">Select Profession</h3>
+            <div id="availableProfessionsList" class="space-y-2 mb-4">
+                <!-- Professions will be loaded here -->
+            </div>
+            <button onclick="closeProfessionModal()" class="w-full bg-gray-300 text-gray-700 py-2 rounded hover:bg-gray-400">
+                Cancel
+            </button>
+        </div>
+    </div>
+    
+    <!-- Terms of Use Modal -->
+    <div id="termsOfUseModal" class="hidden fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+        <div class="bg-white rounded-lg max-w-3xl w-full mx-4 max-h-[90vh] flex flex-col shadow-xl">
+            <div class="p-4 border-b flex items-center justify-between">
+                <h3 class="text-xl font-bold">Terms of Use</h3>
+                <button type="button" onclick="closeTermsModal()" class="text-gray-500 hover:text-gray-700 text-2xl leading-none">&times;</button>
+            </div>
+            <div class="p-4 overflow-y-auto flex-1">
+                <div id="termsModalContent" class="prose max-w-none">
+                    <p class="text-gray-500">Loading...</p>
+                </div>
+                <div id="termsModalPdf" class="hidden w-full" style="min-height: 70vh;">
+                    <iframe id="termsModalPdfFrame" class="w-full border rounded" style="height: 70vh;" title="Terms of Use PDF"></iframe>
+                </div>
+            </div>
+            <div class="p-4 border-t">
+                <button type="button" onclick="closeTermsModal()" class="w-full bg-blue-500 text-white py-2 rounded hover:bg-blue-600">
+                    Close
+                </button>
+            </div>
+        </div>
+    </div>
+    
+    <form id="registerForm" class="space-y-6" enctype="multipart/form-data">
+        <!-- Account Information -->
+        <div class="bg-white p-6 rounded-lg shadow">
+            <h3 class="text-lg font-semibold mb-4">Account Information</h3>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                    <label for="regEmail" class="block text-sm font-medium mb-1">Email *</label>
+                    <input type="email" id="regEmail" name="email" required autocomplete="username"
+                           class="w-full px-3 py-2 border rounded-md">
+                </div>
+                <div>
+                    <label for="regPassword" class="block text-sm font-medium mb-1">Password *</label>
+                    <input type="password" id="regPassword" name="password" required minlength="8"
+                           class="w-full px-3 py-2 border rounded-md" autocomplete="new-password">
+                </div>
+                <div>
+                    <label for="regPasswordConfirm" class="block text-sm font-medium mb-1">Confirm Password *</label>
+                    <input type="password" id="regPasswordConfirm" name="password_confirm" required minlength="8"
+                           class="w-full px-3 py-2 border rounded-md border-gray-300" autocomplete="new-password">
+                    <p id="regPasswordConfirmError" class="text-red-600 text-sm mt-1 hidden">Passwords do not match.</p>
+                </div>
+                <div>
+                    <label for="regRole" class="block text-sm font-medium mb-1">Register as a *</label>
+                    <select id="regRole" name="role" required 
+                            class="w-full px-3 py-2 border rounded-md" onchange="handleRoleChange()">
+                        <option value="">Select Role</option>
+                        <option value="client">Client</option>
+                        <option value="driver">Driver</option>
+                        <option value="professional">Professional</option>
+                        <option value="service-provider">Service Provider</option>
+                    </select>
+                </div>
+                <div>
+                    <label for="regAgent" class="block text-sm font-medium mb-1">Agent (optional)</label>
+                    <select id="regAgent" name="agent_id" class="w-full px-3 py-2 border rounded-md">
+                        <option value="">No agent</option>
+                    </select>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Basic Information (Mandatory) -->
+        <div class="bg-white p-6 rounded-lg shadow">
+            <h3 class="text-lg font-semibold mb-4">Basic Information *</h3>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                    <label for="regFullName" class="block text-sm font-medium mb-1">Full Name *</label>
+                    <input type="text" id="regFullName" name="full_name" required
+                           class="w-full px-3 py-2 border rounded-md">
+                </div>
+                <div>
+                    <label for="regSurname" class="block text-sm font-medium mb-1">Surname *</label>
+                    <input type="text" id="regSurname" name="surname" required
+                           class="w-full px-3 py-2 border rounded-md">
+                </div>
+                <div>
+                    <label for="regPhone" class="block text-sm font-medium mb-1">Phone *</label>
+                    <input type="text" id="regPhone" name="phone" required
+                           class="w-full px-3 py-2 border rounded-md">
+                </div>
+                <div>
+                    <label for="regGender" class="block text-sm font-medium mb-1">Gender *</label>
+                    <select id="regGender" name="gender" required class="w-full px-3 py-2 border rounded-md">
+                        <option value="">Select</option>
+                        <option value="male">Male</option>
+                        <option value="female">Female</option>
+                        <option value="other">Other</option>
+                        <option value="prefer_not_to_say">Prefer not to say</option>
+                    </select>
+                </div>
+                <div class="md:col-span-2">
+                    <label for="regProfilePhoto" class="block text-sm font-medium mb-1">Profile photo *</label>
+                    <input type="file" id="regProfilePhoto" name="profile_photo" required accept="image/jpeg,image/png,image/jpg"
+                           class="w-full px-3 py-2 border rounded-md text-sm">
+                    <p class="text-xs text-gray-500 mt-1">JPG or PNG. You can change this later on your profile.</p>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Identity Information -->
+        <div class="bg-white p-6 rounded-lg shadow">
+            <h3 class="text-lg font-semibold mb-4">Identity Information</h3>
+            <div class="space-y-4">
+                <div>
+                    <label for="regNationality" class="block text-sm font-medium mb-1">Nationality *</label>
+                    <select id="regNationality" name="nationality" required class="w-full px-3 py-2 border rounded-md">
+                        <option value="">Select Nationality</option>
+                        <!-- Countries will be loaded dynamically -->
+                    </select>
+                </div>
+                <div id="regIdField" class="hidden">
+                    <label for="regIdNumber" class="block text-sm font-medium mb-1" id="regIdLabel">ID Number / Passport Number *</label>
+                    <input type="text" id="regIdNumber" name="id_number" 
+                           class="w-full px-3 py-2 border rounded-md">
+                    <p id="regIdError" class="text-red-600 text-sm mt-1 hidden"></p>
+                </div>
+                <div>
+                    <label class="block text-sm font-medium mb-2">Next of Kin *</label>
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                        <div>
+                            <label for="regNextOfKinName" class="block text-xs text-gray-600 mb-1">Full name *</label>
+                            <input type="text" id="regNextOfKinName" name="next_of_kin_name" required
+                                   class="w-full px-3 py-2 border rounded-md">
+                        </div>
+                        <div>
+                            <label for="regNextOfKinPhone" class="block text-xs text-gray-600 mb-1">Contact number *</label>
+                            <input type="text" id="regNextOfKinPhone" name="next_of_kin_phone" required
+                                   class="w-full px-3 py-2 border rounded-md" inputmode="numeric" pattern="[0-9+\s]*" title="Numbers only"
+                                   placeholder="e.g. 0821234567">
+                            <p id="regNextOfKinPhoneError" class="text-red-600 text-xs mt-1 hidden">Contact number must contain numbers only.</p>
+                        </div>
+                        <div>
+                            <label for="regNextOfKinEmail" class="block text-xs text-gray-600 mb-1">Contact email (optional)</label>
+                            <input type="email" id="regNextOfKinEmail" name="next_of_kin_email"
+                                   class="w-full px-3 py-2 border rounded-md">
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Professional Services (for professionals) -->
+        <div id="regProfessionalSection" class="bg-white p-6 rounded-lg shadow role-section">
+            <h3 class="text-lg font-semibold mb-4">Professional Information</h3>
+            <div class="space-y-4">
+                <div>
+                    <label for="regHighestQualification" class="block text-sm font-medium mb-1">Highest Qualification *</label>
+                    <input type="text" id="regHighestQualification" name="highest_qualification"
+                           class="w-full px-3 py-2 border rounded-md" aria-required="true">
+                </div>
+                <div>
+                    <label for="regProfessionalBody" class="block text-sm font-medium mb-1">Professional Body</label>
+                    <input type="text" id="regProfessionalBody" name="professional_body" 
+                           class="w-full px-3 py-2 border rounded-md">
+                </div>
+                <div>
+                    <label class="block text-sm font-medium mb-2">Professional Services</label>
+                    <div id="regProfessionalServicesList" class="space-y-3 mb-4">
+                        <!-- Services will be dynamically added -->
+                    </div>
+                    <button type="button" onclick="addRegProfessionalService()" class="bg-green-500 text-white px-4 py-2 rounded hover:bg-green-600">
+                        + Add Service
+                    </button>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Service Provider Services -->
+        <div id="regProviderSection" class="bg-white p-6 rounded-lg shadow role-section">
+            <h3 class="text-lg font-semibold mb-4">Add Your Services</h3>
+            <div id="regProviderServicesList" class="space-y-3 mb-4">
+                <!-- Services will be dynamically added -->
+            </div>
+            <button type="button" onclick="addRegProviderService()" class="bg-green-500 text-white px-4 py-2 rounded hover:bg-green-600">
+                + Add Service
+            </button>
+        </div>
+        
+        <!-- Driver Services -->
+        <div id="regDriverSection" class="bg-white p-6 rounded-lg shadow role-section">
+            <h3 class="text-lg font-semibold mb-4">Driver Services (Cars)</h3>
+            <div id="regDriverServicesList" class="space-y-3 mb-4">
+                <!-- Services will be dynamically added -->
+            </div>
+            <button type="button" onclick="addRegDriverService()" class="bg-green-500 text-white px-4 py-2 rounded hover:bg-green-600">
+                + Add Car/Service
+            </button>
+        </div>
+        
+        <!-- Verification Documents -->
+        <div class="bg-white p-6 rounded-lg shadow">
+            <h3 class="text-lg font-semibold mb-4">Verification Documents</h3>
+            <div class="space-y-4">
+                <div>
+                    <div id="idVerificationAlert" class="mb-4 p-4 rounded-lg hidden"></div>
+                    <label for="regIdDocument" id="regIdDocumentLabel" class="block text-sm font-medium mb-1">ID Document</label>
+                    <input type="file" id="regIdDocument" name="id_document" accept=".pdf,.jpg,.jpeg,.png" 
+                           class="w-full px-3 py-2 border rounded-md">
+                    <p class="text-sm text-gray-600 mt-1" id="regIdDocumentNote">Accepted formats: PDF, JPG, PNG. Required for drivers.</p>
+                </div>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                        <label for="regProofOfResidence" id="regProofOfResidenceLabel" class="block text-sm font-medium mb-1">Proof of Residence</label>
+                        <input type="file" id="regProofOfResidence" name="proof_of_residence" accept=".pdf,.jpg,.jpeg,.png" 
+                               class="w-full px-3 py-2 border rounded-md">
+                        <p class="text-sm text-gray-600 mt-1" id="regProofOfResidenceNote">Required for drivers.</p>
+                    </div>
+                    <div id="regDriversLicenseField">
+                        <label for="regDriversLicense" id="regDriversLicenseLabel" class="block text-sm font-medium mb-1">Driver's License</label>
+                        <input type="file" id="regDriversLicense" name="drivers_license" accept=".pdf,.jpg,.jpeg,.png" 
+                               class="w-full px-3 py-2 border rounded-md">
+                        <p class="text-sm text-gray-600 mt-1" id="regDriversLicenseNote">Required for drivers; optional for other roles</p>
+                    </div>
+                    <div id="regCvResumeField" class="hidden">
+                        <label for="regCvResume" id="regCvResumeLabel" class="block text-sm font-medium mb-1">CV / Resume</label>
+                        <input type="file" id="regCvResume" name="cv_resume" accept=".pdf,.doc,.docx,.jpg,.jpeg,.png" 
+                               class="w-full px-3 py-2 border rounded-md">
+                        <p class="text-sm text-gray-600 mt-1" id="regCvResumeNote">PDF or document. Optional; you can add or update this on your profile later.</p>
+                    </div>
+                </div>
+                <div id="regQualificationDocumentsField" class="hidden">
+                    <label for="regQualificationDocuments" id="regQualificationDocumentsLabel" class="block text-sm font-medium mb-1">Qualification Documents</label>
+                    <input type="file" id="regQualificationDocuments" name="qualification_documents" multiple accept=".pdf,.jpg,.jpeg,.png" 
+                           class="w-full px-3 py-2 border rounded-md">
+                    <p class="text-sm text-gray-600 mt-1">Upload certificates, transcripts or other proof of qualifications</p>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Registration Fee Payment -->
+        <div class="bg-white p-6 rounded-lg shadow">
+            <h3 class="text-lg font-semibold mb-4">Registration Fee</h3>
+            <p class="text-gray-600 mb-4">Registration Fee: <strong>R100.00</strong></p>
+            <div id="registrationFeeAlert" class="mb-4 p-4 rounded-lg hidden"></div>
+            <p class="text-sm text-gray-600 mb-4">You will be redirected to complete payment after submitting this form.</p>
+        </div>
+        
+        <div class="flex items-center mb-4">
+            <input type="checkbox" id="regTerms" name="terms" required class="mr-2">
+            <label for="regTerms" class="text-sm">I have read and agree to <a href="#" id="regTermsLink" class="text-blue-500 hover:underline">Terms of Use</a> *</label>
+        </div>
+        
+        <div>
+            <button type="submit" id="regSubmitBtn" class="w-full bg-blue-500 text-white py-3 rounded hover:bg-blue-600 font-semibold text-lg flex items-center justify-center gap-2 disabled:opacity-70 disabled:cursor-not-allowed">
+                <span id="regSubmitBtnText">Pay and Signup</span>
+                <span id="regSubmitBtnSpinner" class="hidden inline-block w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin"></span>
+            </button>
+        </div>
+        
+        <div class="mt-4 text-center">
+            <span class="text-gray-600">Already have an account? </span>
+            <a href="/login" class="text-blue-500 hover:underline font-medium">Login here</a>
+        </div>
+    </form>
+</div>
+
+<script>
+// regNextOfKinName
+// regNextOfKinPhone
+// regNextOfKinEmail
+// Global variables
+let availableServices = [];
+let selectedServiceIds = new Set();
+let currentServiceEditIndex = null;
+let availableProfessions = [];
+let selectedProfessionIds = new Set();
+let currentProfessionEditIndex = null;
+
+// Load countries on page load
+async function loadCountries() {
+    try {
+        const response = await fetch('/api/auth/countries');
+        const result = await response.json();
+        if (result.success) {
+            const select = document.getElementById('regNationality');
+            result.data.countries.forEach((country, idx) => {
+                const option = document.createElement('option');
+                if (idx === 0) {
+                    option.value = 'South Africa';
+                    option.textContent = 'South Africa';
+                } else {
+                    if (country.name.toLowerCase() !== 'South Africa') {
+                        option.value = country.name;
+                        option.textContent = country.name;
+                    }
+                }
+                select.appendChild(option);
+            });
+        }
+    } catch (error) {
+        console.error('Error loading countries:', error);
+    }
+}
+
+async function loadAgents() {
+    try {
+        const response = await fetch('/api/auth/agents');
+        const result = await response.json();
+        const select = document.getElementById('regAgent');
+        if (!select) return;
+        while (select.options.length > 1) select.remove(1);
+        if (result.success && result.data && result.data.length) {
+            result.data.forEach(agent => {
+                const option = document.createElement('option');
+                option.value = agent.id;
+                const namePart = [agent.name, agent.surname].filter(Boolean).join(' ').trim() || agent.agent_id;
+                option.textContent = namePart + ' (' + agent.agent_id + ')';
+                select.appendChild(option);
+            });
+        }
+    } catch (error) {
+        console.error('Error loading agents:', error);
+    }
+}
+
+// Load available services for service providers
+async function loadAvailableServices() {
+    try {
+        const response = await fetch('/api/auth/service-types?category=service-provider&is_active=true');
+        const result = await response.json();
+        if (result.success) {
+            availableServices = result.data.service_types || [];
+        }
+    } catch (error) {
+        console.error('Error loading services:', error);
+    }
+}
+
+// Handle role change
+function handleRoleChange() {
+    const role = document.getElementById('regRole').value;
+    
+    // Hide all role sections
+    document.querySelectorAll('.role-section').forEach(section => {
+        section.classList.remove('active');
+    });
+    // Highest Qualification: required only when Professional section is visible (avoids "invalid form control not focusable")
+    const highestQualEl = document.getElementById('regHighestQualification');
+    if (highestQualEl) highestQualEl.required = (role === 'professional');
+    // CV/Resume and qualification docs: required only when professional (avoids "invalid form control not focusable")
+    const cvResumeEl = document.getElementById('regCvResume');
+    const qualDocsEl = document.getElementById('regQualificationDocuments');
+    if (cvResumeEl) cvResumeEl.required = (role === 'professional');
+    if (qualDocsEl) qualDocsEl.required = (role === 'professional');
+    // Show relevant sections
+    if (role === 'professional') {
+        document.getElementById('regProfessionalSection').classList.add('active');
+        document.getElementById('regQualificationDocumentsField').classList.remove('hidden');
+        document.getElementById('regDriversLicenseField').classList.add('hidden');
+        document.getElementById('regCvResumeField').classList.remove('hidden');
+        loadAvailableProfessions();
+    } else if (role === 'service-provider') {
+        document.getElementById('regProviderSection').classList.add('active');
+        loadAvailableServices();
+        document.getElementById('regDriversLicenseField').classList.remove('hidden');
+        document.getElementById('regCvResumeField').classList.add('hidden');
+    } else if (role === 'driver') {
+        document.getElementById('regDriverSection').classList.add('active');
+        document.getElementById('regDriversLicenseField').classList.remove('hidden');
+        document.getElementById('regCvResumeField').classList.add('hidden');
+    } else {
+        document.getElementById('regDriversLicenseField').classList.remove('hidden');
+        document.getElementById('regCvResumeField').classList.add('hidden');
+    }
+    
+    // Driver role: ID document, Proof of residence and Driver's license are mandatory
+    const idDocumentInput = document.getElementById('regIdDocument');
+    const proofOfResidenceInput = document.getElementById('regProofOfResidence');
+    const driversLicenseInput = document.getElementById('regDriversLicenseField').querySelector('input');
+    const idDocumentNote = document.getElementById('regIdDocumentNote');
+    const proofOfResidenceNote = document.getElementById('regProofOfResidenceNote');
+    const driversLicenseNote = document.getElementById('regDriversLicenseNote');
+    const idDocumentLabel = document.getElementById('regIdDocumentLabel');
+    const proofOfResidenceLabel = document.getElementById('regProofOfResidenceLabel');
+    const driversLicenseLabel = document.getElementById('regDriversLicenseLabel');
+
+    // ID document is required for all roles
+    idDocumentInput.required = true;
+    idDocumentNote.textContent = 'Accepted formats: PDF, JPG, PNG. Required for all roles.';
+    idDocumentLabel.textContent = 'ID Document *';
+
+    if (role === 'driver') {
+        proofOfResidenceInput.required = true;
+        driversLicenseInput.required = true;
+        proofOfResidenceNote.textContent = 'Required for drivers.';
+        driversLicenseNote.textContent = 'Required for drivers.';
+        proofOfResidenceLabel.textContent = 'Proof of Residence *';
+        driversLicenseLabel.textContent = "Driver's License *";
+    } else if (role === 'professional' || role === 'service-provider') {
+        proofOfResidenceInput.required = true;
+        driversLicenseInput.required = false;
+        proofOfResidenceNote.textContent = 'Required for professional and service provider.';
+        driversLicenseNote.textContent = 'Optional';
+        proofOfResidenceLabel.textContent = 'Proof of Residence *';
+        driversLicenseLabel.textContent = "Driver's License";
+    } else {
+        proofOfResidenceInput.required = false;
+        driversLicenseInput.required = false;
+        proofOfResidenceNote.textContent = 'Optional.';
+        driversLicenseNote.textContent = role ? 'Optional' : 'Required for drivers; optional for other roles';
+        proofOfResidenceLabel.textContent = 'Proof of Residence';
+        driversLicenseLabel.textContent = "Driver's License";
+    }
+    // Professional: CV/Resume and qualification documents labels (required already set above)
+    const cvResumeInput = document.getElementById('regCvResume');
+    const cvResumeLabel = document.getElementById('regCvResumeLabel');
+    const cvResumeNote = document.getElementById('regCvResumeNote');
+    const qualDocsInput = document.getElementById('regQualificationDocuments');
+    const qualDocsLabel = document.getElementById('regQualificationDocumentsLabel');
+    if (role === 'professional') {
+        if (cvResumeLabel) cvResumeLabel.textContent = 'CV / Resume *';
+        if (cvResumeNote) cvResumeNote.textContent = 'PDF or document. Required for professionals.';
+        if (qualDocsLabel) qualDocsLabel.textContent = 'Qualification Documents *';
+    } else {
+        if (cvResumeLabel) cvResumeLabel.textContent = 'CV / Resume';
+        if (cvResumeNote) cvResumeNote.textContent = 'PDF or document. Optional; you can add or update this on your profile later.';
+        if (qualDocsLabel) qualDocsLabel.textContent = 'Qualification Documents';
+    }
+}
+
+// Handle nationality change
+document.getElementById('regNationality')?.addEventListener('change', function() {
+    const nationality = this.value;
+    const idField = document.getElementById('regIdField');
+    const idLabel = document.getElementById('regIdLabel');
+    const idInput = document.getElementById('regIdNumber');
+    idInput.value = '';
+    if (nationality === 'South Africa') {
+        idField.classList.remove('hidden');
+        idLabel.textContent = 'South African ID Number *';
+        idInput.required = true;
+        idInput.maxLength = 13;
+        idInput.placeholder = '13-digit SA ID number';
+    } else if (nationality) {
+        idField.classList.remove('hidden');
+        idLabel.textContent = 'Passport Number *';
+        idInput.required = true;
+        idInput.removeAttribute('maxLength');
+        idInput.placeholder = 'Passport number';
+        idInput.setAttribute('inputmode', 'text');
+    } else {
+        idField.classList.add('hidden');
+        idInput.required = false;
+        idInput.value = '';
+    }
+});
+
+// Update ID verification alert based on file upload
+document.getElementById('regIdDocument')?.addEventListener('change', function() {
+    const alertDiv = document.getElementById('idVerificationAlert');
+    // if (this.files && this.files.length > 0) {
+    //     alertDiv.innerHTML = '<div class="bg-yellow-100 border-l-4 border-yellow-500 text-yellow-700 p-3 rounded">User Registered, Pending Verification</div>';
+    //     alertDiv.classList.remove('hidden');
+    // } else {
+    //     alertDiv.innerHTML = '<div class="bg-blue-100 border-l-4 border-blue-500 text-blue-700 p-3 rounded">ID verification: Please Upload ID Document for Review</div>';
+    //     alertDiv.classList.remove('hidden');
+    // }
+});
+
+// Initialize ID verification alert on page load
+document.addEventListener('DOMContentLoaded', function() {
+    const idDocumentInput = document.getElementById('regIdDocument');
+    const alertDiv = document.getElementById('idVerificationAlert');
+    
+    // if (idDocumentInput && alertDiv) {
+    //     if (idDocumentInput.files && idDocumentInput.files.length > 0) {
+    //         alertDiv.innerHTML = '<div class="bg-yellow-100 border-l-4 border-yellow-500 text-yellow-700 p-3 rounded">ID Uploaded, Peding Verification</div>';
+    //         alertDiv.classList.remove('hidden');
+    //     } else {
+    //         alertDiv.innerHTML = '<div class="bg-blue-100 border-l-4 border-blue-500 text-blue-700 p-3 rounded">Please Upload ID Document for Review</div>';
+    //         alertDiv.classList.remove('hidden');
+    //     }
+    // }
+});
+
+// Service Provider Service Functions
+function addRegProviderService(serviceData = null) {
+    const container = document.getElementById('regProviderServicesList');
+    const index = container.children.length;
+    const serviceDiv = document.createElement('div');
+    serviceDiv.className = 'border p-4 rounded bg-gray-50';
+    serviceDiv.dataset.index = index;
+    
+    const serviceId = serviceData?.service_type_id || '';
+    const serviceName = serviceData?.service_type?.name || '';
+    const description = serviceData?.personalized_description || '';
+    
+    serviceDiv.innerHTML = `
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-3">
+            <div>
+                <label class="block text-sm font-medium mb-1">Service Name *</label>
+                <div class="flex gap-2">
+                    <input type="text" class="service-name-input w-full px-3 py-2 border rounded-md bg-gray-100" 
+                           value="${serviceName}" readonly required>
+                    <input type="hidden" class="service-type-id" value="${serviceId}">
+                    <button type="button" onclick="openServiceModal(${index})" class="bg-blue-500 text-white px-3 py-2 rounded hover:bg-blue-600 text-sm">
+                        Select Service
+                    </button>
+                </div>
+            </div>
+            <div class="md:col-span-2">
+                <label class="block text-sm font-medium mb-1">Description (optional)</label>
+                <textarea class="service-description-input w-full px-3 py-2 border rounded-md" rows="2" 
+                          placeholder="Add your personalized description">${description}</textarea>
+            </div>
+        </div>
+    `;
+    container.appendChild(serviceDiv);
+    
+    if (serviceId) {
+        selectedServiceIds.add(serviceId);
+    }
+}
+
+function openServiceModal(index) {
+    currentServiceEditIndex = index;
+    const modal = document.getElementById('serviceSelectionModal');
+    const list = document.getElementById('availableServicesList');
+    
+    // Get currently selected service IDs (excluding the one being edited)
+    const currentSelected = new Set(selectedServiceIds);
+    const currentRow = document.querySelector(`#regProviderServicesList > div[data-index="${index}"]`);
+    if (currentRow) {
+        const currentServiceId = currentRow.querySelector('.service-type-id').value;
+        if (currentServiceId) {
+            currentSelected.delete(currentServiceId);
+        }
+    }
+    
+    // Filter out already selected services
+    const available = availableServices.filter(svc => !currentSelected.has(svc.id));
+    
+    if (available.length === 0) {
+        list.innerHTML = '<p class="text-gray-600">No available services. All services have been selected.</p>';
+    } else {
+        list.innerHTML = available.map(svc => `
+            <button type="button" onclick="selectService('${svc.id}', '${svc.name.replace(/'/g, "\\'")}')" 
+                    class="w-full text-left p-3 border rounded hover:bg-gray-100">
+                <div class="font-semibold">${svc.name}</div>
+                ${svc.description ? `<div class="text-sm text-gray-600">${svc.description}</div>` : ''}
+            </button>
+        `).join('');
+    }
+    
+    modal.classList.remove('hidden');
+}
+
+function selectService(serviceId, serviceName) {
+    if (currentServiceEditIndex !== null) {
+        const row = document.querySelector(`#regProviderServicesList > div[data-index="${currentServiceEditIndex}"]`);
+        if (row) {
+            // Remove old service ID from selected set
+            const oldServiceId = row.querySelector('.service-type-id').value;
+            if (oldServiceId) {
+                selectedServiceIds.delete(oldServiceId);
+            }
+            
+            // Update row
+            row.querySelector('.service-name-input').value = serviceName;
+            row.querySelector('.service-type-id').value = serviceId;
+            selectedServiceIds.add(serviceId);
+        }
+    }
+    closeServiceModal();
+}
+
+function closeServiceModal() {
+    document.getElementById('serviceSelectionModal').classList.add('hidden');
+    currentServiceEditIndex = null;
+}
+
+// Load available professions when professional role is selected
+async function loadAvailableProfessions() {
+    try {
+        const response = await fetch('/api/auth/service-types?category=professional&is_active=true');
+        const result = await response.json();
+        if (result.success) {
+            availableProfessions = result.data.service_types || [];
+        }
+    } catch (error) {
+        console.error('Error loading professions:', error);
+    }
+}
+
+// Professional Service Functions (same layout as service provider: select from modal)
+function addRegProfessionalService(professionData = null) {
+    const container = document.getElementById('regProfessionalServicesList');
+    const index = container.children.length;
+    const serviceDiv = document.createElement('div');
+    serviceDiv.className = 'border p-4 rounded bg-gray-50';
+    serviceDiv.dataset.index = index;
+    const professionId = professionData?.service_type_id || professionData?.id || '';
+    const professionName = professionData?.service_type?.name || professionData?.name || '';
+    const description = professionData?.description || '';
+    const hourlyRate = professionData?.hourly_rate != null ? professionData.hourly_rate : '';
+    serviceDiv.innerHTML = `
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-3">
+            <div>
+                <label class="block text-sm font-medium mb-1">Profession *</label>
+                <div class="flex gap-2">
+                    <input type="text" class="profession-name-input w-full px-3 py-2 border rounded-md bg-gray-100" 
+                           value="${professionName}" readonly required placeholder="Select profession">
+                    <input type="hidden" class="profession-type-id" value="${professionId}">
+                    <button type="button" onclick="openProfessionModal(${index})" class="bg-blue-500 text-white px-3 py-2 rounded hover:bg-blue-600 text-sm whitespace-nowrap">
+                        Select Profession
+                    </button>
+                </div>
+            </div>
+            <div>
+                <label class="block text-sm font-medium mb-1">Description (optional)</label>
+                <textarea class="profession-description-input w-full px-3 py-2 border rounded-md" rows="2" 
+                          placeholder="Add your personalized description">${description}</textarea>
+            </div>
+            <div>
+                <label class="block text-sm font-medium mb-1">Hourly Rate (optional)</label>
+                <div class="flex gap-2 items-center">
+                    <input type="number" class="profession-hourly-rate-input w-full px-3 py-2 border rounded-md" 
+                           step="0.01" placeholder="0.00" value="${hourlyRate}">
+                    <button type="button" onclick="this.closest('[data-index]').remove()" class="text-red-600 hover:text-red-800">×</button>
+                </div>
+            </div>
+        </div>
+    `;
+    container.appendChild(serviceDiv);
+    if (professionId) selectedProfessionIds.add(professionId);
+}
+
+function openProfessionModal(index) {
+    currentProfessionEditIndex = index;
+    const modal = document.getElementById('professionSelectionModal');
+    const list = document.getElementById('availableProfessionsList');
+    const currentSelected = new Set(selectedProfessionIds);
+    const currentRow = document.querySelector(`#regProfessionalServicesList > div[data-index="${index}"]`);
+    if (currentRow) {
+        const currentId = currentRow.querySelector('.profession-type-id').value;
+        if (currentId) currentSelected.delete(currentId);
+    }
+    const available = availableProfessions.filter(p => !currentSelected.has(p.id));
+    if (available.length === 0) {
+        list.innerHTML = '<p class="text-gray-600">No available professions. All have been selected.</p>';
+    } else {
+        list.innerHTML = available.map(p => `
+            <button type="button" onclick="selectProfession('${p.id}', '${(p.name || '').replace(/'/g, "\\'")}')" 
+                    class="w-full text-left p-3 border rounded hover:bg-gray-100">
+                <div class="font-semibold">${p.name || ''}</div>
+                ${p.description ? `<div class="text-sm text-gray-600">${p.description}</div>` : ''}
+            </button>
+        `).join('');
+    }
+    modal.classList.remove('hidden');
+}
+
+function selectProfession(professionId, professionName) {
+    if (currentProfessionEditIndex !== null) {
+        const row = document.querySelector(`#regProfessionalServicesList > div[data-index="${currentProfessionEditIndex}"]`);
+        if (row) {
+            const oldId = row.querySelector('.profession-type-id').value;
+            if (oldId) selectedProfessionIds.delete(oldId);
+            row.querySelector('.profession-name-input').value = professionName;
+            row.querySelector('.profession-type-id').value = professionId;
+            selectedProfessionIds.add(professionId);
+        }
+    }
+    closeProfessionModal();
+}
+
+function closeProfessionModal() {
+    document.getElementById('professionSelectionModal').classList.add('hidden');
+    currentProfessionEditIndex = null;
+}
+
+// Driver Service Functions
+function addRegDriverService() {
+    const container = document.getElementById('regDriverServicesList');
+    const serviceDiv = document.createElement('div');
+    serviceDiv.className = 'border p-3 rounded bg-gray-50';
+    serviceDiv.innerHTML = `
+        <div class="space-y-2">
+            <div class="grid grid-cols-2 gap-2">
+                <input type="text" placeholder="Car Make *" class="px-2 py-1 border rounded" required>
+                <input type="text" placeholder="Car Model *" class="px-2 py-1 border rounded" required>
+            </div>
+            <div class="grid grid-cols-3 gap-2 items-center">
+                <input type="number" placeholder="Year" class="px-2 py-1 border rounded">
+                <input type="text" placeholder="Registration Number" class="px-2 py-1 border rounded">
+                <select class="px-2 py-1 border rounded" required>
+                    <option value="">Car Type *</option>
+                    <option value="small_hatchback">Small Hatchback</option>
+                    <option value="sedan">Sedan</option>
+                    <option value="suv">SUV</option>
+                    <option value="bakkie">Bakkie</option>
+                    <option value="luxury">Luxury</option>
+                    <option value="hybrid">Hybrid</option>
+                    <option value="electric">Electric</option>
+                </select>
+                <button type="button" onclick="this.closest('.border.p-3.rounded').remove()" class="text-red-600 hover:text-red-800">×</button>
+            </div>
+            <div class="mt-2">
+                <label class="block text-xs text-gray-600 mb-1">Vehicle images (optional)</label>
+                <input type="file" class="vehicle-images-input px-2 py-1 border rounded text-sm" accept="image/jpeg,image/png,image/jpg" multiple>
+            </div>
+        </div>
+    `;
+    container.appendChild(serviceDiv);
+}
+
+// Payment Status Modal
+function closePaymentStatusModal() {
+    document.getElementById('paymentStatusModal').classList.add('hidden');
+}
+
+// Terms of Use Modal
+function closeTermsModal() {
+    document.getElementById('termsOfUseModal').classList.add('hidden');
+}
+
+async function openTermsModal(e) {
+    if (e) {
+        e.preventDefault();
+        e.stopPropagation();
+    }
+    const modal = document.getElementById('termsOfUseModal');
+    const contentEl = document.getElementById('termsModalContent');
+    const pdfWrap = document.getElementById('termsModalPdf');
+    const pdfFrame = document.getElementById('termsModalPdfFrame');
+    contentEl.innerHTML = '<p class="text-gray-500">Loading...</p>';
+    pdfWrap.classList.add('hidden');
+    contentEl.classList.remove('hidden');
+    modal.classList.remove('hidden');
+    try {
+        const response = await fetch('/api/admin/legal/terms');
+        const result = await response.json();
+        if (result.success && result.data) {
+            const d = result.data;
+            if (d.content_type === 'pdf' && d.file_url) {
+                contentEl.classList.add('hidden');
+                pdfWrap.classList.remove('hidden');
+                pdfFrame.src = d.file_url;
+            } else {
+                pdfWrap.classList.add('hidden');
+                contentEl.classList.remove('hidden');
+                const text = d.text || '';
+                contentEl.innerHTML = text ? '<div class="whitespace-pre-wrap">' + escapeHtml(text) + '</div>' : '<p class="text-gray-500">No content configured yet.</p>';
+            }
+        } else {
+            contentEl.innerHTML = '<p class="text-gray-500">No content configured yet.</p>';
+        }
+    } catch (err) {
+        contentEl.innerHTML = '<p class="text-red-500">Unable to load Terms of Use.</p>';
+    }
+}
+
+function escapeHtml(s) {
+    const div = document.createElement('div');
+    div.textContent = s;
+    return div.innerHTML;
+}
+
+// Check for payment callback on page load
+function checkPaymentCallback() {
+    const urlParams = new URLSearchParams(window.location.search);
+    const paymentStatus = urlParams.get('payment');
+    const externalId = urlParams.get('external_id');
+    
+    if (paymentStatus && externalId) {
+        const modal = document.getElementById('paymentStatusModal');
+        const title = document.getElementById('paymentStatusTitle');
+        const message = document.getElementById('paymentStatusMessage');
+        
+        if (paymentStatus === 'success') {
+            title.textContent = 'Payment Successful';
+            message.textContent = 'Your registration has been completed. You will be logged in and redirected to your profile.';
+            modal.classList.remove('hidden');
+            
+            // Complete registration and login
+            completeRegistration(externalId);
+        } else {
+            title.textContent = 'Payment Failed';
+            message.textContent = 'Payment was cancelled or failed. Please try again.';
+            modal.classList.remove('hidden');
+            
+            // Load saved registration data from localStorage
+            loadSavedRegistrationData();
+        }
+    }
+}
+
+// Complete registration after successful payment
+async function completeRegistration(externalId) {
+    try {
+        // Get saved registration data from localStorage
+        const savedData = localStorage.getItem('pendingRegistration');
+        if (!savedData) {
+            alert('Registration data not found. Please register again.');
+            window.location.href = '/register';
+            return;
+        }
+        
+        const registrationData = JSON.parse(savedData);
+        
+        // Call registration completion endpoint
+        const response = await fetch('/api/auth/complete-registration', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                external_id: externalId,
+                registration_data: registrationData
+            })
+        });
+        
+        const result = await response.json();
+        if (result.success) {
+            // Clear saved data
+            localStorage.removeItem('pendingRegistration');
+            
+            // Store token and redirect
+            localStorage.setItem('token', result.data.token);
+            setTimeout(() => {
+                window.location.href = '/profile';
+            }, 2000);
+        } else {
+            alert('Failed to complete registration: ' + (result.error?.message || 'Unknown error'));
+            loadSavedRegistrationData();
+        }
+    } catch (error) {
+        console.error('Error completing registration:', error);
+        alert('Error completing registration: ' + error.message);
+        loadSavedRegistrationData();
+    }
+}
+
+// Load saved registration data
+function loadSavedRegistrationData() {
+    const savedData = localStorage.getItem('pendingRegistration');
+    if (savedData) {
+        const data = JSON.parse(savedData);
+        
+        // Populate form fields
+        document.getElementById('regEmail').value = data.email || '';
+        document.getElementById('regPassword').value = ''; // Don't restore password
+        document.getElementById('regPasswordConfirm').value = '';
+        document.getElementById('regRole').value = data.role || '';
+        if (data.agent_id && document.getElementById('regAgent')) {
+            document.getElementById('regAgent').value = data.agent_id;
+        }
+        document.getElementById('regFullName').value = data.full_name || '';
+        document.getElementById('regSurname').value = data.surname || '';
+        document.getElementById('regPhone').value = data.phone || '';
+        document.getElementById('regGender').value = data.gender || '';
+        document.getElementById('regNationality').value = data.nationality || '';
+        document.getElementById('regIdNumber').value = data.id_number || '';
+        document.getElementById('regNextOfKinName').value = data.next_of_kin?.full_name || '';
+        document.getElementById('regNextOfKinPhone').value = data.next_of_kin?.contact_number || '';
+        document.getElementById('regNextOfKinEmail').value = data.next_of_kin?.contact_email || '';
+        
+        // Handle role-specific fields
+        if (data.role) {
+            handleRoleChange();
+            
+            if (data.role === 'professional') {
+                document.getElementById('regHighestQualification').value = data.highest_qualification || '';
+                document.getElementById('regProfessionalBody').value = data.professional_body || '';
+                if (data.professional_services) {
+                    data.professional_services.forEach(svc => {
+                        addRegProfessionalService({
+                            name: svc.name,
+                            description: svc.description,
+                            hourly_rate: svc.hourly_rate
+                        });
+                    });
+                }
+            } else if (data.role === 'service-provider') {
+                // Load provider services
+                if (data.provider_services) {
+                    data.provider_services.forEach(svc => {
+                        addRegProviderService(svc);
+                    });
+                }
+            } else if (data.role === 'driver') {
+                // Load driver services
+                if (data.driver_services) {
+                    data.driver_services.forEach(svc => {
+                        addRegDriverService();
+                        const lastService = document.querySelector('#regDriverServicesList > div:last-child');
+                        lastService.querySelector('input[placeholder="Car Make *"]').value = svc.car_make || '';
+                        lastService.querySelector('input[placeholder="Car Model *"]').value = svc.car_model || '';
+                        lastService.querySelector('input[placeholder="Year"]').value = svc.car_year || '';
+                        lastService.querySelector('input[placeholder="Registration Number"]').value = svc.registration_number || '';
+                        lastService.querySelector('select').value = svc.car_type || '';
+                    });
+                }
+            }
+        }
+    }
+}
+
+// Password confirmation validation: show/hide error and border
+function validatePasswordMatch() {
+    const password = document.getElementById('regPassword').value;
+    const confirm = document.getElementById('regPasswordConfirm').value;
+    const errorEl = document.getElementById('regPasswordConfirmError');
+    const confirmInput = document.getElementById('regPasswordConfirm');
+    
+    if (confirm.length === 0) {
+        errorEl.classList.add('hidden');
+        confirmInput.classList.remove('border-red-500');
+        confirmInput.classList.add('border-gray-300');
+        return true;
+    }
+    if (password !== confirm) {
+        errorEl.classList.remove('hidden');
+        confirmInput.classList.remove('border-gray-300');
+        confirmInput.classList.add('border-red-500');
+        return false;
+    }
+    errorEl.classList.add('hidden');
+    confirmInput.classList.remove('border-red-500');
+    confirmInput.classList.add('border-gray-300');
+    return true;
+}
+
+document.getElementById('regPassword').addEventListener('input', validatePasswordMatch);
+document.getElementById('regPasswordConfirm').addEventListener('input', validatePasswordMatch);
+
+// Next of kin contact number: numbers only
+function validateNextOfKinPhone() {
+    const el = document.getElementById('regNextOfKinPhone');
+    const err = document.getElementById('regNextOfKinPhoneError');
+    const val = (el.value || '').trim();
+    if (!val) {
+        err.classList.add('hidden');
+        return true;
+    }
+    const digitsOnly = val.replace(/\+/g, '').replace(/\s/g, '');
+    if (!/^\d+$/.test(digitsOnly)) {
+        err.classList.remove('hidden');
+        el.focus();
+        return false;
+    }
+    err.classList.add('hidden');
+    return true;
+}
+document.getElementById('regNextOfKinPhone')?.addEventListener('input', validateNextOfKinPhone);
+
+// Form submission
+document.getElementById('registerForm').addEventListener('submit', async (e) => {
+    console.log("[Register] Form submit event triggered");
+    e.preventDefault();
+
+    if (!validatePasswordMatch()) {
+        console.log("[Register] Passwords do not match on validation");
+        document.getElementById('regPasswordConfirmError').classList.remove('hidden');
+        document.getElementById('regPasswordConfirm').focus();
+        return;
+    }
+    if (!validateNextOfKinPhone()) {
+        console.log("[Register] Next of kin phone validation failed");
+        return;
+    }
+
+    const submitBtn = document.getElementById('regSubmitBtn');
+    const submitBtnText = document.getElementById('regSubmitBtnText');
+    const submitBtnSpinner = document.getElementById('regSubmitBtnSpinner');
+    submitBtn.disabled = true;
+    submitBtnText.classList.add('hidden');
+    submitBtnSpinner.classList.remove('hidden');
+    console.log("[Register] Submit button state set to loading");
+
+    const resetSubmitButton = () => {
+        submitBtn.disabled = false;
+        submitBtnText.classList.remove('hidden');
+        submitBtnSpinner.classList.add('hidden');
+        console.log("[Register] Submit button state reset");
+    };
+    
+    const password = document.getElementById('regPassword').value;
+    const passwordConfirm = document.getElementById('regPasswordConfirm').value;
+    if (password !== passwordConfirm) {
+        console.log("[Register] Passwords still do not match just before proceeding");
+        document.getElementById('regPasswordConfirmError').textContent = 'Passwords do not match.';
+        document.getElementById('regPasswordConfirmError').classList.remove('hidden');
+        document.getElementById('regPasswordConfirm').focus();
+        return;
+    }
+    
+    const formData = new FormData(e.target);
+    const role = document.getElementById('regRole').value;
+    const nationality = document.getElementById('regNationality').value;
+    console.log(`[Register] Selected role: ${role}, nationality: ${nationality}`);
+    
+    // Build registration data object (password_confirm sent for server-side validation only)
+    const regAgentEl = document.getElementById('regAgent');
+    const agentIdValue = regAgentEl && regAgentEl.value ? regAgentEl.value.trim() : null;
+    const registrationData = {
+        email: document.getElementById('regEmail').value,
+        password: password,
+        password_confirm: passwordConfirm,
+        role: role,
+        agent_id: agentIdValue || null,
+        full_name: document.getElementById('regFullName').value,
+        surname: document.getElementById('regSurname').value,
+        phone: document.getElementById('regPhone').value,
+        gender: document.getElementById('regGender').value,
+        nationality: nationality,
+        id_number: document.getElementById('regIdNumber').value,
+        next_of_kin: {
+            full_name: document.getElementById('regNextOfKinName').value || null,
+            contact_number: document.getElementById('regNextOfKinPhone').value || null,
+            contact_email: document.getElementById('regNextOfKinEmail').value || null
+        }
+    };
+    console.log("[Register] Basic registration data:", JSON.stringify(registrationData));
+
+    // Add role-specific data
+    if (role === 'professional') {
+        registrationData.highest_qualification = document.getElementById('regHighestQualification').value || null;
+        registrationData.professional_body = document.getElementById('regProfessionalBody').value || null;
+        
+        // Collect professional services (from profession-name-input, description textarea, hourly rate)
+        const services = [];
+        document.querySelectorAll('#regProfessionalServicesList > div').forEach(div => {
+            const nameInput = div.querySelector('.profession-name-input');
+            const descInput = div.querySelector('.profession-description-input');
+            const rateInput = div.querySelector('.profession-hourly-rate-input');
+            const name = nameInput ? nameInput.value : '';
+            if (name && name.trim()) {
+                services.push({
+                    name: name.trim(),
+                    description: descInput && descInput.value ? descInput.value.trim() || null : null,
+                    hourly_rate: rateInput && rateInput.value ? parseFloat(rateInput.value) || null : null
+                });
+            }
+        });
+        registrationData.professional_services = services;
+        console.log("[Register] Collected professional_services:", services);
+    } else if (role === 'service-provider') {
+        // Collect provider services (using UserSelectedService model)
+        const services = [];
+        document.querySelectorAll('#regProviderServicesList > div').forEach(div => {
+            const serviceTypeId = div.querySelector('.service-type-id').value;
+            const description = div.querySelector('.service-description-input').value;
+            if (serviceTypeId) {
+                services.push({
+                    service_type_id: serviceTypeId,
+                    personalized_description: description || null
+                });
+            }
+        });
+        registrationData.provider_services = services;
+        console.log("[Register] Collected provider_services:", services);
+    } else if (role === 'driver') {
+        // Collect driver services
+        const services = [];
+        document.querySelectorAll('#regDriverServicesList > div').forEach(div => {
+            const inputs = div.querySelectorAll('input');
+            const select = div.querySelector('select');
+            const make = inputs[0].value;
+            const model = inputs[1].value;
+            const type = select.value;
+            if (make && model && type) {
+                services.push({
+                    car_make: make,
+                    car_model: model,
+                    car_year: parseInt(inputs[2].value) || null,
+                    registration_number: inputs[3].value || null,
+                    car_type: type
+                });
+            }
+        });
+        registrationData.driver_services = services;
+        console.log("[Register] Collected driver_services:", services);
+    }
+    
+    // Save to localStorage
+    localStorage.setItem('pendingRegistration', JSON.stringify(registrationData));
+    console.log("[Register] Registration data saved to localStorage");
+
+    // Create FormData for file uploads
+    const fileFormData = new FormData();
+    fileFormData.append('registration_data', JSON.stringify(registrationData));
+    console.log("[Register] Added registration_data to FormData");
+
+    const idDocument = document.getElementById('regIdDocument').files[0];
+    if (idDocument) {
+        fileFormData.append('id_document', idDocument);
+        console.log("[Register] Added id_document to FormData:", idDocument.name);
+    }
+    
+    const proofOfResidence = document.getElementById('regProofOfResidence').files[0];
+    if (proofOfResidence) {
+        fileFormData.append('proof_of_residence', proofOfResidence);
+        console.log("[Register] Added proof_of_residence to FormData:", proofOfResidence.name);
+    }
+    
+    const driversLicense = document.getElementById('regDriversLicense').files[0];
+    if (driversLicense) {
+        fileFormData.append('drivers_license', driversLicense);
+        console.log("[Register] Added drivers_license to FormData:", driversLicense.name);
+    }
+    
+    const cvResume = document.getElementById('regCvResume').files[0];
+    if (cvResume) {
+        fileFormData.append('cv_resume', cvResume);
+        console.log("[Register] Added cv_resume to FormData:", cvResume.name);
+    }
+    
+    const qualificationDocs = document.getElementById('regQualificationDocuments').files;
+    if (qualificationDocs && qualificationDocs.length > 0) {
+        Array.from(qualificationDocs).forEach(file => {
+            fileFormData.append('qualification_documents', file);
+            console.log("[Register] Added qualification_document to FormData:", file.name);
+        });
+    }
+    
+    const profilePhoto = document.getElementById('regProfilePhoto').files[0];
+    if (profilePhoto) {
+        fileFormData.append('profile_photo', profilePhoto);
+        console.log("[Register] Added profile_photo to FormData:", profilePhoto.name);
+    }
+    if (role === 'driver') {
+        document.querySelectorAll('#regDriverServicesList > div').forEach((div, carIndex) => {
+            const input = div.querySelector('.vehicle-images-input');
+            if (input && input.files && input.files.length > 0) {
+                Array.from(input.files).forEach(file => {
+                    fileFormData.append('vehicle_images_' + carIndex, file);
+                });
+            }
+        });
+    }
+    
+    try {
+        // Submit registration and initiate payment
+        console.log("[Register] Initiating fetch POST to /api/auth/register-with-payment");
+        const response = await fetch('/api/auth/register-with-payment', {
+            method: 'POST',
+            body: fileFormData
+        });
+
+        console.log("[Register] Response received from fetch, parsing JSON...");
+        const result = await response.json();
+        console.log("[Register] Registration API response:", result);
+
+        if (result.success && result.data.redirect_url) {
+            console.log("[Register] Registration successful! Redirecting...");
+            window.location.href = result.data.redirect_url;
+        } else {
+            resetSubmitButton();
+            console.error("[Register] Registration failed. Result:", result);
+            alert('Registration failed: ' + (result.error?.message || 'Unknown error'));
+        }
+    } catch (error) {
+        console.error('Registration error:', error);
+        resetSubmitButton();
+        alert('Error: ' + error.message);
+    }
+});
+
+// Initialize on page load
+document.addEventListener('DOMContentLoaded', function() {
+    loadCountries();
+    loadAgents();
+    checkPaymentCallback();
+    // Sync mandatory-field asterisks with current role (e.g. if role is pre-filled)
+    handleRoleChange();
+    // Terms of Use link opens modal
+    document.getElementById('regTermsLink')?.addEventListener('click', openTermsModal);
+    // Update ID field based on initial nationality
+    const nationalitySelect = document.getElementById('regNationality');
+    if (nationalitySelect.value) {
+        nationalitySelect.dispatchEvent(new Event('change'));
+    }
+});
+</script>
+{% endblock %}

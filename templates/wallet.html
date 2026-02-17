@@ -1,0 +1,383 @@
+{% extends "base.html" %}
+
+{% block title %}Wallet - MzansiServe{% endblock %}
+
+{% block extra_head %}
+<style>
+    @keyframes fadeIn {
+        from {
+            opacity: 0;
+            transform: translateY(20px);
+        }
+        to {
+            opacity: 1;
+            transform: translateY(0);
+        }
+    }
+    
+    .fade-in {
+        animation: fadeIn 0.6s ease-out forwards;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="max-w-2xl mx-auto mt-8 fade-in">
+    <h2 class="text-2xl font-bold mb-4">Wallet</h2>
+    
+    <!-- Current Balance -->
+    <div class="bg-white p-6 rounded-lg shadow mb-4">
+        <h3 class="text-lg font-semibold mb-2">Current Balance</h3>
+        <p class="text-3xl font-bold" id="walletBalance">R0.00</p>
+    </div>
+    
+    <!-- Top Up and Request Withdrawal (earners only) -->
+    <div class="flex flex-wrap gap-3 mb-6">
+        <button id="topUpBtn" class="bg-blue-500 text-white px-6 py-2 rounded hover:bg-blue-600">
+            Top Up
+        </button>
+        <div id="withdrawalSection" class="hidden">
+            <button id="requestWithdrawalBtn" class="bg-green-500 text-white px-6 py-2 rounded hover:bg-green-600">
+                Request Withdrawal
+            </button>
+        </div>
+    </div>
+    
+    <!-- My Withdrawal Requests (earners) -->
+    <div id="withdrawalRequestsSection" class="hidden bg-white p-6 rounded-lg shadow mb-4">
+        <h3 class="text-lg font-semibold mb-4">My Withdrawal Requests</h3>
+        <div id="withdrawalRequestsList" class="space-y-2">
+            <p class="text-gray-500 text-sm">Loading...</p>
+        </div>
+    </div>
+    
+    <!-- Transaction History -->
+    <div class="bg-white p-6 rounded-lg shadow">
+        <h3 class="text-lg font-semibold mb-4">Transaction History</h3>
+        <div id="transactionHistory" class="space-y-2">
+            <p class="text-gray-500">Loading transactions...</p>
+        </div>
+    </div>
+</div>
+
+<!-- Top Up Modal -->
+<div id="topUpModal" class="fixed inset-0 bg-black bg-opacity-50 hidden items-center justify-center z-50">
+    <div class="bg-white p-6 rounded-lg shadow-lg max-w-md w-full mx-4">
+        <h3 class="text-xl font-semibold mb-4">Top Up Wallet</h3>
+        <form id="topUpForm">
+            <div class="mb-4">
+                <label for="topUpAmount" class="block text-sm font-medium mb-2">Amount (R)</label>
+                <input 
+                    type="number" 
+                    id="topUpAmount" 
+                    name="amount" 
+                    min="10" 
+                    step="0.01" 
+                    required 
+                    class="w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    placeholder="Enter amount (minimum R10.00)"
+                >
+                <p class="text-xs text-gray-500 mt-1">Minimum top-up amount: R10.00</p>
+            </div>
+            <div class="flex space-x-3">
+                <button 
+                    type="button" 
+                    id="cancelTopUpBtn" 
+                    class="flex-1 bg-gray-300 text-gray-700 px-4 py-2 rounded hover:bg-gray-400"
+                >
+                    Cancel
+                </button>
+                <button 
+                    type="submit" 
+                    id="submitTopUpBtn"
+                    class="flex-1 bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600"
+                >
+                    Continue to Payment
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Request Withdrawal Modal -->
+<div id="withdrawalModal" class="fixed inset-0 bg-black bg-opacity-50 hidden items-center justify-center z-50">
+    <div class="bg-white p-6 rounded-lg shadow-lg max-w-md w-full mx-4">
+        <h3 class="text-xl font-semibold mb-4">Request Withdrawal</h3>
+        <p class="text-sm text-gray-600 mb-2">Amount will be deducted from your wallet and held until processed.</p>
+        <form id="withdrawalForm">
+            <div class="mb-4">
+                <label for="withdrawalAmount" class="block text-sm font-medium mb-2">Amount (R)</label>
+                <input type="number" id="withdrawalAmount" min="0.01" step="0.01" required
+                    class="w-full px-3 py-2 border rounded-md" placeholder="0.00">
+                <p class="text-xs text-gray-500 mt-1">Available: R<span id="withdrawalMaxAmount">0.00</span></p>
+            </div>
+            <div class="flex space-x-3">
+                <button type="button" id="cancelWithdrawalBtn" class="flex-1 bg-gray-300 text-gray-700 px-4 py-2 rounded hover:bg-gray-400">Cancel</button>
+                <button type="submit" id="submitWithdrawalBtn" class="flex-1 bg-green-500 text-white px-4 py-2 rounded hover:bg-green-600">Submit</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<script>
+// Load wallet data
+async function loadWallet() {
+    const token = localStorage.getItem('token');
+    if (!token) {
+        window.location.href = '/login';
+        return;
+    }
+    
+    try {
+        const response = await fetch('/api/dashboard/wallet', {
+            headers: {
+                'Authorization': `Bearer ${token}`
+            }
+        });
+        
+        const result = await response.json();
+        if (result.success) {
+            const data = result.data;
+            
+            // Update balance
+            const balance = parseFloat(data.balance || 0);
+            document.getElementById('walletBalance').textContent = 
+                `R${balance.toFixed(2)}`;
+            
+            // Show/hide withdrawal section for earners
+            if (data.can_request_withdrawal) {
+                document.getElementById('withdrawalSection').classList.remove('hidden');
+                document.getElementById('withdrawalRequestsSection').classList.remove('hidden');
+                document.getElementById('withdrawalMaxAmount').textContent = balance.toFixed(2);
+                loadWithdrawalRequests(token);
+            } else {
+                document.getElementById('withdrawalSection').classList.add('hidden');
+                document.getElementById('withdrawalRequestsSection').classList.add('hidden');
+            }
+            
+            // Update transaction history
+            const historyDiv = document.getElementById('transactionHistory');
+            if (data.transactions && data.transactions.length > 0) {
+                historyDiv.innerHTML = data.transactions.map(transaction => {
+                    const amount = parseFloat(transaction.amount || 0);
+                    const sign = amount >= 0 ? '+' : '';
+                    const color = amount >= 0 ? 'text-green-600' : 'text-red-600';
+                    const typeLabels = {
+                        'top-up': 'Top Up',
+                        'payment': 'Payment',
+                        'refund': 'Refund',
+                        'cancellation_refund': 'Cancellation Refund',
+                        'withdrawal': 'Withdrawal Request',
+                        'earnings_transfer': 'Earnings Transfer',
+                        'withdrawal_reversal': 'Withdrawal Reversed'
+                    };
+                    const typeLabel = typeLabels[transaction.transaction_type] || transaction.transaction_type;
+                    const date = new Date(transaction.created_at).toLocaleDateString('en-ZA', {
+                        year: 'numeric',
+                        month: 'short',
+                        day: 'numeric',
+                        hour: '2-digit',
+                        minute: '2-digit'
+                    });
+                    
+                    return `
+                        <div class="border-b pb-2">
+                            <div class="flex justify-between items-center">
+                                <div>
+                                    <p class="font-medium">${typeLabel}</p>
+                                    <p class="text-sm text-gray-500">${transaction.description || ''}</p>
+                                    <p class="text-xs text-gray-400">${date}</p>
+                                </div>
+                                <div class="text-right">
+                                    <p class="font-bold ${color}">${sign}R${Math.abs(amount).toFixed(2)}</p>
+                                    <p class="text-xs text-gray-500">Balance: R${parseFloat(transaction.balance_after || 0).toFixed(2)}</p>
+                                </div>
+                            </div>
+                        </div>
+                    `;
+                }).join('');
+            } else {
+                historyDiv.innerHTML = '<p class="text-gray-500">No transactions yet.</p>';
+            }
+        }
+    } catch (error) {
+        console.error('Error loading wallet:', error);
+    }
+}
+
+// Top Up Modal Functions
+function showTopUpModal() {
+    const modal = document.getElementById('topUpModal');
+    modal.classList.remove('hidden');
+    modal.classList.add('flex');
+    document.getElementById('topUpAmount').focus();
+}
+
+function hideTopUpModal() {
+    const modal = document.getElementById('topUpModal');
+    modal.classList.add('hidden');
+    modal.classList.remove('flex');
+    document.getElementById('topUpForm').reset();
+}
+
+// Top Up Button Click
+document.getElementById('topUpBtn')?.addEventListener('click', showTopUpModal);
+
+// Cancel Button Click
+document.getElementById('cancelTopUpBtn')?.addEventListener('click', hideTopUpModal);
+
+// Close modal on backdrop click
+document.getElementById('topUpModal')?.addEventListener('click', function(e) {
+    if (e.target === this) {
+        hideTopUpModal();
+    }
+});
+
+// Top Up Form Submission
+document.getElementById('topUpForm')?.addEventListener('submit', async function(e) {
+    e.preventDefault();
+    
+    const token = localStorage.getItem('token');
+    if (!token) {
+        window.location.href = '/login';
+        return;
+    }
+    
+    const amount = parseFloat(document.getElementById('topUpAmount').value);
+    
+    // Validate amount
+    if (isNaN(amount) || amount < 10) {
+        alert('Minimum top-up amount is R10.00');
+        return;
+    }
+    
+    try {
+        // Disable submit button
+        const submitBtn = document.getElementById('submitTopUpBtn');
+        submitBtn.disabled = true;
+        submitBtn.textContent = 'Processing...';
+        
+        const response = await fetch('/api/dashboard/wallet/top-up', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${token}`
+            },
+            body: JSON.stringify({
+                amount: amount,
+                currency: 'ZAR'
+            })
+        });
+        
+        const result = await response.json();
+        
+        if (result.success && result.data.redirect_url) {
+            // Redirect to Yoco checkout
+            window.location.href = result.data.redirect_url;
+        } else {
+            // Re-enable button on error
+            submitBtn.disabled = false;
+            submitBtn.textContent = 'Continue to Payment';
+            alert(result.error?.message || 'Failed to create checkout. Please try again.');
+            console.error('Top-up error:', result);
+        }
+    } catch (error) {
+        console.error('Error initiating top-up:', error);
+        const submitBtn = document.getElementById('submitTopUpBtn');
+        submitBtn.disabled = false;
+        submitBtn.textContent = 'Continue to Payment';
+        alert('Error initiating top-up: ' + error.message);
+    }
+});
+
+// Check for payment status in URL parameters
+function checkPaymentStatus() {
+    const urlParams = new URLSearchParams(window.location.search);
+    console.log("urlParams", urlParams);
+    const paymentStatus = urlParams.get('payment');
+    
+    if (paymentStatus === 'success') {
+        alert('Top-up successful! Your wallet balance has been updated.');
+        loadWallet(); // Reload wallet to show updated balance
+        // Clean URL
+        window.history.replaceState({}, document.title, window.location.pathname);
+    } else if (paymentStatus === 'error') {
+        alert('Top-up failed or was cancelled. Please try again.');
+        // Clean URL
+        window.history.replaceState({}, document.title, window.location.pathname);
+    }
+}
+
+// Withdrawal: load list, modal, submit
+async function loadWithdrawalRequests(token) {
+    const listEl = document.getElementById('withdrawalRequestsList');
+    try {
+        const r = await fetch('/api/dashboard/wallet/withdrawal-requests', { headers: { 'Authorization': 'Bearer ' + token } });
+        const result = await r.json();
+        if (result.success && result.data.withdrawal_requests && result.data.withdrawal_requests.length > 0) {
+            listEl.innerHTML = result.data.withdrawal_requests.map(function(w) {
+                const date = new Date(w.requested_at).toLocaleDateString('en-ZA', { year: 'numeric', month: 'short', day: 'numeric' });
+                return '<div class="border-b pb-2"><div class="flex justify-between"><span>R' + parseFloat(w.amount).toFixed(2) + '</span><span class="text-sm text-gray-600">' + (w.status || 'pending') + ' &bull; ' + date + '</span></div></div>';
+            }).join('');
+        } else {
+            listEl.innerHTML = '<p class="text-gray-500 text-sm">No withdrawal requests yet.</p>';
+        }
+    } catch (e) {
+        listEl.innerHTML = '<p class="text-gray-500 text-sm">Could not load.</p>';
+    }
+}
+
+var currentWalletBalance = 0;
+document.getElementById('requestWithdrawalBtn')?.addEventListener('click', function() {
+    currentWalletBalance = parseFloat(document.getElementById('walletBalance').textContent.replace('R', '').replace(',', ''));
+    document.getElementById('withdrawalMaxAmount').textContent = currentWalletBalance.toFixed(2);
+    document.getElementById('withdrawalAmount').value = '';
+    document.getElementById('withdrawalModal').classList.remove('hidden');
+    document.getElementById('withdrawalModal').classList.add('flex');
+});
+document.getElementById('cancelWithdrawalBtn')?.addEventListener('click', function() {
+    document.getElementById('withdrawalModal').classList.add('hidden');
+    document.getElementById('withdrawalModal').classList.remove('flex');
+});
+document.getElementById('withdrawalModal')?.addEventListener('click', function(e) {
+    if (e.target === this) { document.getElementById('withdrawalModal').classList.add('hidden'); document.getElementById('withdrawalModal').classList.remove('flex'); }
+});
+document.getElementById('withdrawalForm')?.addEventListener('submit', async function(e) {
+    e.preventDefault();
+    const token = localStorage.getItem('token');
+    if (!token) return;
+    const amount = parseFloat(document.getElementById('withdrawalAmount').value);
+    if (isNaN(amount) || amount <= 0 || amount > currentWalletBalance) {
+        alert('Enter a valid amount up to your balance.');
+        return;
+    }
+    const btn = document.getElementById('submitWithdrawalBtn');
+    btn.disabled = true;
+    try {
+        const r = await fetch('/api/dashboard/wallet/withdrawal-request', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token },
+            body: JSON.stringify({ amount: amount })
+        });
+        const result = await r.json();
+        if (result.success) {
+            document.getElementById('withdrawalModal').classList.add('hidden');
+            document.getElementById('withdrawalModal').classList.remove('flex');
+            loadWallet();
+        } else {
+            alert(result.error?.message || 'Failed to submit withdrawal request.');
+        }
+    } catch (err) {
+        alert('Error: ' + err.message);
+    }
+    btn.disabled = false;
+});
+
+// Load wallet on page load
+document.addEventListener('DOMContentLoaded', function() {
+    loadWallet();
+    checkPaymentStatus();
+});
+</script>
+{% endblock %}
+
