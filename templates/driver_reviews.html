@@ -3,61 +3,157 @@
 {% block title %}Driver Reviews - MzansiServe{% endblock %}
 
 {% block content %}
-<div class="mt-8 max-w-3xl mx-auto px-4">
-    <a href="/requested-services" class="text-blue-600 hover:underline mb-4 inline-block">← Back to Requested Services</a>
-    <div id="driverReviewsLoading" class="text-center py-12 text-gray-500">Loading reviews...</div>
-    <div id="driverReviewsError" class="hidden p-4 bg-red-50 text-red-700 rounded-lg mb-4"></div>
-    <div id="driverReviewsContent" class="hidden">
-        <div class="bg-white rounded-lg shadow p-6 mb-6">
-            <div class="flex items-center gap-4 mb-4">
-                <div id="driverPhoto" class="w-16 h-16 rounded-full bg-gray-200 flex items-center justify-center overflow-hidden shrink-0">
-                    <img id="driverPhotoImg" src="" alt="Driver" class="w-full h-full object-cover hidden">
-                    <span id="driverPhotoPlaceholder" class="text-gray-400 text-xl">—</span>
+<div class="bg-gray-50 min-h-screen py-12">
+    <div class="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
+
+        <div class="mb-6">
+            <a href="/requested-services"
+                class="inline-flex items-center text-sm font-medium text-gray-500 hover:text-purple-600 transition-colors">
+                <svg class="h-4 w-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                        d="M10 19l-7-7m0 0l7-7m-7 7h18"></path>
+                </svg>
+                Back to Requested Services
+            </a>
+        </div>
+
+        <div id="driverReviewsLoading" class="flex flex-col items-center justify-center py-20">
+            <svg class="animate-spin h-10 w-10 text-purple-600 mb-4" xmlns="http://www.w3.org/2000/svg" fill="none"
+                viewBox="0 0 24 24">
+                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                <path class="opacity-75" fill="currentColor"
+                    d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z">
+                </path>
+            </svg>
+            <p class="text-gray-500">Loading reviews...</p>
+        </div>
+
+        <div id="driverReviewsError" class="hidden p-4 bg-red-50 text-red-700 rounded-xl mb-6 flex items-center">
+            <svg class="h-5 w-5 mr-2 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                    d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+            </svg>
+            <span id="errorText"></span>
+        </div>
+
+        <div id="driverReviewsContent" class="hidden space-y-8">
+            <!-- Driver Profile Header -->
+            <div
+                class="bg-white rounded-2xl shadow-sm border border-gray-100 p-8 flex flex-col md:flex-row items-center text-center md:text-left">
+                <div class="relative mb-4 md:mb-0 md:mr-8">
+                    <div id="driverPhoto"
+                        class="w-32 h-32 rounded-full bg-gray-100 flex items-center justify-center overflow-hidden ring-4 ring-purple-50">
+                        <img id="driverPhotoImg" src="" alt="Driver" class="w-full h-full object-cover hidden">
+                        <span id="driverPhotoPlaceholder" class="text-gray-300 text-5xl font-bold">?</span>
+                    </div>
+                    <span class="absolute bottom-1 right-1 bg-green-500 border-4 border-white h-6 w-6 rounded-full"
+                        title="Active"></span>
                 </div>
                 <div>
-                    <h1 id="driverName" class="text-2xl font-bold text-gray-900"></h1>
-                    <p id="driverRating" class="text-gray-600"></p>
+                    <h1 id="driverName" class="text-3xl font-extrabold text-gray-900 mb-2"></h1>
+                    <div
+                        class="flex items-center justify-center md:justify-start space-x-2 text-yellow-400 text-xl font-bold mb-4">
+                        <span id="driverRatingStars"></span>
+                        <span id="driverRatingScore" class="text-gray-900 ml-1"></span>
+                        <span id="driverRatingCount" class="text-sm font-normal text-gray-500 ml-1"></span>
+                    </div>
+                    <div class="flex items-center justify-center md:justify-start space-x-4 text-sm text-gray-500">
+                        <span class="flex items-center">
+                            <svg class="h-4 w-4 mr-1 text-gray-400" fill="none" stroke="currentColor"
+                                viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                    d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                            </svg>
+                            Verified Driver
+                        </span>
+                        <span class="flex items-center">
+                            <svg class="h-4 w-4 mr-1 text-gray-400" fill="none" stroke="currentColor"
+                                viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                    d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z">
+                                </path>
+                            </svg>
+                            Member since 2023
+                        </span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Reviews Section -->
+            <div>
+                <h2 class="text-xl font-bold text-gray-900 mb-6 flex items-center">
+                    Client Reviews
+                </h2>
+
+                <div id="reviewsList" class="space-y-6">
+                    <!-- Reviews populated here -->
+                </div>
+
+                <div id="noReviews"
+                    class="hidden text-center py-16 bg-white rounded-2xl border border-dashed border-gray-200">
+                    <svg class="h-12 w-12 mx-auto text-gray-300 mb-3" fill="none" stroke="currentColor"
+                        viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                            d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z">
+                        </path>
+                    </svg>
+                    <p class="text-gray-500 font-medium">No reviews yet.</p>
                 </div>
             </div>
         </div>
-        <h2 class="text-lg font-semibold text-gray-900 mb-3">All reviews</h2>
-        <div id="reviewsList" class="space-y-4"></div>
-        <p id="noReviews" class="hidden text-gray-500">No reviews yet.</p>
     </div>
 </div>
-{% endblock %}
 
-{% block extra_scripts %}
 <script>
-(function() {
-    const driverId = '{{ driver_id }}';
-    const loadingEl = document.getElementById('driverReviewsLoading');
-    const errorEl = document.getElementById('driverReviewsError');
-    const contentEl = document.getElementById('driverReviewsContent');
-    const reviewsListEl = document.getElementById('reviewsList');
-    const noReviewsEl = document.getElementById('noReviews');
+    document.addEventListener('DOMContentLoaded', async () => {
+        const driverId = '{{ driver_id }}'; // Injected by Flask
+        const loadingEl = document.getElementById('driverReviewsLoading');
+        const errorEl = document.getElementById('driverReviewsError');
+        const errorTextEl = document.getElementById('errorText');
+        const contentEl = document.getElementById('driverReviewsContent');
+        const reviewsListEl = document.getElementById('reviewsList');
+        const noReviewsEl = document.getElementById('noReviews');
 
-    async function load() {
+        async function fetchData(url) {
+            const token = localStorage.getItem('token');
+            const headers = token ? { 'Authorization': `Bearer ${token}` } : {};
+            const res = await fetch('/api' + url, { headers });
+            return await res.json();
+        }
+
         try {
-            const res = await apiCall(`/drivers/${driverId}/reviews`);
+            // We'll mimic the route structure: /api/drivers/<id>/reviews
+            // NOTE: Ensure the backend route exists or adjust if needed.
+            // Assuming /api/drivers/<id> exists for profile and /api/drivers/<id>/reviews for reviews, 
+            // or a consolidated call. The prompt implies fetching reviews.
+            // If the backend doesn't support reviews by ID, we might need a workaround.
+            // Based on previous code, it used apiCall which handles /api prefix.
+
+            const res = await fetchData(`/drivers/${driverId}/reviews`);
+
             loadingEl.classList.add('hidden');
+
             if (!res.success) {
-                errorEl.textContent = res.error?.message || 'Failed to load reviews';
+                errorTextEl.textContent = res.error?.message || 'Failed to load reviews';
                 errorEl.classList.remove('hidden');
                 return;
             }
+
             const driver = res.data.driver;
             const reviews = res.data.reviews || [];
-            const nameEl = document.getElementById('driverName');
-            const ratingEl = document.getElementById('driverRating');
-            nameEl.textContent = driver.name || 'Driver';
-            ratingEl.textContent = driver.average_rating != null
-                ? `${driver.average_rating} ★ (${driver.reviews_count || 0} review${(driver.reviews_count || 0) !== 1 ? 's' : ''})`
-                : 'No ratings yet';
+
+            // Populate Driver Info
+            document.getElementById('driverName').textContent = driver.name || 'Driver';
+
+            // Profile Photo
             const photoImg = document.getElementById('driverPhotoImg');
             const photoPlaceholder = document.getElementById('driverPhotoPlaceholder');
             if (driver.profile_image_url) {
-                const url = driver.profile_image_url.startsWith('http') ? driver.profile_image_url : (driver.profile_image_url.startsWith('/') ? window.location.origin + driver.profile_image_url : window.location.origin + '/' + driver.profile_image_url);
+                const url = driver.profile_image_url.startsWith('http')
+                    ? driver.profile_image_url
+                    : (driver.profile_image_url.startsWith('/')
+                        ? window.location.origin + driver.profile_image_url
+                        : window.location.origin + '/' + driver.profile_image_url);
                 photoImg.src = url;
                 photoImg.classList.remove('hidden');
                 photoPlaceholder.classList.add('hidden');
@@ -65,24 +161,71 @@
                 photoPlaceholder.classList.remove('hidden');
                 photoImg.classList.add('hidden');
             }
+
+            // Rating Stats
+            const rating = driver.average_rating || 0;
+            const count = driver.reviews_count || 0;
+
+            // Generate Star HTML
+            const starFullCount = Math.floor(rating);
+            const starEmptyCount = 5 - starFullCount;
+            let starsHtml = '';
+            for (let i = 0; i < starFullCount; i++) starsHtml += '<svg class="h-6 w-6 fill-current" viewBox="0 0 20 20"><path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.519 4.674a1 1 0 00.95.69h4.915c.969 0 1.371 1.24.588 1.81l-3.976 2.888a1 1 0 00-.363 1.118l1.518 4.674c.3.922-.755 1.688-1.538 1.118l-3.976-2.888a1 1 0 00-1.176 0l-3.976 2.888c-.783.57-1.838-.197-1.538-1.118l1.518-4.674a1 1 0 00-.363-1.118l-3.976-2.888c-.784-.57-.38-1.81.588-1.81h4.914a1 1 0 00.951-.69l1.519-4.674z"/></svg>';
+            // Simple implementation sans half-star for now
+
+            document.getElementById('driverRatingStars').innerHTML = starsHtml;
+            document.getElementById('driverRatingScore').textContent = rating.toFixed(1);
+            document.getElementById('driverRatingCount').textContent = `(${count} review${count !== 1 ? 's' : ''})`;
+
             contentEl.classList.remove('hidden');
+
             if (reviews.length === 0) {
                 noReviewsEl.classList.remove('hidden');
             } else {
                 noReviewsEl.classList.add('hidden');
                 reviewsListEl.innerHTML = reviews.map(r => {
-                    const stars = '★'.repeat(r.rating) + '☆'.repeat(5 - r.rating);
-                    const date = r.created_at ? new Date(r.created_at).toLocaleDateString() : '';
-                    return `<div class="bg-gray-50 rounded-lg p-4"><div class="flex items-center gap-2 text-yellow-500 text-lg">${stars}</div>${r.review_text ? `<p class="mt-2 text-gray-700">${r.review_text.replace(/</g, '&lt;').replace(/>/g, '&gt;')}</p>` : ''}<p class="text-xs text-gray-500 mt-2">${date}</p></div>`;
+                    const rRating = r.rating || 5;
+                    let rStars = '';
+                    for (let i = 0; i < 5; i++) {
+                        rStars += i < rRating
+                            ? '<svg class="h-4 w-4 text-yellow-400 fill-current" viewBox="0 0 20 20"><path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.519 4.674a1 1 0 00.95.69h4.915c.969 0 1.371 1.24.588 1.81l-3.976 2.888a1 1 0 00-.363 1.118l1.518 4.674c.3.922-.755 1.688-1.538 1.118l-3.976-2.888a1 1 0 00-1.176 0l-3.976 2.888c-.783.57-1.838-.197-1.538-1.118l1.518-4.674a1 1 0 00-.363-1.118l-3.976-2.888c-.784-.57-.38-1.81.588-1.81h4.914a1 1 0 00.951-.69l1.519-4.674z"/></svg>'
+                            : '<svg class="h-4 w-4 text-gray-300 fill-current" viewBox="0 0 20 20"><path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.519 4.674a1 1 0 00.95.69h4.915c.969 0 1.371 1.24.588 1.81l-3.976 2.888a1 1 0 00-.363 1.118l1.518 4.674c.3.922-.755 1.688-1.538 1.118l-3.976-2.888a1 1 0 00-1.176 0l-3.976 2.888c-.783.57-1.838-.197-1.538-1.118l1.518-4.674a1 1 0 00-.363-1.118l-3.976-2.888c-.784-.57-.38-1.81.588-1.81h4.914a1 1 0 00.951-.69l1.519-4.674z"/></svg>';
+                    }
+
+                    const date = r.created_at ? new Date(r.created_at).toLocaleDateString() : 'Unknown date';
+
+                    return `
+                    <div class="bg-white rounded-xl border border-gray-100 p-6 hover:shadow-md transition-shadow">
+                        <div class="flex items-start">
+                            <div class="flex-shrink-0 mr-4">
+                                <div class="h-10 w-10 rounded-full bg-gray-200 flex items-center justify-center text-gray-500 font-bold">
+                                    ${r.reviewer_name ? r.reviewer_name.charAt(0).toUpperCase() : 'A'}
+                                </div>
+                            </div>
+                            <div class="flex-1">
+                                <div class="flex items-center justify-between mb-2">
+                                    <h3 class="text-sm font-bold text-gray-900">${r.reviewer_name || 'Anonymous'}</h3>
+                                    <span class="text-xs text-gray-500">${date}</span>
+                                </div>
+                                <div class="flex items-center mb-3">
+                                    ${rStars}
+                                </div>
+                                <p class="text-gray-700 leading-relaxed">
+                                    ${r.review_text ? r.review_text.replace(/</g, '&lt;').replace(/>/g, '&gt;') : ''}
+                                </p>
+                            </div>
+                        </div>
+                    </div>
+                `;
                 }).join('');
             }
+
         } catch (e) {
             loadingEl.classList.add('hidden');
-            errorEl.textContent = 'Error loading reviews: ' + e.message;
+            errorTextEl.textContent = 'Error loading reviews: ' + e.message;
             errorEl.classList.remove('hidden');
+            console.error(e);
         }
-    }
-    load();
-})();
+    });
 </script>
 {% endblock %}

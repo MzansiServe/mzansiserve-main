@@ -4,130 +4,327 @@
 
 {% block extra_head %}
 <style>
-    @keyframes fadeIn {
-        from {
-            opacity: 0;
-            transform: translateY(20px);
-        }
-        to {
-            opacity: 1;
-            transform: translateY(0);
-        }
+    .stat-card {
+        transition: transform 0.2s;
     }
-    .fade-in {
-        animation: fadeIn 0.6s ease-out forwards;
+
+    .stat-card:hover {
+        transform: translateY(-2px);
+    }
+
+    .action-card {
+        transition: all 0.3s;
+    }
+
+    .action-card:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
     }
 </style>
 {% endblock %}
 
 {% block content %}
-<div class="max-w-6xl mx-auto fade-in">
-    <h1 class="text-3xl font-bold mb-6">Service Provider Dashboard</h1>
+<div class="bg-gray-50 min-h-screen py-8">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
 
-    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
-        <!-- Wallet -->
-        <div class="bg-white p-6 rounded-lg shadow">
-            <h3 class="text-lg font-semibold mb-2">Wallet Balance</h3>
-            <p class="text-2xl font-bold" id="walletBalance">R0.00</p>
-            <a href="/wallet" class="text-blue-500 hover:underline mt-2 block">View Wallet</a>
+        <!-- Welcome Header -->
+        <div class="mb-8 flex flex-col sm:flex-row justify-between items-start sm:items-center">
+            <div>
+                <h1 class="text-3xl font-extrabold text-gray-900">
+                    Provider Dashboard <span class="text-2xl">📋</span>
+                </h1>
+                <p class="mt-1 text-gray-500">Manage your services and bookings.</p>
+            </div>
+            <div class="mt-4 sm:mt-0 flex space-x-3">
+                <a href="/requested-services?type=provider"
+                    class="inline-flex items-center px-4 py-2 border border-gray-300 rounded-lg shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-purple-500 transition-colors">
+                    <svg class="h-5 w-5 mr-2 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                            d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10">
+                        </path>
+                    </svg>
+                    Service History
+                </a>
+                <a href="/wallet"
+                    class="inline-flex items-center px-4 py-2 border border-transparent rounded-lg shadow-sm text-sm font-medium text-white bg-purple-600 hover:bg-purple-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-purple-500 transition-colors">
+                    <svg class="h-5 w-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                            d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z">
+                        </path>
+                    </svg>
+                    Wallet: <span id="walletBalance" class="ml-1 font-bold">R0.00</span>
+                </a>
+            </div>
         </div>
-        <!-- Earnings -->
-        <div class="bg-white p-6 rounded-lg shadow">
-            <h3 class="text-lg font-semibold mb-2">Total Earnings This Month</h3>
-            <p class="text-2xl font-bold text-green-600" id="serviceProviderEarnings">R0.00</p>
-            <p class="text-sm text-gray-500 mt-1">From completed services</p>
-        </div>
-        <!-- Service history -->
-        <div class="bg-white p-6 rounded-lg shadow">
-            <h3 class="text-lg font-semibold mb-2">Service History</h3>
-            <p class="text-gray-600 mb-2">View all services you've completed</p>
-            <a href="/requested-services?type=provider" class="inline-block bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600 font-medium">View Services</a>
-        </div>
-        <!-- Profile & documents -->
-        <div class="bg-white p-6 rounded-lg shadow">
-            <h3 class="text-lg font-semibold mb-2">Profile & Documents</h3>
-            <p class="text-gray-600 mb-2">Manage your profile and documents</p>
-            <a href="/profile" class="inline-block bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600 font-medium">Profile</a>
-        </div>
-    </div>
 
-    <!-- Available Service Provider Requests -->
-    <div class="bg-white p-6 rounded-lg shadow mt-8">
-        <h2 class="text-2xl font-bold mb-4">Available Service Requests</h2>
-        <div id="availableServiceProviderRequestsList" class="space-y-4">
-            <p>Loading...</p>
+        <!-- Stats Overview -->
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+            <!-- Earnings -->
+            <div class="stat-card bg-white rounded-2xl shadow-sm border border-gray-100 p-6 flex items-center">
+                <div class="p-3 rounded-full bg-green-100 text-green-600 mr-4">
+                    <svg class="h-8 w-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                            d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z">
+                        </path>
+                    </svg>
+                </div>
+                <div>
+                    <p class="text-sm font-medium text-gray-500">Total Earnings</p>
+                    <p class="text-2xl font-bold text-gray-900" id="serviceProviderEarnings">R0.00</p>
+                    <p class="text-xs text-gray-400">This month</p>
+                </div>
+            </div>
+
+            <!-- Available Services -->
+            <div class="stat-card bg-white rounded-2xl shadow-sm border border-gray-100 p-6 flex items-center">
+                <div class="p-3 rounded-full bg-blue-100 text-blue-600 mr-4">
+                    <svg class="h-8 w-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                            d="M21 13.255A23.931 23.931 0 0112 15c-3.183 0-6.22-.62-9-1.745M16 6V4a2 2 0 00-2-2h-4a2 2 0 00-2 2v2m4 6h.01M5 20h14a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z">
+                        </path>
+                    </svg>
+                </div>
+                <div>
+                    <p class="text-sm font-medium text-gray-500">Available Requests</p>
+                    <p class="text-2xl font-bold text-gray-900" id="availableCount">0</p>
+                </div>
+            </div>
+
+            <!-- Rating (Placeholder) -->
+            <div class="stat-card bg-white rounded-2xl shadow-sm border border-gray-100 p-6 flex items-center">
+                <div class="p-3 rounded-full bg-yellow-100 text-yellow-600 mr-4">
+                    <svg class="h-8 w-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                            d="M11.049 2.927c.3-.921 1.603-.921 1.902 0l1.519 4.674a1 1 0 00.95.69h4.915c.969 0 1.371 1.24.588 1.81l-3.976 2.888a1 1 0 00-.363 1.118l1.518 4.674c.3.922-.755 1.688-1.538 1.118l-3.976-2.888a1 1 0 00-1.176 0l-3.976 2.888c-.783.57-1.838-.197-1.538-1.118l1.518-4.674a1 1 0 00-.363-1.118l-3.976-2.888c-.784-.57-.38-1.81.588-1.81h4.914a1 1 0 00.951-.69l1.519-4.674z">
+                        </path>
+                    </svg>
+                </div>
+                <div>
+                    <p class="text-sm font-medium text-gray-500">Your Rating</p>
+                    <p class="text-2xl font-bold text-gray-900">4.9</p>
+                    <p class="text-xs text-gray-400">92 reviews</p>
+                </div>
+            </div>
+        </div>
+
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+            <!-- Main Content Area -->
+            <div class="lg:col-span-2 space-y-8">
+
+                <!-- Available Service Requests -->
+                <div class="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
+                    <div class="flex items-center justify-between mb-6">
+                        <h2 class="text-xl font-bold text-gray-900 flex items-center">
+                            <span class="relative flex h-3 w-3 mr-3">
+                                <span
+                                    class="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75"></span>
+                                <span class="relative inline-flex rounded-full h-3 w-3 bg-green-500"></span>
+                            </span>
+                            New Service Requests
+                        </h2>
+                    </div>
+
+                    <div id="availableServiceProviderRequestsList" class="space-y-4">
+                        <div class="animate-pulse space-y-4">
+                            <div class="h-24 bg-gray-100 rounded-xl"></div>
+                            <div class="h-24 bg-gray-100 rounded-xl"></div>
+                            <div class="h-24 bg-gray-100 rounded-xl"></div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Recent Activity / Scheduled -->
+                <div class="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
+                    <h3 class="text-lg font-bold text-gray-900 mb-4">Upcoming Schedule</h3>
+                    <div
+                        class="text-center py-8 text-gray-500 bg-gray-50 rounded-xl border border-dashed border-gray-200">
+                        <svg class="h-12 w-12 mx-auto text-gray-300 mb-2" fill="none" stroke="currentColor"
+                            viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z">
+                            </path>
+                        </svg>
+                        <p>No upcoming scheduled services.</p>
+                    </div>
+                </div>
+
+            </div>
+
+            <!-- Sidebar -->
+            <div class="space-y-6">
+                <!-- Profile Card -->
+                <div class="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
+                    <div class="flex items-center space-x-4 mb-4">
+                        <div
+                            class="h-12 w-12 rounded-full bg-purple-100 text-purple-600 flex items-center justify-center text-xl font-bold">
+                            S
+                        </div>
+                        <div>
+                            <h3 class="text-lg font-bold text-gray-900">Provider Profile</h3>
+                            <a href="/profile"
+                                class="text-sm text-purple-600 hover:text-purple-700 hover:underline">Edit Info</a>
+                        </div>
+                    </div>
+                    <div class="space-y-2">
+                        <div class="flex justify-between text-sm">
+                            <span class="text-gray-500">Status:</span>
+                            <span
+                                class="font-medium text-green-600 bg-green-50 px-2 py-0.5 rounded-full text-xs">Verified</span>
+                        </div>
+                        <div class="flex justify-between text-sm">
+                            <span class="text-gray-500">Subscription:</span>
+                            <span class="font-medium text-gray-900">Active</span>
+                        </div>
+                    </div>
+                    <a href="/profile"
+                        class="mt-4 block w-full text-center px-4 py-2 border border-gray-300 rounded-lg text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 transition-colors">
+                        Manage Documents
+                    </a>
+                </div>
+
+                <!-- Quick Actions -->
+                <div class="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
+                    <h3 class="text-lg font-bold text-gray-900 mb-4">Quick Actions</h3>
+                    <div class="grid grid-cols-2 gap-3">
+                        <a href="/requested-services?type=provider"
+                            class="flex flex-col items-center justify-center p-3 rounded-lg bg-gray-50 hover:bg-blue-50 text-gray-700 hover:text-blue-700 transition">
+                            <svg class="h-6 w-6 mb-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                    d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10">
+                                </path>
+                            </svg>
+                            <span class="text-xs font-medium">History</span>
+                        </a>
+                        <a href="/wallet"
+                            class="flex flex-col items-center justify-center p-3 rounded-lg bg-gray-50 hover:bg-green-50 text-gray-700 hover:text-green-700 transition">
+                            <svg class="h-6 w-6 mb-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                    d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z">
+                                </path>
+                            </svg>
+                            <span class="text-xs font-medium">Wallet</span>
+                        </a>
+                    </div>
+                </div>
+
+                <!-- Help Card -->
+                <div
+                    class="bg-gradient-to-br from-purple-600 to-indigo-700 rounded-2xl shadow-lg p-6 text-white relative overflow-hidden">
+                    <div class="absolute top-0 right-0 -mt-4 -mr-4 h-24 w-24 rounded-full bg-white opacity-10"></div>
+                    <div class="absolute bottom-0 left-0 -mb-4 -ml-4 h-24 w-24 rounded-full bg-white opacity-10"></div>
+                    <h3 class="text-lg font-bold relative z-10">Provider Support</h3>
+                    <p class="text-purple-100 text-sm mt-2 relative z-10">Need help with a quote or client? We're here
+                        to help.</p>
+                    <button
+                        class="mt-4 px-4 py-2 bg-white text-purple-700 rounded-lg text-sm font-bold hover:bg-purple-50 transition-colors relative z-10">
+                        Contact Support
+                    </button>
+                </div>
+            </div>
         </div>
     </div>
 </div>
 
 <script>
-async function loadServiceProviderDashboard() {
-    const token = localStorage.getItem('token');
-    if (!token) {
-        window.location.href = '/login';
-        return;
-    }
-    try {
-        const response = await fetch('/api/dashboard', {
-            headers: { 'Authorization': `Bearer ${token}` }
-        });
-        const result = await response.json();
-        if (!result.success) {
+    async function loadServiceProviderDashboard() {
+        const token = localStorage.getItem('token');
+        if (!token) {
             window.location.href = '/login';
             return;
         }
-        if (result.data.current_user.role !== 'service-provider') {
-            window.location.href = '/dashboard';
+        try {
+            const response = await fetch('/api/dashboard', {
+                headers: { 'Authorization': `Bearer ${token}` }
+            });
+            const result = await response.json();
+            if (!result.success) {
+                window.location.href = '/login';
+                return;
+            }
+            if (result.data.current_user.role !== 'service-provider') {
+                window.location.href = '/dashboard';
+                return;
+            }
+            document.getElementById('walletBalance').textContent =
+                `R${(result.data.wallet.balance || 0).toFixed(2)}`;
+            document.getElementById('serviceProviderEarnings').textContent =
+                `R${(result.data.service_provider_earnings || 0).toFixed(2)}`;
+
+            const requests = result.data.available_service_provider_requests || [];
+            document.getElementById('availableCount').textContent = requests.length;
+            loadAvailableServiceProviderRequests(requests);
+        } catch (error) {
+            console.error('Error loading service provider dashboard:', error);
+            window.location.href = '/login';
+        }
+    }
+
+    function loadAvailableServiceProviderRequests(requests) {
+        const container = document.getElementById('availableServiceProviderRequestsList');
+        if (!requests || requests.length === 0) {
+            container.innerHTML = `
+            <div class="text-center py-12">
+                <div class="inline-flex items-center justify-center h-16 w-16 rounded-full bg-gray-100 mb-4">
+                     <svg class="h-8 w-8 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"></path>
+                    </svg>
+                </div>
+                <h3 class="text-lg font-medium text-gray-900">No requests available</h3>
+                <p class="mt-1 text-sm text-gray-500">We'll notify you when new jobs match your skills.</p>
+            </div>
+        `;
             return;
         }
-        document.getElementById('walletBalance').textContent =
-            `R${(result.data.wallet.balance || 0).toFixed(2)}`;
-        document.getElementById('serviceProviderEarnings').textContent =
-            `R${(result.data.service_provider_earnings || 0).toFixed(2)}`;
-        loadAvailableServiceProviderRequests(result.data.available_service_provider_requests || []);
-    } catch (error) {
-        console.error('Error loading service provider dashboard:', error);
-        window.location.href = '/login';
-    }
-}
 
-function loadAvailableServiceProviderRequests(requests) {
-    const container = document.getElementById('availableServiceProviderRequestsList');
-    if (!requests || requests.length === 0) {
-        container.innerHTML = '<p class="text-gray-500">No available service requests at the moment.</p>';
-        return;
-    }
-    container.innerHTML = requests.map(request => {
-        const locationData = request.location_data || {};
-        const location = locationData.location || {};
-        const locationAddress = location.address || 'Location not specified';
-        const scheduledDate = request.scheduled_date || 'N/A';
-        const scheduledTime = request.scheduled_time || 'N/A';
-        const details = request.details || {};
-        const notes = details.notes || 'No additional notes';
-        const serviceType = details.service_type || 'N/A';
-        
-        return `
-            <div class="border rounded-lg p-4 hover:shadow-md transition-shadow">
-                <div class="flex justify-between items-start mb-3">
-                    <div class="flex-1">
-                        <h4 class="font-semibold text-lg mb-2">Service Request ${request.id}</h4>
-                        <div class="space-y-1 text-sm text-gray-600">
-                            <p><strong>Service Type:</strong> ${serviceType}</p>
-                            <p><strong>Location:</strong> ${locationAddress}</p>
-                            <p><strong>Scheduled:</strong> ${scheduledDate} at ${scheduledTime}</p>
-                            <p><strong>Notes:</strong> ${notes}</p>
+        container.innerHTML = requests.map(request => {
+            const locationData = request.location_data || {};
+            const location = locationData.location || {};
+            const locationAddress = location.address || 'Location not specified';
+            const scheduledDate = request.scheduled_date || 'N/A';
+            const scheduledTime = request.scheduled_time || 'N/A';
+            const details = request.details || {};
+            const notes = details.notes || 'No additional notes';
+            const serviceType = details.service_type || 'N/A';
+
+            return `
+            <div class="border border-gray-100 rounded-xl p-5 hover:border-purple-200 hover:shadow-lg transition-all duration-200 bg-white group">
+                <div class="flex flex-col sm:flex-row justify-between items-start mb-4">
+                    <div>
+                         <div class="flex items-center space-x-2 mb-2">
+                            <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-purple-100 text-purple-800">
+                                ${serviceType}
+                            </span>
+                             <span class="text-xs text-gray-500">ID: #${request.id.substring(0, 8)}</span>
+                        </div>
+                        <h4 class="font-bold text-lg text-gray-900 mb-1">Request for ${serviceType}</h4>
+                        <div class="flex items-center text-sm text-gray-500 mt-1">
+                             <svg class="h-4 w-4 mr-1 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"></path></svg>
+                             ${locationAddress}
                         </div>
                     </div>
-                    <div class="ml-4 flex gap-2">
-                        <a href="/requested-services?id=${request.id}" class="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600 font-medium">View & Quote</a>
+                     <div class="mt-4 sm:mt-0 text-right">
+                         <a href="/requested-services?id=${request.id}" class="inline-flex items-center px-4 py-2 border border-transparent rounded-lg shadow-sm text-sm font-medium text-white bg-purple-600 hover:bg-purple-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-purple-500 transition-colors">
+                            View & Quote
+                        </a>
+                    </div>
+                </div>
+                
+                <div class="bg-gray-50 rounded-lg p-3 mb-4 text-sm text-gray-600">
+                    <p class="font-medium text-gray-700 mb-1">Client Notes:</p>
+                    <p class="italic">"${notes}"</p>
+                </div>
+
+                <div class="flex items-center justify-between border-t border-gray-100 pt-3 text-sm text-gray-500">
+                     <div class="flex items-center">
+                        <svg class="h-4 w-4 mr-1 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path></svg>
+                        <span>${scheduledDate} ${scheduledTime}</span>
                     </div>
                 </div>
             </div>
         `;
-    }).join('');
-}
+        }).join('');
+    }
 
-loadServiceProviderDashboard();
+    document.addEventListener('DOMContentLoaded', loadServiceProviderDashboard);
 </script>
 {% endblock %}

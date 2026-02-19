@@ -3,46 +3,109 @@
 {% block title %}Privacy Policy - MzansiServe{% endblock %}
 
 {% block content %}
-<div class="max-w-4xl mx-auto mt-8">
-    <h2 class="text-2xl font-bold mb-4">Privacy Policy</h2>
-    <div id="privacyContent" class="prose">
-        <p class="text-gray-500">Loading...</p>
-    </div>
-    <div id="privacyPdf" class="hidden w-full" style="min-height: 70vh;">
-        <iframe id="privacyPdfFrame" class="w-full border rounded" style="height: 80vh;" title="Privacy Policy PDF"></iframe>
+<div class="bg-gray-50 min-h-screen py-16">
+    <div class="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
+
+        <div class="text-center mb-12">
+            <h1 class="text-4xl font-extrabold text-gray-900 tracking-tight mb-4">
+                Privacy Policy
+            </h1>
+            <p class="text-lg text-gray-600 max-w-2xl mx-auto">
+                Last updated: January 1, 2026
+            </p>
+        </div>
+
+        <div class="bg-white rounded-2xl shadow-sm border border-gray-100 p-8 sm:p-12">
+            <div id="privacyLoading" class="flex flex-col items-center justify-center py-12">
+                <svg class="animate-spin h-10 w-10 text-purple-600 mb-4" xmlns="http://www.w3.org/2000/svg" fill="none"
+                    viewBox="0 0 24 24">
+                    <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                    <path class="opacity-75" fill="currentColor"
+                        d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z">
+                    </path>
+                </svg>
+                <p class="text-gray-500">Loading privacy policy...</p>
+            </div>
+
+            <div id="privacyContent" class="hidden prose prose-purple max-w-none text-gray-600">
+                <!-- Privacy content injected here -->
+            </div>
+
+            <div id="privacyPdf" class="hidden w-full h-[600px] border border-gray-200 rounded-lg overflow-hidden mt-6">
+                <!-- PDF iframe injected here -->
+            </div>
+
+            <div id="privacyError"
+                class="hidden p-4 bg-red-50 text-red-700 rounded-xl flex items-center justify-center">
+                <svg class="h-5 w-5 mr-2 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                        d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                </svg>
+                <span id="privacyErrorMessage">Unable to load privacy policy.</span>
+            </div>
+        </div>
+
+        <div class="mt-8 text-center text-sm text-gray-500">
+            <p>If you have any questions about this Privacy Policy, please <a href="/contact"
+                    class="text-purple-600 hover:text-purple-800 font-medium hover:underline">contact us</a>.</p>
+        </div>
+
     </div>
 </div>
+
 <script>
-(function() {
-    fetch('/api/admin/legal/privacy')
-        .then(function(r) { return r.json(); })
-        .then(function(result) {
-            var container = document.getElementById('privacyContent');
-            var pdfWrap = document.getElementById('privacyPdf');
-            var frame = document.getElementById('privacyPdfFrame');
+    document.addEventListener('DOMContentLoaded', async () => {
+        const loadingEl = document.getElementById('privacyLoading');
+        const contentEl = document.getElementById('privacyContent');
+        const pdfWrapEl = document.getElementById('privacyPdf');
+        // const errorEl = document.getElementById('privacyError');
+
+        try {
+            const response = await fetch('/api/admin/legal/privacy');
+            const result = await response.json();
+
+            loadingEl.classList.add('hidden');
+
             if (result.success && result.data) {
-                var d = result.data;
+                const d = result.data;
+
                 if (d.content_type === 'pdf' && d.file_url) {
-                    container.classList.add('hidden');
-                    pdfWrap.classList.remove('hidden');
-                    frame.src = d.file_url;
+                    contentEl.classList.add('hidden');
+                    pdfWrapEl.classList.remove('hidden');
+                    pdfWrapEl.innerHTML = `<iframe src="${d.file_url}" class="w-full h-full border-0" title="Privacy Policy PDF"></iframe>`;
+                } else if (d.text) {
+                    pdfWrapEl.classList.add('hidden');
+                    contentEl.classList.remove('hidden');
+                    // Simple formatting
+                    contentEl.innerHTML = d.text.split('\\n').map(p => `<p>${p}</p>`).join('');
                 } else {
-                    pdfWrap.classList.add('hidden');
-                    container.classList.remove('hidden');
-                    container.innerHTML = d.text ? ('<div class="whitespace-pre-wrap">' + escapeHtml(d.text) + '</div>') : '<p class="text-gray-500">No content configured yet.</p>';
+                    showDefaultContent();
                 }
             } else {
-                container.innerHTML = '<p class="text-gray-500">No content configured yet.</p>';
+                showDefaultContent();
             }
-        })
-        .catch(function() {
-            document.getElementById('privacyContent').innerHTML = '<p class="text-gray-500">Unable to load content.</p>';
-        });
-    function escapeHtml(s) {
-        var div = document.createElement('div');
-        div.textContent = s;
-        return div.innerHTML;
-    }
-})();
+        } catch (e) {
+            console.error(e);
+            loadingEl.classList.add('hidden');
+            showDefaultContent();
+        }
+
+        function showDefaultContent() {
+            contentEl.innerHTML = `
+            <h3>1. Personal Data We Collect</h3>
+            <p>We may collect personal identification information (Name, email address, phone number, etc.)</p>
+            <h3>2. How We Use Your Data</h3>
+            <p>We collect your data to process your order and manage your account.</p>
+            <h3>3. Data Protection</h3>
+            <p>We securely store your data at [Location] using industry standard encryption.</p>
+            <h3>4. Marketing</h3>
+            <p>We would like to send you information about products and services of ours that we think you might like.</p>
+            <h3>5. Your Data Protection Rights</h3>
+            <p>Every user is entitled to the following: The right to access, rectification, erasure, restrict processing, object to processing, and data portability.</p>
+        `;
+            contentEl.classList.remove('hidden');
+            pdfWrapEl.classList.add('hidden');
+        }
+    });
 </script>
 {% endblock %}

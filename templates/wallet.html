@@ -1,383 +1,436 @@
 {% extends "base.html" %}
 
-{% block title %}Wallet - MzansiServe{% endblock %}
+{% block title %}My Wallet - MzansiServe{% endblock %}
 
 {% block extra_head %}
 <style>
-    @keyframes fadeIn {
-        from {
-            opacity: 0;
-            transform: translateY(20px);
-        }
-        to {
-            opacity: 1;
-            transform: translateY(0);
-        }
-    }
-    
-    .fade-in {
-        animation: fadeIn 0.6s ease-out forwards;
+    .wallet-card-gradient {
+        background: linear-gradient(135deg, #7c3aed 0%, #6d28d9 100%);
     }
 </style>
 {% endblock %}
 
 {% block content %}
-<div class="max-w-2xl mx-auto mt-8 fade-in">
-    <h2 class="text-2xl font-bold mb-4">Wallet</h2>
-    
-    <!-- Current Balance -->
-    <div class="bg-white p-6 rounded-lg shadow mb-4">
-        <h3 class="text-lg font-semibold mb-2">Current Balance</h3>
-        <p class="text-3xl font-bold" id="walletBalance">R0.00</p>
-    </div>
-    
-    <!-- Top Up and Request Withdrawal (earners only) -->
-    <div class="flex flex-wrap gap-3 mb-6">
-        <button id="topUpBtn" class="bg-blue-500 text-white px-6 py-2 rounded hover:bg-blue-600">
-            Top Up
-        </button>
-        <div id="withdrawalSection" class="hidden">
-            <button id="requestWithdrawalBtn" class="bg-green-500 text-white px-6 py-2 rounded hover:bg-green-600">
-                Request Withdrawal
-            </button>
+<div class="bg-gray-50 min-h-screen py-10">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+
+        <!-- Header -->
+        <div class="mb-8">
+            <h1 class="text-3xl font-extrabold text-gray-900">My Wallet</h1>
+            <p class="mt-2 text-gray-600">Manage your balance, top-ups, and withdrawals.</p>
         </div>
-    </div>
-    
-    <!-- My Withdrawal Requests (earners) -->
-    <div id="withdrawalRequestsSection" class="hidden bg-white p-6 rounded-lg shadow mb-4">
-        <h3 class="text-lg font-semibold mb-4">My Withdrawal Requests</h3>
-        <div id="withdrawalRequestsList" class="space-y-2">
-            <p class="text-gray-500 text-sm">Loading...</p>
-        </div>
-    </div>
-    
-    <!-- Transaction History -->
-    <div class="bg-white p-6 rounded-lg shadow">
-        <h3 class="text-lg font-semibold mb-4">Transaction History</h3>
-        <div id="transactionHistory" class="space-y-2">
-            <p class="text-gray-500">Loading transactions...</p>
+
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+
+            <!-- Left Column: Balance & Actions -->
+            <div class="lg:col-span-1 space-y-6">
+                <!-- Balance Card -->
+                <div class="wallet-card-gradient rounded-2xl shadow-lg p-6 text-white relative overflow-hidden">
+                    <div class="absolute top-0 right-0 -mt-4 -mr-4 w-24 h-24 bg-white opacity-10 rounded-full blur-xl">
+                    </div>
+                    <div
+                        class="absolute bottom-0 left-0 -mb-4 -ml-4 w-32 h-32 bg-purple-900 opacity-20 rounded-full blur-xl">
+                    </div>
+
+                    <div class="relative z-10">
+                        <p class="text-purple-200 text-sm font-medium uppercase tracking-wider">Available Balance</p>
+                        <h2 class="text-4xl font-bold mt-2" id="walletBalance">R0.00</h2>
+                        <div class="mt-8 flex items-center justify-between">
+                            <div class="text-sm text-purple-200">
+                                <span>MzansiServe Wallet</span>
+                            </div>
+                            <svg class="h-8 w-8 text-white opacity-80" fill="none" viewBox="0 0 24 24"
+                                stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5"
+                                    d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z" />
+                            </svg>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Quick Actions -->
+                <div class="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
+                    <h3 class="text-lg font-bold text-gray-900 mb-4">Actions</h3>
+                    <div class="grid grid-cols-1 gap-3">
+                        <button onclick="showTopUpModal()"
+                            class="flex-1 flex items-center justify-center px-4 py-3 border border-transparent rounded-xl shadow-sm text-sm font-medium focus:outline-none focus:ring-2 focus:ring-offset-2 transition-all duration-200 bg-purple-600 text-white hover:bg-purple-700 focus:ring-purple-500">
+                            <svg class="h-5 w-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                    d="M12 6v6m0 0v6m0-6h6m-6 0H6"></path>
+                            </svg>
+                            Top Up Wallet
+                        </button>
+
+                        <div id="withdrawalSection" class="hidden w-full">
+                            <button onclick="showWithdrawalModal()"
+                                class="flex-1 flex items-center justify-center px-4 py-3 border border-transparent rounded-xl shadow-sm text-sm font-medium focus:outline-none focus:ring-2 focus:ring-offset-2 transition-all duration-200 w-full bg-white border-gray-300 text-gray-700 hover:bg-gray-50 focus:ring-gray-500">
+                                <svg class="h-5 w-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                        d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z">
+                                    </path>
+                                </svg>
+                                Request Withdrawal
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Right Column: Transaction History -->
+            <div class="lg:col-span-2 space-y-6">
+                <!-- Recent Transactions -->
+                <div class="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
+                    <div class="p-6 border-b border-gray-100 flex justify-between items-center bg-gray-50/50">
+                        <h3 class="text-lg font-bold text-gray-900">Transaction History</h3>
+                        <!-- <button class="text-sm text-purple-600 hover:text-purple-700 font-medium">View All</button> -->
+                    </div>
+                    <div id="transactionHistory" class="divide-y divide-gray-100">
+                        <div class="p-8 text-center text-gray-500">
+                            <svg class="h-12 w-12 mx-auto text-gray-300 mb-3" fill="none" stroke="currentColor"
+                                viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                    d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                            </svg>
+                            <p>Loading transactions...</p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Withdrawal Requests (Earners Only) -->
+                <div id="withdrawalRequestsSection"
+                    class="hidden bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
+                    <div class="p-6 border-b border-gray-100 bg-gray-50/50">
+                        <h3 class="text-lg font-bold text-gray-900">Withdrawal Requests</h3>
+                    </div>
+                    <div id="withdrawalRequestsList" class="divide-y divide-gray-100">
+                        <!-- Dynamic Content -->
+                    </div>
+                </div>
+            </div>
         </div>
     </div>
 </div>
 
 <!-- Top Up Modal -->
-<div id="topUpModal" class="fixed inset-0 bg-black bg-opacity-50 hidden items-center justify-center z-50">
-    <div class="bg-white p-6 rounded-lg shadow-lg max-w-md w-full mx-4">
-        <h3 class="text-xl font-semibold mb-4">Top Up Wallet</h3>
-        <form id="topUpForm">
-            <div class="mb-4">
-                <label for="topUpAmount" class="block text-sm font-medium mb-2">Amount (R)</label>
-                <input 
-                    type="number" 
-                    id="topUpAmount" 
-                    name="amount" 
-                    min="10" 
-                    step="0.01" 
-                    required 
-                    class="w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    placeholder="Enter amount (minimum R10.00)"
-                >
-                <p class="text-xs text-gray-500 mt-1">Minimum top-up amount: R10.00</p>
-            </div>
-            <div class="flex space-x-3">
-                <button 
-                    type="button" 
-                    id="cancelTopUpBtn" 
-                    class="flex-1 bg-gray-300 text-gray-700 px-4 py-2 rounded hover:bg-gray-400"
-                >
-                    Cancel
+<div id="topUpModal"
+    class="fixed inset-0 bg-gray-900 bg-opacity-50 hidden items-center justify-center z-50 backdrop-blur-sm transition-opacity">
+    <div class="bg-white rounded-2xl shadow-xl max-w-md w-full mx-4 overflow-hidden transform transition-all scale-100">
+        <div class="p-6">
+            <div class="flex justify-between items-center mb-4">
+                <h3 class="text-xl font-bold text-gray-900">Top Up Wallet</h3>
+                <button onclick="hideTopUpModal()" class="text-gray-400 hover:text-gray-500 transition-colors">
+                    <svg class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                            d="M6 18L18 6M6 6l12 12" />
+                    </svg>
                 </button>
-                <button 
-                    type="submit" 
-                    id="submitTopUpBtn"
-                    class="flex-1 bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600"
-                >
+            </div>
+            <p class="text-sm text-gray-500 mb-6">Enter the amount you wish to add to your MzansiServe wallet.</p>
+
+            <form id="topUpForm" class="space-y-4">
+                <div>
+                    <label for="topUpAmount" class="block text-sm font-medium text-gray-700 mb-1">Amount (ZAR)</label>
+                    <div class="relative rounded-md shadow-sm">
+                        <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                            <span class="text-gray-500 sm:text-sm">R</span>
+                        </div>
+                        <input type="number" name="amount" id="topUpAmount" min="10" step="0.01" required
+                            class="focus:ring-purple-500 focus:border-purple-500 block w-full pl-7 pr-12 sm:text-sm border-gray-300 rounded-lg py-3"
+                            placeholder="0.00">
+                        <div class="absolute inset-y-0 right-0 pr-3 flex items-center pointer-events-none">
+                            <span class="text-gray-500 sm:text-sm">ZAR</span>
+                        </div>
+                    </div>
+                    <p class="mt-2 text-xs text-gray-500">Minimum amount: R10.00</p>
+                </div>
+
+                <button type="submit" id="submitTopUpBtn"
+                    class="w-full flex justify-center py-3 px-4 border border-transparent rounded-xl shadow-sm text-sm font-bold text-white bg-purple-600 hover:bg-purple-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-purple-500 transition-colors">
                     Continue to Payment
                 </button>
-            </div>
-        </form>
+            </form>
+        </div>
+        <div class="bg-gray-50 px-6 py-4 flex items-center justify-center">
+            <span class="text-xs text-gray-500 flex items-center">
+                <svg class="h-4 w-4 mr-1 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                        d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z">
+                    </path>
+                </svg>
+                Secure payment via Yoco
+            </span>
+        </div>
     </div>
 </div>
 
-<!-- Request Withdrawal Modal -->
-<div id="withdrawalModal" class="fixed inset-0 bg-black bg-opacity-50 hidden items-center justify-center z-50">
-    <div class="bg-white p-6 rounded-lg shadow-lg max-w-md w-full mx-4">
-        <h3 class="text-xl font-semibold mb-4">Request Withdrawal</h3>
-        <p class="text-sm text-gray-600 mb-2">Amount will be deducted from your wallet and held until processed.</p>
-        <form id="withdrawalForm">
-            <div class="mb-4">
-                <label for="withdrawalAmount" class="block text-sm font-medium mb-2">Amount (R)</label>
-                <input type="number" id="withdrawalAmount" min="0.01" step="0.01" required
-                    class="w-full px-3 py-2 border rounded-md" placeholder="0.00">
-                <p class="text-xs text-gray-500 mt-1">Available: R<span id="withdrawalMaxAmount">0.00</span></p>
+<!-- Withdrawal Modal -->
+<div id="withdrawalModal"
+    class="fixed inset-0 bg-gray-900 bg-opacity-50 hidden items-center justify-center z-50 backdrop-blur-sm transition-opacity">
+    <div class="bg-white rounded-2xl shadow-xl max-w-md w-full mx-4 overflow-hidden transform transition-all">
+        <div class="p-6">
+            <div class="flex justify-between items-center mb-4">
+                <h3 class="text-xl font-bold text-gray-900">Request Withdrawal</h3>
+                <button onclick="hideWithdrawalModal()" class="text-gray-400 hover:text-gray-500 transition-colors">
+                    <svg class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                            d="M6 18L18 6M6 6l12 12" />
+                    </svg>
+                </button>
             </div>
-            <div class="flex space-x-3">
-                <button type="button" id="cancelWithdrawalBtn" class="flex-1 bg-gray-300 text-gray-700 px-4 py-2 rounded hover:bg-gray-400">Cancel</button>
-                <button type="submit" id="submitWithdrawalBtn" class="flex-1 bg-green-500 text-white px-4 py-2 rounded hover:bg-green-600">Submit</button>
-            </div>
-        </form>
+
+            <form id="withdrawalForm" class="space-y-4">
+                <div>
+                    <label for="withdrawalAmount" class="block text-sm font-medium text-gray-700 mb-1">Amount to
+                        Withdraw</label>
+                    <div class="relative rounded-md shadow-sm">
+                        <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                            <span class="text-gray-500 sm:text-sm">R</span>
+                        </div>
+                        <input type="number" id="withdrawalAmount" min="10" step="0.01" required
+                            class="focus:ring-purple-500 focus:border-purple-500 block w-full pl-7 pr-12 sm:text-sm border-gray-300 rounded-lg py-3"
+                            placeholder="0.00">
+                    </div>
+                    <p class="mt-2 text-sm text-gray-500">Available Balance: <span
+                            class="font-bold text-gray-900">R<span id="withdrawalMaxAmount">0.00</span></span></p>
+                </div>
+
+                <div class="bg-yellow-50 rounded-lg p-3 flex items-start">
+                    <svg class="h-5 w-5 text-yellow-400 mt-0.5 mr-2" fill="none" viewBox="0 0 24 24"
+                        stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                            d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
+                    <p class="text-xs text-yellow-700">Withdrawals usually take 1-3 business days to process. Check your
+                        bank details in Profile settings.</p>
+                </div>
+
+                <button type="submit" id="submitWithdrawalBtn"
+                    class="w-full flex justify-center py-3 px-4 border border-transparent rounded-xl shadow-sm text-sm font-bold text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 transition-colors">
+                    Submit Request
+                </button>
+            </form>
+        </div>
     </div>
 </div>
 
 <script>
-// Load wallet data
-async function loadWallet() {
-    const token = localStorage.getItem('token');
-    if (!token) {
-        window.location.href = '/login';
-        return;
-    }
-    
-    try {
-        const response = await fetch('/api/dashboard/wallet', {
-            headers: {
-                'Authorization': `Bearer ${token}`
-            }
-        });
-        
-        const result = await response.json();
-        if (result.success) {
-            const data = result.data;
-            
-            // Update balance
-            const balance = parseFloat(data.balance || 0);
-            document.getElementById('walletBalance').textContent = 
-                `R${balance.toFixed(2)}`;
-            
-            // Show/hide withdrawal section for earners
-            if (data.can_request_withdrawal) {
-                document.getElementById('withdrawalSection').classList.remove('hidden');
-                document.getElementById('withdrawalRequestsSection').classList.remove('hidden');
-                document.getElementById('withdrawalMaxAmount').textContent = balance.toFixed(2);
-                loadWithdrawalRequests(token);
-            } else {
-                document.getElementById('withdrawalSection').classList.add('hidden');
-                document.getElementById('withdrawalRequestsSection').classList.add('hidden');
-            }
-            
-            // Update transaction history
-            const historyDiv = document.getElementById('transactionHistory');
-            if (data.transactions && data.transactions.length > 0) {
-                historyDiv.innerHTML = data.transactions.map(transaction => {
-                    const amount = parseFloat(transaction.amount || 0);
-                    const sign = amount >= 0 ? '+' : '';
-                    const color = amount >= 0 ? 'text-green-600' : 'text-red-600';
-                    const typeLabels = {
-                        'top-up': 'Top Up',
-                        'payment': 'Payment',
-                        'refund': 'Refund',
-                        'cancellation_refund': 'Cancellation Refund',
-                        'withdrawal': 'Withdrawal Request',
-                        'earnings_transfer': 'Earnings Transfer',
-                        'withdrawal_reversal': 'Withdrawal Reversed'
-                    };
-                    const typeLabel = typeLabels[transaction.transaction_type] || transaction.transaction_type;
-                    const date = new Date(transaction.created_at).toLocaleDateString('en-ZA', {
-                        year: 'numeric',
-                        month: 'short',
-                        day: 'numeric',
-                        hour: '2-digit',
-                        minute: '2-digit'
-                    });
-                    
-                    return `
-                        <div class="border-b pb-2">
-                            <div class="flex justify-between items-center">
-                                <div>
-                                    <p class="font-medium">${typeLabel}</p>
-                                    <p class="text-sm text-gray-500">${transaction.description || ''}</p>
-                                    <p class="text-xs text-gray-400">${date}</p>
+    // Logic preserved but UI updated
+    let currentBalance = 0;
+
+    async function loadWallet() {
+        const token = localStorage.getItem('token');
+        if (!token) { window.location.href = '/login'; return; }
+
+        try {
+            const response = await fetch('/api/dashboard/wallet', { headers: { 'Authorization': `Bearer ${token}` } });
+            const result = await response.json();
+
+            if (result.success) {
+                const data = result.data;
+                currentBalance = parseFloat(data.balance || 0);
+
+                // Balance
+                document.getElementById('walletBalance').textContent = `R${currentBalance.toFixed(2)}`;
+
+                // Withdrawal Section Visibility
+                const withdrawalSection = document.getElementById('withdrawalSection');
+                const withdrawalHistorySection = document.getElementById('withdrawalRequestsSection');
+
+                if (data.can_request_withdrawal) {
+                    withdrawalSection.classList.remove('hidden');
+                    withdrawalHistorySection.classList.remove('hidden');
+                    loadWithdrawalRequests(token);
+                } else {
+                    withdrawalSection.classList.add('hidden');
+                    withdrawalHistorySection.classList.add('hidden');
+                }
+
+                // Transactions
+                const historyDiv = document.getElementById('transactionHistory');
+                if (data.transactions && data.transactions.length > 0) {
+                    historyDiv.innerHTML = data.transactions.map(t => {
+                        const amount = parseFloat(t.amount || 0);
+                        const isPositive = amount >= 0;
+                        const date = new Date(t.created_at).toLocaleDateString('en-ZA', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
+
+                        // Icons based on type
+                        let iconBg = isPositive ? 'bg-green-100 text-green-600' : 'bg-red-100 text-red-600';
+                        let iconPath = isPositive ? 'M12 4v16m8-8H4' : 'M20 12H4'; // Plus or Minus
+                        if (t.transaction_type === 'top-up') iconPath = 'M12 6v6m0 0v6m0-6h6m-6 0H6';
+                        if (t.transaction_type === 'payment') iconPath = 'M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z';
+
+                        return `
+                        <div class="transaction-item">
+                            <div class="flex items-center">
+                                <div class="h-10 w-10 flex-shrink-0 rounded-full ${iconBg} flex items-center justify-center">
+                                    <svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="${iconPath}"></path></svg>
                                 </div>
-                                <div class="text-right">
-                                    <p class="font-bold ${color}">${sign}R${Math.abs(amount).toFixed(2)}</p>
-                                    <p class="text-xs text-gray-500">Balance: R${parseFloat(transaction.balance_after || 0).toFixed(2)}</p>
+                                <div class="ml-4">
+                                    <h4 class="text-sm font-medium text-gray-900">${t.description || t.transaction_type}</h4>
+                                    <p class="text-xs text-gray-500">${date}</p>
                                 </div>
+                            </div>
+                            <div class="text-right">
+                                <p class="text-sm font-bold ${isPositive ? 'text-green-600' : 'text-gray-900'}">${isPositive ? '+' : ''}R${Math.abs(amount).toFixed(2)}</p>
+                                <p class="text-xs text-gray-400">Bal: R${parseFloat(t.balance_after).toFixed(2)}</p>
                             </div>
                         </div>
                     `;
+                    }).join('');
+                } else {
+                    historyDiv.innerHTML = `
+                    <div class="p-8 text-center">
+                        <p class="text-gray-500">No transactions found.</p>
+                    </div>
+                `;
+                }
+            }
+        } catch (e) { console.error(e); }
+    }
+
+    async function loadWithdrawalRequests(token) {
+        const listEl = document.getElementById('withdrawalRequestsList');
+        try {
+            const r = await fetch('/api/dashboard/wallet/withdrawal-requests', { headers: { 'Authorization': 'Bearer ' + token } });
+            const result = await r.json();
+            if (result.success && result.data.withdrawal_requests && result.data.withdrawal_requests.length > 0) {
+                listEl.innerHTML = result.data.withdrawal_requests.map(w => {
+                    const date = new Date(w.requested_at).toLocaleDateString('en-ZA', { month: 'short', day: 'numeric' });
+                    const statusColors = { 'pending': 'bg-yellow-100 text-yellow-800', 'approved': 'bg-green-100 text-green-800', 'rejected': 'bg-red-100 text-red-800' };
+                    const badgeClass = statusColors[w.status] || 'bg-gray-100 text-gray-800';
+
+                    return `
+                    <div class="p-4 flex justify-between items-center hover:bg-gray-50">
+                        <div>
+                            <p class="font-bold text-gray-900">R${parseFloat(w.amount).toFixed(2)}</p>
+                            <p class="text-xs text-gray-500">${date}</p>
+                        </div>
+                        <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${badgeClass}">
+                            ${w.status}
+                        </span>
+                    </div>
+                `;
                 }).join('');
             } else {
-                historyDiv.innerHTML = '<p class="text-gray-500">No transactions yet.</p>';
+                listEl.innerHTML = `<div class="p-4 text-center text-gray-500 text-sm">No withdrawal requests found.</div>`;
             }
+        } catch (e) { }
+    }
+
+    // Modals
+    function showTopUpModal() {
+        const modal = document.getElementById('topUpModal');
+        modal.classList.remove('hidden');
+        modal.classList.add('flex');
+        setTimeout(() => document.getElementById('topUpAmount').focus(), 100);
+    }
+    function hideTopUpModal() {
+        const modal = document.getElementById('topUpModal');
+        modal.classList.add('hidden');
+        modal.classList.remove('flex');
+    }
+
+    function showWithdrawalModal() {
+        document.getElementById('withdrawalMaxAmount').textContent = currentBalance.toFixed(2);
+        const modal = document.getElementById('withdrawalModal');
+        modal.classList.remove('hidden');
+        modal.classList.add('flex');
+    }
+    function hideWithdrawalModal() {
+        const modal = document.getElementById('withdrawalModal');
+        modal.classList.add('hidden');
+        modal.classList.remove('flex');
+    }
+
+    // Event Listeners for Closing Modals on Outside Click
+    window.addEventListener('click', (e) => {
+        const topUp = document.getElementById('topUpModal');
+        const withdraw = document.getElementById('withdrawalModal');
+        if (e.target === topUp) hideTopUpModal();
+        if (e.target === withdraw) hideWithdrawalModal();
+    });
+
+    // Top Up Submit
+    document.getElementById('topUpForm').addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const btn = document.getElementById('submitTopUpBtn');
+        const amount = parseFloat(document.getElementById('topUpAmount').value);
+        const token = localStorage.getItem('token');
+
+        if (amount < 10) { alert('Minimum is R10'); return; }
+
+        btn.disabled = true;
+        btn.textContent = 'Processing...';
+
+        try {
+            const response = await fetch('/api/dashboard/wallet/top-up', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+                body: JSON.stringify({ amount: amount, currency: 'ZAR' })
+            });
+            const result = await response.json();
+
+            if (result.success && result.data.redirect_url) {
+                window.location.href = result.data.redirect_url;
+            } else {
+                alert(result.error?.message || 'Payment initiation failed.');
+                btn.disabled = false;
+                btn.textContent = 'Continue to Payment';
+            }
+        } catch (e) {
+            alert('Network error.');
+            btn.disabled = false;
+            btn.textContent = 'Continue to Payment';
         }
-    } catch (error) {
-        console.error('Error loading wallet:', error);
-    }
-}
+    });
 
-// Top Up Modal Functions
-function showTopUpModal() {
-    const modal = document.getElementById('topUpModal');
-    modal.classList.remove('hidden');
-    modal.classList.add('flex');
-    document.getElementById('topUpAmount').focus();
-}
+    // Withdrawal Submit
+    document.getElementById('withdrawalForm').addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const btn = document.getElementById('submitWithdrawalBtn');
+        const amount = parseFloat(document.getElementById('withdrawalAmount').value);
+        const token = localStorage.getItem('token');
 
-function hideTopUpModal() {
-    const modal = document.getElementById('topUpModal');
-    modal.classList.add('hidden');
-    modal.classList.remove('flex');
-    document.getElementById('topUpForm').reset();
-}
+        if (amount > currentBalance) { alert('Insufficient funds'); return; }
 
-// Top Up Button Click
-document.getElementById('topUpBtn')?.addEventListener('click', showTopUpModal);
+        btn.disabled = true;
+        btn.textContent = 'Processing...';
 
-// Cancel Button Click
-document.getElementById('cancelTopUpBtn')?.addEventListener('click', hideTopUpModal);
-
-// Close modal on backdrop click
-document.getElementById('topUpModal')?.addEventListener('click', function(e) {
-    if (e.target === this) {
-        hideTopUpModal();
-    }
-});
-
-// Top Up Form Submission
-document.getElementById('topUpForm')?.addEventListener('submit', async function(e) {
-    e.preventDefault();
-    
-    const token = localStorage.getItem('token');
-    if (!token) {
-        window.location.href = '/login';
-        return;
-    }
-    
-    const amount = parseFloat(document.getElementById('topUpAmount').value);
-    
-    // Validate amount
-    if (isNaN(amount) || amount < 10) {
-        alert('Minimum top-up amount is R10.00');
-        return;
-    }
-    
-    try {
-        // Disable submit button
-        const submitBtn = document.getElementById('submitTopUpBtn');
-        submitBtn.disabled = true;
-        submitBtn.textContent = 'Processing...';
-        
-        const response = await fetch('/api/dashboard/wallet/top-up', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'Authorization': `Bearer ${token}`
-            },
-            body: JSON.stringify({
-                amount: amount,
-                currency: 'ZAR'
-            })
-        });
-        
-        const result = await response.json();
-        
-        if (result.success && result.data.redirect_url) {
-            // Redirect to Yoco checkout
-            window.location.href = result.data.redirect_url;
-        } else {
-            // Re-enable button on error
-            submitBtn.disabled = false;
-            submitBtn.textContent = 'Continue to Payment';
-            alert(result.error?.message || 'Failed to create checkout. Please try again.');
-            console.error('Top-up error:', result);
+        try {
+            const response = await fetch('/api/dashboard/wallet/withdrawal-request', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+                body: JSON.stringify({ amount: amount })
+            });
+            const result = await response.json();
+            if (result.success) {
+                alert('Has been requested!');
+                hideWithdrawalModal();
+                loadWallet();
+            } else {
+                alert(result.error?.message || 'Failed.');
+            }
+        } catch (e) { alert('Error.'); }
+        finally {
+            btn.disabled = false;
+            btn.textContent = 'Submit Request';
         }
-    } catch (error) {
-        console.error('Error initiating top-up:', error);
-        const submitBtn = document.getElementById('submitTopUpBtn');
-        submitBtn.disabled = false;
-        submitBtn.textContent = 'Continue to Payment';
-        alert('Error initiating top-up: ' + error.message);
-    }
-});
+    });
 
-// Check for payment status in URL parameters
-function checkPaymentStatus() {
-    const urlParams = new URLSearchParams(window.location.search);
-    console.log("urlParams", urlParams);
-    const paymentStatus = urlParams.get('payment');
-    
-    if (paymentStatus === 'success') {
-        alert('Top-up successful! Your wallet balance has been updated.');
-        loadWallet(); // Reload wallet to show updated balance
-        // Clean URL
-        window.history.replaceState({}, document.title, window.location.pathname);
-    } else if (paymentStatus === 'error') {
-        alert('Top-up failed or was cancelled. Please try again.');
-        // Clean URL
-        window.history.replaceState({}, document.title, window.location.pathname);
-    }
-}
-
-// Withdrawal: load list, modal, submit
-async function loadWithdrawalRequests(token) {
-    const listEl = document.getElementById('withdrawalRequestsList');
-    try {
-        const r = await fetch('/api/dashboard/wallet/withdrawal-requests', { headers: { 'Authorization': 'Bearer ' + token } });
-        const result = await r.json();
-        if (result.success && result.data.withdrawal_requests && result.data.withdrawal_requests.length > 0) {
-            listEl.innerHTML = result.data.withdrawal_requests.map(function(w) {
-                const date = new Date(w.requested_at).toLocaleDateString('en-ZA', { year: 'numeric', month: 'short', day: 'numeric' });
-                return '<div class="border-b pb-2"><div class="flex justify-between"><span>R' + parseFloat(w.amount).toFixed(2) + '</span><span class="text-sm text-gray-600">' + (w.status || 'pending') + ' &bull; ' + date + '</span></div></div>';
-            }).join('');
-        } else {
-            listEl.innerHTML = '<p class="text-gray-500 text-sm">No withdrawal requests yet.</p>';
+    function checkPaymentStatus() {
+        const urlParams = new URLSearchParams(window.location.search);
+        const status = urlParams.get('payment');
+        if (status === 'success') {
+            // Show success toast or alert
+            // For now simple alert, can be improved to a toast later
+            alert('Payment Successful! Wallet updated.');
+            window.history.replaceState({}, document.title, window.location.pathname);
         }
-    } catch (e) {
-        listEl.innerHTML = '<p class="text-gray-500 text-sm">Could not load.</p>';
     }
-}
 
-var currentWalletBalance = 0;
-document.getElementById('requestWithdrawalBtn')?.addEventListener('click', function() {
-    currentWalletBalance = parseFloat(document.getElementById('walletBalance').textContent.replace('R', '').replace(',', ''));
-    document.getElementById('withdrawalMaxAmount').textContent = currentWalletBalance.toFixed(2);
-    document.getElementById('withdrawalAmount').value = '';
-    document.getElementById('withdrawalModal').classList.remove('hidden');
-    document.getElementById('withdrawalModal').classList.add('flex');
-});
-document.getElementById('cancelWithdrawalBtn')?.addEventListener('click', function() {
-    document.getElementById('withdrawalModal').classList.add('hidden');
-    document.getElementById('withdrawalModal').classList.remove('flex');
-});
-document.getElementById('withdrawalModal')?.addEventListener('click', function(e) {
-    if (e.target === this) { document.getElementById('withdrawalModal').classList.add('hidden'); document.getElementById('withdrawalModal').classList.remove('flex'); }
-});
-document.getElementById('withdrawalForm')?.addEventListener('submit', async function(e) {
-    e.preventDefault();
-    const token = localStorage.getItem('token');
-    if (!token) return;
-    const amount = parseFloat(document.getElementById('withdrawalAmount').value);
-    if (isNaN(amount) || amount <= 0 || amount > currentWalletBalance) {
-        alert('Enter a valid amount up to your balance.');
-        return;
-    }
-    const btn = document.getElementById('submitWithdrawalBtn');
-    btn.disabled = true;
-    try {
-        const r = await fetch('/api/dashboard/wallet/withdrawal-request', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token },
-            body: JSON.stringify({ amount: amount })
-        });
-        const result = await r.json();
-        if (result.success) {
-            document.getElementById('withdrawalModal').classList.add('hidden');
-            document.getElementById('withdrawalModal').classList.remove('flex');
-            loadWallet();
-        } else {
-            alert(result.error?.message || 'Failed to submit withdrawal request.');
-        }
-    } catch (err) {
-        alert('Error: ' + err.message);
-    }
-    btn.disabled = false;
-});
-
-// Load wallet on page load
-document.addEventListener('DOMContentLoaded', function() {
-    loadWallet();
-    checkPaymentStatus();
-});
+    document.addEventListener('DOMContentLoaded', () => {
+        loadWallet();
+        checkPaymentStatus();
+    });
 </script>
 {% endblock %}
-

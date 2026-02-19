@@ -1,289 +1,312 @@
 {% extends "base.html" %}
 
-{% block title %}Shopping History - MzansiServe{% endblock %}
+{% block title %}My Orders - MzansiServe{% endblock %}
 
 {% block extra_head %}
 <style>
-    @keyframes fadeIn {
-        from {
-            opacity: 0;
-            transform: translateY(20px);
-        }
-        to {
-            opacity: 1;
-            transform: translateY(0);
-        }
+    .filter-btn {
+        @apply px-4 py-2 rounded-lg text-sm font-medium transition-all duration-200 border border-transparent;
     }
-    
-    .fade-in {
-        animation: fadeIn 0.6s ease-out forwards;
+
+    .filter-btn.active {
+        @apply bg-purple-100 text-purple-700 ring-2 ring-purple-500 border-transparent shadow-sm;
+    }
+
+    .filter-btn.inactive {
+        @apply text-gray-600 hover:bg-gray-50 border-gray-200 hover:border-gray-300;
+    }
+
+    .order-card {
+        @apply bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden hover:shadow-md transition-shadow duration-200;
     }
 </style>
 {% endblock %}
 
 {% block content %}
-<div class="mt-8 fade-in">
-    <h2 class="text-2xl font-bold mb-6">Shopping History</h2>
-    
-    <!-- Payment Status Messages -->
-    <div id="paymentStatusMessages" class="mb-4">
-        <!-- Messages will be shown here based on URL params -->
-    </div>
-    
-    <!-- Filters -->
-    <div class="mb-6 bg-white p-4 rounded-lg shadow">
-        <div class="flex flex-wrap gap-4 items-center">
-            <label class="font-medium">Filter by Status:</label>
-            <button onclick="filterOrders('all')" id="filterAll" class="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600">
-                All
-            </button>
-            <button onclick="filterOrders('pending')" id="filterPending" class="px-4 py-2 bg-yellow-500 text-white rounded hover:bg-yellow-600">
-                Pending
-            </button>
-            <button onclick="filterOrders('paid')" id="filterSuccess" class="px-4 py-2 bg-green-500 text-white rounded hover:bg-green-600">
-                Success (Paid)
-            </button>
-            <button onclick="filterOrders('cancelled')" id="filterCancelled" class="px-4 py-2 bg-gray-500 text-white rounded hover:bg-gray-600">
-                Cancelled
-            </button>
-            <button onclick="filterOrders('failed')" id="filterFailed" class="px-4 py-2 bg-red-500 text-white rounded hover:bg-red-600">
-                Failed
-            </button>
+<div class="bg-gray-50 min-h-screen py-10">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+
+        <!-- Header -->
+        <div class="mb-8 md:flex md:items-center md:justify-between">
+            <div class="flex-1 min-w-0">
+                <h1 class="text-3xl font-extrabold text-gray-900 leading-tight">Shopping History</h1>
+                <p class="mt-2 text-sm text-gray-600">View and track your past and current marketplace orders.</p>
+            </div>
+            <div class="mt-4 md:mt-0 flex">
+                <a href="/shop"
+                    class="inline-flex items-center px-4 py-2 border border-transparent rounded-xl shadow-sm text-sm font-medium text-white bg-purple-600 hover:bg-purple-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-purple-500 transition-colors">
+                    <svg class="-ml-1 mr-2 h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                            d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z"></path>
+                    </svg>
+                    Continue Shopping
+                </a>
+            </div>
         </div>
-    </div>
-    
-    <!-- Orders List -->
-    <div id="ordersList" class="space-y-4">
-        <div class="text-center py-8 text-gray-600">Loading orders...</div>
-    </div>
-    
-    <!-- Empty State -->
-    <div id="emptyState" class="hidden text-center py-12">
-        <svg class="mx-auto h-24 w-24 text-gray-400 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z"></path>
-        </svg>
-        <p class="text-xl text-gray-600 mb-2">No orders found</p>
-        <a href="/shop" class="inline-block bg-blue-500 text-white px-6 py-2 rounded hover:bg-blue-600 mt-4">
-            Start Shopping
-        </a>
+
+        <!-- Payment Status Messages -->
+        <div id="paymentStatusMessages" class="mb-6"></div>
+
+        <!-- Filters -->
+        <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-4 mb-8">
+            <div class="flex flex-wrap gap-2" role="group">
+                <button onclick="filterOrders('all')" id="filterAll" class="filter-btn active">All Orders</button>
+                <button onclick="filterOrders('pending')" id="filterPending"
+                    class="filter-btn inactive">Pending</button>
+                <button onclick="filterOrders('paid')" id="filterSuccess" class="filter-btn inactive">Completed</button>
+                <button onclick="filterOrders('cancelled')" id="filterCancelled"
+                    class="filter-btn inactive">Cancelled</button>
+            </div>
+        </div>
+
+        <!-- Orders List -->
+        <div id="ordersList" class="space-y-6">
+            <div class="py-12 flex flex-col items-center justify-center text-gray-500">
+                <svg class="animate-spin h-10 w-10 text-purple-600 mb-4" xmlns="http://www.w3.org/2000/svg" fill="none"
+                    viewBox="0 0 24 24">
+                    <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                    <path class="opacity-75" fill="currentColor"
+                        d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z">
+                    </path>
+                </svg>
+                <p>Loading your orders...</p>
+            </div>
+        </div>
+
+        <!-- Empty State -->
+        <div id="emptyState"
+            class="hidden flex flex-col items-center justify-center py-20 bg-white rounded-2xl shadow-sm border border-gray-100 text-center">
+            <div class="w-24 h-24 bg-purple-50 rounded-full flex items-center justify-center mb-6">
+                <svg class="h-12 w-12 text-purple-200" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                        d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z"></path>
+                </svg>
+            </div>
+            <h3 class="text-xl font-bold text-gray-900 mb-2">No orders found</h3>
+            <p class="text-gray-500 mb-8 max-w-sm mx-auto">It looks like you haven't placed any orders yet. Explore our
+                marketplace to find great products!</p>
+            <a href="/shop"
+                class="inline-flex items-center px-6 py-3 border border-transparent text-base font-bold rounded-xl shadow-sm text-white bg-purple-600 hover:bg-purple-700 transition-colors">
+                Start Shopping
+            </a>
+        </div>
     </div>
 </div>
 
 <script>
-let allOrders = [];
-let currentFilter = 'all';
+    let allOrders = [];
+    let currentFilter = 'all';
 
-document.addEventListener('DOMContentLoaded', function() {
-    checkPaymentStatus();
-    loadOrders();
-});
-
-function checkPaymentStatus() {
-    const urlParams = new URLSearchParams(window.location.search);
-    const paymentStatus = urlParams.get('payment');
-    const messagesDiv = document.getElementById('paymentStatusMessages');
-    
-    if (paymentStatus === 'success') {
-        messagesDiv.innerHTML = '<div class="bg-green-100 border-l-4 border-green-500 text-green-700 p-4 rounded mb-4">Payment successful! Your order has been completed.</div>';
-        // Remove payment param from URL
-        window.history.replaceState({}, document.title, window.location.pathname);
-    } else if (paymentStatus === 'cancelled') {
-        messagesDiv.innerHTML = '<div class="bg-yellow-100 border-l-4 border-yellow-500 text-yellow-700 p-4 rounded mb-4">Payment was cancelled. You can complete the order from the pending orders section.</div>';
-        window.history.replaceState({}, document.title, window.location.pathname);
-    } else if (paymentStatus === 'error') {
-        messagesDiv.innerHTML = '<div class="bg-red-100 border-l-4 border-red-500 text-red-700 p-4 rounded mb-4">Payment failed. Please try again or contact support.</div>';
-        window.history.replaceState({}, document.title, window.location.pathname);
-    } else {
-        messagesDiv.innerHTML = '';
-    }
-}
-
-async function loadOrders() {
-    const token = localStorage.getItem('token');
-    if (!token) {
-        window.location.href = '/login?redirect=/shopping-history';
-        return;
-    }
-    
-    try {
-        const response = await fetch('/api/shop/orders', {
-            headers: {
-                'Authorization': `Bearer ${token}`
-            }
-        });
-        
-        const result = await response.json();
-        if (result.success) {
-            allOrders = result.data.orders;
-            applyFilter();
-        } else {
-            document.getElementById('ordersList').innerHTML = '<div class="text-center py-8 text-red-600">Error loading orders</div>';
-        }
-    } catch (error) {
-        console.error('Error loading orders:', error);
-        document.getElementById('ordersList').innerHTML = '<div class="text-center py-8 text-red-600">Error loading orders</div>';
-    }
-}
-
-function filterOrders(status) {
-    currentFilter = status;
-    applyFilter();
-    updateFilterButtons();
-}
-
-function updateFilterButtons() {
-    // Reset all buttons
-    document.querySelectorAll('[id^="filter"]').forEach(btn => {
-        btn.classList.remove('ring-2', 'ring-offset-2', 'ring-gray-800');
+    document.addEventListener('DOMContentLoaded', function () {
+        checkPaymentStatus();
+        loadOrders();
     });
-    
-    // Highlight active filter
-    const activeBtn = document.getElementById('filter' + (currentFilter.charAt(0).toUpperCase() + currentFilter.slice(1)));
-    if (activeBtn) {
-        activeBtn.classList.add('ring-2', 'ring-offset-2', 'ring-gray-800');
-    }
-}
 
-function applyFilter() {
-    let filteredOrders = allOrders;
-    
-    if (currentFilter === 'pending') {
-        filteredOrders = allOrders.filter(o => o.status === 'pending');
-    } else if (currentFilter === 'paid' || currentFilter === 'success') {
-        filteredOrders = allOrders.filter(o => o.status === 'paid');
-    } else if (currentFilter === 'cancelled') {
-        filteredOrders = allOrders.filter(o => o.status === 'cancelled');
-    } else if (currentFilter === 'failed') {
-        // Filter for orders with failed payment (pending status with payment_id indicates attempted but failed payment)
-        filteredOrders = allOrders.filter(o => o.status === 'pending' && o.payment_id);
-    }
-    
-    displayOrders(filteredOrders);
-}
+    function checkPaymentStatus() {
+        const urlParams = new URLSearchParams(window.location.search);
+        const paymentStatus = urlParams.get('payment');
+        const messagesDiv = document.getElementById('paymentStatusMessages');
 
-function displayOrders(orders) {
-    const ordersList = document.getElementById('ordersList');
-    const emptyState = document.getElementById('emptyState');
-    
-    if (orders.length === 0) {
-        ordersList.innerHTML = '';
-        emptyState.classList.remove('hidden');
-        return;
-    }
-    
-    emptyState.classList.add('hidden');
-    
-    ordersList.innerHTML = orders.map(order => {
-        const statusColors = {
-            'pending': 'bg-yellow-100 text-yellow-800',
-            'paid': 'bg-green-100 text-green-800',
-            'shipped': 'bg-blue-100 text-blue-800',
-            'delivered': 'bg-purple-100 text-purple-800',
-            'cancelled': 'bg-gray-100 text-gray-800'
-        };
-        
-        const statusColor = statusColors[order.status] || 'bg-gray-100 text-gray-800';
-        const placedDate = new Date(order.placed_at).toLocaleDateString('en-ZA', {
-            year: 'numeric',
-            month: 'long',
-            day: 'numeric',
-            hour: '2-digit',
-            minute: '2-digit'
-        });
-        
-        // Get delivery address
-        let deliveryAddress = 'N/A';
-        if (order.shipping && order.shipping.delivery_address) {
-            const addr = order.shipping.delivery_address;
-            const parts = [];
-            if (addr.unit_number) parts.push(addr.unit_number);
-            if (addr.building_name) parts.push(addr.building_name);
-            if (addr.street_address) parts.push(addr.street_address);
-            if (addr.city) parts.push(addr.city);
-            deliveryAddress = parts.join(', ') || 'N/A';
-        }
-        
-        // Format items
-        const itemsList = (order.items || []).map(item => 
-            `${item.product_name} x${item.quantity} (R${parseFloat(item.price).toFixed(2)} each)`
-        ).join(', ');
-        
-        return `
-            <div class="bg-white rounded-lg shadow p-6">
-                <div class="flex justify-between items-start mb-4">
-                    <div>
-                        <h3 class="text-lg font-semibold">Order ${order.id}</h3>
-                        <p class="text-sm text-gray-600">Placed on ${placedDate}</p>
-                    </div>
-                    <div class="text-right">
-                        <span class="px-3 py-1 rounded-full text-sm font-medium ${statusColor}">
-                            ${order.status.charAt(0).toUpperCase() + order.status.slice(1)}
-                        </span>
-                        <p class="text-lg font-bold mt-2">R${parseFloat(order.total).toFixed(2)}</p>
-                    </div>
+        if (paymentStatus === 'success') {
+            messagesDiv.innerHTML = `
+            <div class="bg-green-50 border border-green-200 text-green-800 px-4 py-4 rounded-xl flex items-start shadow-sm fade-in">
+                <svg class="w-6 h-6 mr-3 text-green-500 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+                <div>
+                    <h4 class="font-bold">Payment Successful!</h4>
+                    <p class="text-sm mt-1">Your order has been confirmed and responsible parties notified.</p>
                 </div>
-                
-                <div class="border-t pt-4 space-y-2">
-                    <div>
-                        <span class="font-medium">Items:</span>
-                        <p class="text-gray-600 text-sm mt-1">${itemsList || 'No items'}</p>
-                    </div>
-                    <div>
-                        <span class="font-medium">Delivery Address:</span>
-                        <p class="text-gray-600 text-sm mt-1">${deliveryAddress}</p>
-                    </div>
-                    ${order.payment_id ? `
-                    <div>
-                        <span class="font-medium">Payment ID:</span>
-                        <p class="text-gray-600 text-sm mt-1">${order.payment_id}</p>
-                    </div>
-                    ` : ''}
+            </div>`;
+            window.history.replaceState({}, document.title, window.location.pathname);
+        } else if (paymentStatus === 'cancelled') {
+            messagesDiv.innerHTML = `
+            <div class="bg-yellow-50 border border-yellow-200 text-yellow-800 px-4 py-4 rounded-xl flex items-start shadow-sm fade-in">
+                <svg class="w-6 h-6 mr-3 text-yellow-500 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path></svg>
+                 <div>
+                    <h4 class="font-bold">Payment Cancelled</h4>
+                    <p class="text-sm mt-1">The payment process was not completed. You can try again from your order list.</p>
                 </div>
-                
-                ${order.status === 'pending' ? `
-                <div class="border-t pt-4 mt-4 flex justify-end">
-                    <button onclick="completeOrder('${order.id}')" class="bg-green-500 text-white px-6 py-2 rounded hover:bg-green-600">
-                        Complete Order
-                    </button>
+            </div>`;
+            window.history.replaceState({}, document.title, window.location.pathname);
+        } else if (paymentStatus === 'error') {
+            messagesDiv.innerHTML = `
+            <div class="bg-red-50 border border-red-200 text-red-800 px-4 py-4 rounded-xl flex items-start shadow-sm fade-in">
+                <svg class="w-6 h-6 mr-3 text-red-500 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+                 <div>
+                    <h4 class="font-bold">Payment Failed</h4>
+                    <p class="text-sm mt-1">An error occurred while processing your payment. Please try again or contact support.</p>
                 </div>
-                ` : ''}
-            </div>
-        `;
-    }).join('');
-}
-
-async function completeOrder(orderId) {
-    if (!confirm('You will be redirected to complete payment for this order. Continue?')) {
-        return;
-    }
-    
-    const token = localStorage.getItem('token');
-    if (!token) {
-        window.location.href = '/login';
-        return;
-    }
-    
-    try {
-        // Initiate Yoco checkout payment
-        const response = await fetch(`/api/shop/orders/${orderId}/pay`, {
-            method: 'POST',
-            headers: {
-                'Authorization': `Bearer ${token}`
-            }
-        });
-        
-        const result = await response.json();
-        
-        if (result.success && result.data.redirect_url) {
-            // Redirect to Yoco checkout
-            window.location.href = result.data.redirect_url;
+            </div>`;
+            window.history.replaceState({}, document.title, window.location.pathname);
         } else {
-            alert('Error: ' + (result.error?.message || 'Failed to initiate payment'));
+            messagesDiv.innerHTML = '';
         }
-    } catch (error) {
-        console.error('Error initiating payment:', error);
-        alert('Error initiating payment: ' + error.message);
     }
-}
+
+    async function loadOrders() {
+        const token = localStorage.getItem('token');
+        if (!token) {
+            window.location.href = '/login?redirect=/shopping-history';
+            return;
+        }
+
+        try {
+            const response = await fetch('/api/shop/orders', {
+                headers: { 'Authorization': `Bearer ${token}` }
+            });
+            const result = await response.json();
+            if (result.success) {
+                allOrders = result.data.orders;
+                applyFilter();
+            } else {
+                throw new Error(result.error?.message || 'Failed to load');
+            }
+        } catch (error) {
+            console.error('Error loading orders:', error);
+            document.getElementById('ordersList').innerHTML =
+                '<div class="text-center py-12 text-red-600 bg-red-50 rounded-xl border border-red-100">Error loading orders. Please refresh the page.</div>';
+        }
+    }
+
+    function filterOrders(status) {
+        currentFilter = status;
+        applyFilter();
+        updateFilterButtons();
+    }
+
+    function updateFilterButtons() {
+        const buttons = {
+            'all': document.getElementById('filterAll'),
+            'pending': document.getElementById('filterPending'),
+            'paid': document.getElementById('filterSuccess'),
+            'cancelled': document.getElementById('filterCancelled')
+        };
+
+        // Reset
+        Object.values(buttons).forEach(btn => {
+            if (btn) btn.className = "filter-btn inactive";
+        });
+
+        // Set Active
+        const key = currentFilter === 'success' ? 'paid' : currentFilter;
+        const activeBtn = buttons[key] || buttons['all'];
+        if (activeBtn) activeBtn.className = "filter-btn active";
+    }
+
+    function applyFilter() {
+        let filtered = allOrders;
+        if (currentFilter === 'pending') filtered = allOrders.filter(o => o.status === 'pending');
+        else if (currentFilter === 'paid' || currentFilter === 'success') filtered = allOrders.filter(o => o.status === 'paid' || o.status === 'shipped' || o.status === 'delivered');
+        else if (currentFilter === 'cancelled') filtered = allOrders.filter(o => o.status === 'cancelled');
+
+        displayOrders(filtered);
+    }
+
+    function displayOrders(orders) {
+        const listContainer = document.getElementById('ordersList');
+        const emptyState = document.getElementById('emptyState');
+
+        if (orders.length === 0) {
+            listContainer.innerHTML = '';
+            listContainer.classList.add('hidden');
+            emptyState.classList.remove('hidden');
+            return;
+        }
+
+        emptyState.classList.add('hidden');
+        listContainer.classList.remove('hidden');
+
+        listContainer.innerHTML = orders.map(order => {
+            const statusConfig = {
+                'pending': { label: 'Pending Payment', bg: 'bg-yellow-100', text: 'text-yellow-800', iconPath: 'M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z' },
+                'paid': { label: 'Paid', bg: 'bg-green-100', text: 'text-green-800', iconPath: 'M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z' },
+                'shipped': { label: 'Shipped', bg: 'bg-blue-100', text: 'text-blue-800', iconPath: 'M5 8h14M5 8a2 2 0 110-4h14a2 2 0 110 4M5 8v10a2 2 0 002 2h10a2 2 0 002-2V8m-9 4h4' },
+                'delivered': { label: 'Delivered', bg: 'bg-purple-100', text: 'text-purple-800', iconPath: 'M5 13l4 4L19 7' },
+                'cancelled': { label: 'Cancelled', bg: 'bg-gray-100', text: 'text-gray-800', iconPath: 'M6 18L18 6M6 6l12 12' }
+            };
+
+            const config = statusConfig[order.status] || statusConfig['pending'];
+            const date = new Date(order.placed_at).toLocaleDateString('en-ZA', { year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
+
+            // Items
+            const items = order.items || [];
+            const itemCount = items.reduce((s, i) => s + i.quantity, 0);
+            const itemPreview = items.slice(0, 3).map(i => `<span class="inline-block bg-gray-100 px-2 py-1 rounded text-xs text-gray-700 mr-2 mb-1">${i.quantity}x ${i.product_name}</span>`).join('');
+            const moreItems = items.length > 3 ? `<span class="text-xs text-gray-500">+${items.length - 3} more</span>` : '';
+
+            return `
+            <div class="order-card group">
+                <div class="p-6">
+                    <div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-6">
+                        <div class="flex items-center gap-4">
+                            <div class="w-12 h-12 rounded-full ${config.bg} flex items-center justify-center flex-shrink-0">
+                                <svg class="w-6 h-6 ${config.text}" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="${config.iconPath}"></path>
+                                </svg>
+                            </div>
+                            <div>
+                                <h3 class="text-lg font-bold text-gray-900">Order #${order.id.slice(0, 8)}</h3>
+                                <p class="text-sm text-gray-500">${date}</p>
+                            </div>
+                        </div>
+                        <div class="flex flex-col items-end">
+                            <span class="text-2xl font-bold text-gray-900">R${parseFloat(order.total).toFixed(2)}</span>
+                            <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-bold uppercase tracking-wide ${config.bg} ${config.text} mt-1">
+                                ${config.label}
+                            </span>
+                        </div>
+                    </div>
+                    
+                    <div class="bg-gray-50 rounded-xl p-4 mb-6">
+                        <p class="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">Items (${itemCount})</p>
+                        <div class="flex flex-wrap items-center">
+                            ${itemPreview} ${moreItems}
+                        </div>
+                    </div>
+                    
+                    <div class="flex justify-end gap-3">
+                         <a href="/order/${order.id}" class="px-4 py-2 bg-white border border-gray-300 text-gray-700 rounded-lg text-sm font-medium hover:bg-gray-50 transition-colors shadow-sm">
+                            View Details
+                        </a>
+                        ${order.status === 'pending' ? `
+                            <button onclick="completeOrder(event, '${order.id}')" class="px-6 py-2 bg-green-600 text-white rounded-lg text-sm font-bold hover:bg-green-700 shadow-sm transition-colors flex items-center">
+                                Pay Now
+                            </button>
+                        ` : ''}
+                    </div>
+                </div>
+            </div>
+            `;
+        }).join('');
+    }
+
+    async function completeOrder(event, orderId) {
+        const btn = event.currentTarget; // Safer than event.target
+        const originalContent = btn.innerHTML;
+        const originalWidth = btn.offsetWidth;
+
+        btn.style.width = `${originalWidth}px`; // Prevent resizing
+        btn.disabled = true;
+        btn.innerHTML = '<svg class="animate-spin h-5 w-5 text-white mx-auto" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>';
+
+        const token = localStorage.getItem('token');
+        try {
+            const response = await fetch(`/api/shop/orders/${orderId}/pay`, {
+                method: 'POST',
+                headers: { 'Authorization': `Bearer ${token}` }
+            });
+            const result = await response.json();
+
+            if (result.success && result.data.redirect_url) {
+                window.location.href = result.data.redirect_url;
+            } else {
+                throw new Error(result.error?.message || 'Payment initiation failed');
+            }
+        } catch (error) {
+            alert(error.message);
+            btn.innerHTML = originalContent;
+            btn.style.width = '';
+            btn.disabled = false;
+        }
+    }
 </script>
 {% endblock %}

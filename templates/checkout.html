@@ -3,123 +3,213 @@
 {% block title %}Checkout - MzansiServe{% endblock %}
 
 {% block content %}
-<div class="mt-8">
-    <h2 class="text-2xl font-bold mb-6">Checkout</h2>
-    
-    <div id="checkoutLoading" class="text-center py-12">
-        <p class="text-gray-600">Loading checkout...</p>
-    </div>
-    
-    <div id="checkoutContent" class="hidden">
-        <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
-            <!-- Order Summary & Delivery Address -->
-            <div class="lg:col-span-2 space-y-6">
-                <!-- Delivery Address Selection -->
-                <div class="bg-white rounded-lg shadow p-6">
-                    <h3 class="text-xl font-bold mb-4">Delivery Address</h3>
-                    
-                    <div id="addressList" class="space-y-3 mb-4">
-                        <!-- Addresses will be loaded here -->
+<div class="bg-gray-50 min-h-screen py-12">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+
+        <!-- Step Wizard -->
+        <div class="mb-12">
+            <div class="flex items-center justify-center space-x-4 sm:space-x-12">
+                <div class="flex flex-col items-center">
+                    <div
+                        class="w-10 h-10 bg-purple-600 text-white rounded-full flex items-center justify-center font-bold shadow-lg ring-4 ring-purple-50">
+                        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7">
+                            </path>
+                        </svg>
                     </div>
-                    
-                    <button onclick="showAddAddressForm()" class="text-blue-600 hover:text-blue-800 text-sm">
-                        + Add New Address
-                    </button>
-                    
-                    <!-- Add/Edit Address Form -->
-                    <div id="addressForm" class="hidden mt-4 p-4 bg-gray-50 rounded">
-                        <h4 class="font-semibold mb-3" id="addressFormTitle">Add New Address</h4>
-                        <form id="addressFormElement" onsubmit="saveAddress(event)" class="space-y-3">
-                            <input type="hidden" id="addressFormId" value="">
-                            
-                            <div>
-                                <label class="block text-sm font-medium mb-1">Unit/Apartment Number (optional)</label>
-                                <input type="text" id="addressUnitNumber" class="w-full px-3 py-2 border rounded-md">
-                            </div>
-                            
-                            <div>
-                                <label class="block text-sm font-medium mb-1">Building Name (optional)</label>
-                                <input type="text" id="addressBuildingName" class="w-full px-3 py-2 border rounded-md">
-                            </div>
-                            
-                            <div>
-                                <label class="block text-sm font-medium mb-1">Street Address *</label>
-                                <input type="text" id="addressStreet" required class="w-full px-3 py-2 border rounded-md">
-                            </div>
-                            
-                            <div class="grid grid-cols-2 gap-3">
-                                <div>
-                                    <label class="block text-sm font-medium mb-1">City *</label>
-                                    <input type="text" id="addressCity" required class="w-full px-3 py-2 border rounded-md">
-                                </div>
-                                <div>
-                                    <label class="block text-sm font-medium mb-1">Province *</label>
-                                    <input type="text" id="addressProvince" required class="w-full px-3 py-2 border rounded-md">
-                                </div>
-                            </div>
-                            
-                            <div>
-                                <label class="block text-sm font-medium mb-1">Postal Code *</label>
-                                <input type="text" id="addressPostalCode" required class="w-full px-3 py-2 border rounded-md">
-                            </div>
-                            
-                            <div>
-                                <label class="block text-sm font-medium mb-1">Country *</label>
-                                <input type="text" id="addressCountry" value="South Africa" required class="w-full px-3 py-2 border rounded-md">
-                            </div>
-                            
-                            <div>
-                                <label class="block text-sm font-medium mb-1">Delivery Instructions (optional)</label>
-                                <textarea id="addressInstructions" rows="2" class="w-full px-3 py-2 border rounded-md"></textarea>
-                            </div>
-                            
-                            <div class="flex items-center">
-                                <input type="checkbox" id="addressIsDefault" class="mr-2">
-                                <label for="addressIsDefault" class="text-sm">Set as default address</label>
-                            </div>
-                            
-                            <div class="flex space-x-3">
-                                <button type="submit" class="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600">
-                                    Save Address
-                                </button>
-                                <button type="button" onclick="hideAddressForm()" class="bg-gray-300 text-gray-700 px-4 py-2 rounded hover:bg-gray-400">
-                                    Cancel
-                                </button>
-                            </div>
-                        </form>
-                    </div>
+                    <span class="mt-2 text-sm font-semibold text-purple-900">Cart</span>
+                </div>
+                <div class="w-12 sm:w-24 h-1 bg-purple-600 rounded-full"></div>
+                <div class="flex flex-col items-center">
+                    <div
+                        class="w-10 h-10 bg-purple-600 text-white rounded-full flex items-center justify-center font-bold shadow-lg ring-4 ring-purple-50">
+                        2</div>
+                    <span class="mt-2 text-sm font-bold text-purple-900">Checkout</span>
+                </div>
+                <div class="w-12 sm:w-24 h-1 bg-gray-200 rounded-full"></div>
+                <div class="flex flex-col items-center">
+                    <div
+                        class="w-10 h-10 bg-gray-200 text-gray-500 rounded-full flex items-center justify-center font-bold">
+                        3</div>
+                    <span class="mt-2 text-sm font-medium text-gray-500">Payment</span>
                 </div>
             </div>
-            
-            <!-- Order Summary -->
-            <div class="lg:col-span-1">
-                <div class="bg-white rounded-lg shadow p-6 sticky top-4">
-                    <h3 class="text-xl font-bold mb-4">Order Summary</h3>
-                    
-                    <div id="orderItems" class="mb-4 space-y-2">
-                        <!-- Items will be loaded here -->
-                    </div>
-                    
-                    <div class="border-t pt-4 space-y-2">
-                        <div class="flex justify-between text-gray-600">
-                            <span>Subtotal</span>
-                            <span id="orderSubtotal">R0.00</span>
+        </div>
+
+        <div id="checkoutLoading" class="text-center py-24">
+            <div class="inline-block animate-spin rounded-full h-8 w-8 border-4 border-purple-500 border-t-transparent">
+            </div>
+            <p class="mt-4 text-gray-500">Preparing checkout...</p>
+        </div>
+
+        <div id="checkoutContent" class="hidden">
+            <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+                <!-- Delivery Info & Address -->
+                <div class="lg:col-span-2 space-y-6">
+                    <div class="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
+                        <div class="bg-gray-50 px-6 py-4 border-b border-gray-100">
+                            <h3 class="text-lg font-bold text-gray-900 flex items-center">
+                                <svg class="w-5 h-5 mr-2 text-purple-600" fill="none" stroke="currentColor"
+                                    viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                        d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z">
+                                    </path>
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                        d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"></path>
+                                </svg>
+                                Delivery Address
+                            </h3>
                         </div>
-                        <div class="flex justify-between text-gray-600">
-                            <span>Shipping</span>
-                            <span id="orderShipping">R0.00</span>
-                        </div>
-                        <div class="border-t pt-2 mt-2">
-                            <div class="flex justify-between text-lg font-bold">
-                                <span>Total</span>
-                                <span id="orderTotal">R0.00</span>
+
+                        <div class="p-6">
+                            <div id="addressList" class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
+                                <!-- Addresses will be loaded here -->
+                            </div>
+
+                            <button onclick="showAddAddressForm()"
+                                class="inline-flex items-center text-sm font-medium text-purple-600 hover:text-purple-800 transition-colors">
+                                <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                        d="M12 6v6m0 0v6m0-6h6m-6 0H6"></path>
+                                </svg>
+                                Add New Address
+                            </button>
+
+                            <!-- Add/Edit Address Form -->
+                            <div id="addressForm" class="hidden mt-6 bg-gray-50 rounded-xl p-6 border border-gray-200">
+                                <div class="flex justify-between items-center mb-4">
+                                    <h4 class="font-bold text-gray-900" id="addressFormTitle">Add New Address</h4>
+                                    <button onclick="hideAddressForm()" class="text-gray-400 hover:text-gray-600">
+                                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                                d="M6 18L18 6M6 6l12 12"></path>
+                                        </svg>
+                                    </button>
+                                </div>
+                                <form id="addressFormElement" onsubmit="saveAddress(event)" class="space-y-4">
+                                    <input type="hidden" id="addressFormId" value="">
+
+                                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                        <div>
+                                            <label
+                                                class="block text-sm font-medium text-gray-700 mb-1">Unit/Apartment</label>
+                                            <input type="text" id="addressUnitNumber"
+                                                class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-purple-500 focus:border-purple-500">
+                                        </div>
+                                        <div>
+                                            <label class="block text-sm font-medium text-gray-700 mb-1">Building
+                                                Name</label>
+                                            <input type="text" id="addressBuildingName"
+                                                class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-purple-500 focus:border-purple-500">
+                                        </div>
+                                    </div>
+
+                                    <div>
+                                        <label class="block text-sm font-medium text-gray-700 mb-1">Street Address
+                                            *</label>
+                                        <input type="text" id="addressStreet" required
+                                            class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-purple-500 focus:border-purple-500">
+                                    </div>
+
+                                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                        <div>
+                                            <label class="block text-sm font-medium text-gray-700 mb-1">City *</label>
+                                            <input type="text" id="addressCity" required
+                                                class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-purple-500 focus:border-purple-500">
+                                        </div>
+                                        <div>
+                                            <label class="block text-sm font-medium text-gray-700 mb-1">Province
+                                                *</label>
+                                            <input type="text" id="addressProvince" required
+                                                class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-purple-500 focus:border-purple-500">
+                                        </div>
+                                    </div>
+
+                                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                        <div>
+                                            <label class="block text-sm font-medium text-gray-700 mb-1">Postal Code
+                                                *</label>
+                                            <input type="text" id="addressPostalCode" required
+                                                class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-purple-500 focus:border-purple-500">
+                                        </div>
+                                        <div>
+                                            <label class="block text-sm font-medium text-gray-700 mb-1">Country
+                                                *</label>
+                                            <input type="text" id="addressCountry" value="South Africa" required
+                                                class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-purple-500 focus:border-purple-500 bg-gray-50"
+                                                readonly>
+                                        </div>
+                                    </div>
+
+                                    <div>
+                                        <label class="block text-sm font-medium text-gray-700 mb-1">Delivery
+                                            Instructions</label>
+                                        <textarea id="addressInstructions" rows="2"
+                                            class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-purple-500 focus:border-purple-500"
+                                            placeholder="e.g. Leave at reception"></textarea>
+                                    </div>
+
+                                    <div class="flex items-center">
+                                        <input type="checkbox" id="addressIsDefault"
+                                            class="h-4 w-4 text-purple-600 focus:ring-purple-500 border-gray-300 rounded">
+                                        <label for="addressIsDefault" class="ml-2 block text-sm text-gray-900">Set as
+                                            default address</label>
+                                    </div>
+
+                                    <div class="flex justify-end space-x-3 pt-2">
+                                        <button type="button" onclick="hideAddressForm()"
+                                            class="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50">
+                                            Cancel
+                                        </button>
+                                        <button type="submit"
+                                            class="px-4 py-2 text-sm font-medium text-white bg-purple-600 border border-transparent rounded-lg hover:bg-purple-700 shadow-sm">
+                                            Save Address
+                                        </button>
+                                    </div>
+                                </form>
                             </div>
                         </div>
                     </div>
-                    
-                    <button id="placeOrderBtn" onclick="placeOrder()" class="w-full bg-green-500 text-white py-3 rounded hover:bg-green-600 font-semibold mt-4">
-                        Place Order
-                    </button>
+                </div>
+
+                <!-- Order Summary -->
+                <div class="lg:col-span-1">
+                    <div class="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 sticky top-8">
+                        <h3 class="text-lg font-bold text-gray-900 mb-4">Order Summary</h3>
+
+                        <div id="orderItems" class="space-y-3 mb-6 max-h-60 overflow-y-auto custom-scrollbar pr-2">
+                            <!-- Items will be loaded here -->
+                        </div>
+
+                        <div class="border-t border-gray-100 pt-4 space-y-3">
+                            <div class="flex justify-between text-gray-600">
+                                <span>Subtotal</span>
+                                <span id="orderSubtotal" class="font-medium">R0.00</span>
+                            </div>
+                            <div class="flex justify-between text-gray-600">
+                                <span>Shipping</span>
+                                <span id="orderShipping" class="font-medium text-green-600">Free</span>
+                            </div>
+                            <div class="border-t border-gray-100 pt-4 mt-2">
+                                <div class="flex justify-between items-center">
+                                    <span class="text-base font-bold text-gray-900">Total</span>
+                                    <span id="orderTotal" class="text-2xl font-extrabold text-purple-600">R0.00</span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <button id="placeOrderBtn" onclick="placeOrder()"
+                            class="w-full bg-green-600 text-white py-4 rounded-xl font-bold hover:bg-green-700 focus:outline-none focus:ring-4 focus:ring-green-200 shadow-lg transition-all transform hover:-translate-y-0.5 mt-6 flex items-center justify-center">
+                            Place Order & Pay with
+                            <img src="https://upload.wikimedia.org/wikipedia/commons/thumb/1/15/Yoco_Logo.svg/1024px-Yoco_Logo.svg.png"
+                                alt="Yoco" class="h-5 ml-2 bg-white rounded px-1">
+                        </button>
+
+                        <p class="text-xs text-center text-gray-400 mt-4">
+                            By placing an order you agree to our <a href="/terms"
+                                class="text-purple-600 hover:underline">Terms of Service</a>
+                        </p>
+                    </div>
                 </div>
             </div>
         </div>
@@ -127,323 +217,324 @@
 </div>
 
 <script>
-let selectedAddressId = null;
-let addresses = [];
-let editingAddressId = null;
+    let selectedAddressId = null;
+    let addresses = [];
+    let editingAddressId = null;
 
-document.addEventListener('DOMContentLoaded', function() {
-    loadCheckout();
-});
+    document.addEventListener('DOMContentLoaded', function () {
+        loadCheckout();
+    });
 
-async function loadCheckout() {
-    const token = localStorage.getItem('token');
-    if (!token) {
-        window.location.href = '/login?redirect=/checkout';
-        return;
-    }
-    
-    const cart = getCart();
-    if (cart.length === 0) {
-        alert('Your cart is empty');
-        window.location.href = '/cart';
-        return;
-    }
-    
-    // Load addresses
-    await loadAddresses();
-    
-    // Load order summary
-    loadOrderSummary(cart);
-    
-    document.getElementById('checkoutLoading').classList.add('hidden');
-    document.getElementById('checkoutContent').classList.remove('hidden');
-}
-
-async function loadAddresses() {
-    const token = localStorage.getItem('token');
-    try {
-        const response = await fetch('/api/addresses', {
-            headers: {
-                'Authorization': `Bearer ${token}`
-            }
-        });
-        
-        const result = await response.json();
-        if (result.success) {
-            addresses = result.data.addresses;
-            renderAddresses();
+    async function loadCheckout() {
+        const token = localStorage.getItem('token');
+        if (!token) {
+            window.location.href = '/login?redirect=/checkout';
+            return;
         }
-    } catch (error) {
-        console.error('Error loading addresses:', error);
-    }
-}
 
-function renderAddresses() {
-    const addressList = document.getElementById('addressList');
+        const cart = getCart();
+        if (cart.length === 0) {
+            alert('Your cart is empty');
+            window.location.href = '/cart';
+            return;
+        }
 
-    if (addresses.length === 0) {
-        addressList.innerHTML = '<p class="text-gray-600 text-sm">No addresses found. Please add a delivery address.</p>';
-        return;
+        // Load addresses
+        await loadAddresses();
+
+        // Load order summary
+        loadOrderSummary(cart);
+
+        document.getElementById('checkoutLoading').classList.add('hidden');
+        document.getElementById('checkoutContent').classList.remove('hidden');
     }
-    
-    addressList.innerHTML = addresses.map(addr => {
-        const isSelected = selectedAddressId === addr.id;
-        return `
-            <div class="border rounded p-3 cursor-pointer hover:border-blue-500 ${isSelected ? 'border-blue-500 bg-blue-50' : ''}" onclick="selectAddress('${addr.id}')">
+
+    async function loadAddresses() {
+        const token = localStorage.getItem('token');
+        try {
+            const response = await fetch('/api/addresses', {
+                headers: {
+                    'Authorization': `Bearer ${token}`
+                }
+            });
+
+            const result = await response.json();
+            if (result.success) {
+                addresses = result.data.addresses;
+                renderAddresses();
+            }
+        } catch (error) {
+            console.error('Error loading addresses:', error);
+        }
+    }
+
+    function renderAddresses() {
+        const addressList = document.getElementById('addressList');
+
+        if (addresses.length === 0) {
+            addressList.innerHTML = '<div class="col-span-full text-center py-6 text-gray-500 bg-gray-50 rounded-lg border border-dashed border-gray-300">No delivery addresses found. Please add one below.</div>';
+            return;
+        }
+
+        addressList.innerHTML = addresses.map(addr => {
+            const isSelected = selectedAddressId === addr.id;
+            return `
+            <div class="relative border-2 rounded-xl p-4 cursor-pointer transition-all duration-200 ${isSelected ? 'border-purple-600 bg-purple-50 ring-1 ring-purple-600' : 'border-gray-200 hover:border-purple-300 bg-white'}" onclick="selectAddress('${addr.id}')">
                 <div class="flex justify-between items-start">
                     <div class="flex-grow">
-                        ${addr.is_default ? '<span class="text-xs bg-blue-100 text-blue-800 px-2 py-1 rounded mb-2 inline-block">Default</span>' : ''}
-                        <p class="font-semibold">${formatAddress(addr)}</p>
+                        ${addr.is_default ? '<span class="text-xs font-bold bg-purple-100 text-purple-700 px-2 py-1 rounded mb-2 inline-block">Default</span>' : ''}
+                        <p class="font-bold text-gray-900 text-sm mb-1">${addr.street_address}</p>
+                        <p class="text-sm text-gray-600">${addr.city}, ${addr.province}</p>
+                        <p class="text-sm text-gray-600">${addr.postal_code}</p>
                     </div>
-                    <div class="ml-4 flex space-x-2">
-                        ${!addr.is_default ? `<button onclick="event.stopPropagation(); setDefaultAddress('${addr.id}')" class="text-xs text-blue-600 hover:text-blue-800">Set Default</button>` : ''}
-                        <button onclick="event.stopPropagation(); editAddress('${addr.id}')" class="text-xs text-gray-600 hover:text-gray-800">Edit</button>
+                    <div class="flex items-center space-x-1">
+                         <div class="h-5 w-5 rounded-full border border-gray-300 flex items-center justify-center ${isSelected ? 'border-purple-600' : ''}">
+                            ${isSelected ? '<div class="h-3 w-3 bg-purple-600 rounded-full"></div>' : ''}
+                        </div>
                     </div>
+                </div>
+                <div class="mt-3 pt-3 border-t border-gray-100 flex justify-end space-x-3">
+                    ${!addr.is_default ? `<button onclick="event.stopPropagation(); setDefaultAddress('${addr.id}')" class="text-xs text-gray-500 hover:text-purple-600">Set Default</button>` : ''}
+                    <button onclick="event.stopPropagation(); editAddress('${addr.id}')" class="text-xs text-purple-600 hover:text-purple-800 font-medium">Edit</button>
                 </div>
             </div>
         `;
-    }).join('');
-    
-    // Auto-select default address if none selected
-    if (!selectedAddressId) {
-        const defaultAddr = addresses.find(a => a.is_default);
-        if (defaultAddr) {
-            selectAddress(defaultAddr.id);
-        } else if (addresses.length > 0) {
-            selectAddress(addresses[0].id);
+        }).join('');
+
+        // Auto-select default address if none selected
+        if (!selectedAddressId) {
+            const defaultAddr = addresses.find(a => a.is_default);
+            if (defaultAddr) {
+                selectAddress(defaultAddr.id);
+            } else if (addresses.length > 0) {
+                selectAddress(addresses[0].id);
+            }
         }
     }
-}
 
-function formatAddress(addr) {
-    let parts = [];
-    if (addr.unit_number) parts.push(addr.unit_number);
-    if (addr.building_name) parts.push(addr.building_name);
-    parts.push(addr.street_address);
-    parts.push(addr.city);
-    parts.push(addr.province);
-    parts.push(addr.postal_code);
-    parts.push(addr.country);
-    return parts.join(', ');
-}
-
-function selectAddress(addressId) {
-    selectedAddressId = addressId;
-    renderAddresses();
-}
-
-
-function setDefaultAddress(addressId) {
-    const token = localStorage.getItem('token');
-    fetch(`/api/addresses/${addressId}/set-default`, {
-        method: 'PATCH',
-        headers: {
-            'Authorization': `Bearer ${token}`
-        }
-    })
-    .then(res => res.json())
-    .then(result => {
-        if (result.success) {
-            loadAddresses();
-        } else {
-            alert('Error: ' + (result.error?.message || 'Failed to set default address'));
-        }
-    })
-    .catch(error => {
-        console.error('Error setting default address:', error);
-        alert('Error setting default address');
-    });
-}
-
-function showAddAddressForm() {
-    editingAddressId = null;
-    document.getElementById('addressFormTitle').textContent = 'Add New Address';
-    document.getElementById('addressFormId').value = '';
-    document.getElementById('addressFormElement').reset();
-    document.getElementById('addressForm').classList.remove('hidden');
-}
-
-function hideAddressForm() {
-    document.getElementById('addressForm').classList.add('hidden');
-    editingAddressId = null;
-}
-
-function editAddress(addressId) {
-    const addr = addresses.find(a => a.id === addressId);
-    if (!addr) return;
-    
-    editingAddressId = addressId;
-    document.getElementById('addressFormTitle').textContent = 'Edit Address';
-    document.getElementById('addressFormId').value = addressId;
-    document.getElementById('addressUnitNumber').value = addr.unit_number || '';
-    document.getElementById('addressBuildingName').value = addr.building_name || '';
-    document.getElementById('addressStreet').value = addr.street_address || '';
-    document.getElementById('addressCity').value = addr.city || '';
-    document.getElementById('addressProvince').value = addr.province || '';
-    document.getElementById('addressPostalCode').value = addr.postal_code || '';
-    document.getElementById('addressCountry').value = addr.country || 'South Africa';
-    document.getElementById('addressInstructions').value = addr.delivery_instructions || '';
-    document.getElementById('addressIsDefault').checked = addr.is_default || false;
-    
-    document.getElementById('addressForm').classList.remove('hidden');
-}
-
-async function saveAddress(event) {
-    event.preventDefault();
-    
-    const token = localStorage.getItem('token');
-    const addressId = document.getElementById('addressFormId').value;
-    
-    const addressData = {
-        street_address: document.getElementById('addressStreet').value,
-        city: document.getElementById('addressCity').value,
-        province: document.getElementById('addressProvince').value,
-        postal_code: document.getElementById('addressPostalCode').value,
-        country: document.getElementById('addressCountry').value,
-        unit_number: document.getElementById('addressUnitNumber').value || null,
-        building_name: document.getElementById('addressBuildingName').value || null,
-        delivery_instructions: document.getElementById('addressInstructions').value || null,
-        is_default: document.getElementById('addressIsDefault').checked
-    };
-    
-    const url = addressId ? `/api/addresses/${addressId}` : '/api/addresses';
-    const method = addressId ? 'PATCH' : 'POST';
-    
-    try {
-        const response = await fetch(url, {
-            method: method,
-            headers: {
-                'Content-Type': 'application/json',
-                'Authorization': `Bearer ${token}`
-            },
-            body: JSON.stringify(addressData)
-        });
-        
-        const result = await response.json();
-        
-        if (result.success) {
-            hideAddressForm();
-            await loadAddresses();
-        } else {
-            alert('Error: ' + (result.error?.message || 'Failed to save address'));
-        }
-    } catch (error) {
-        console.error('Error saving address:', error);
-        alert('Error saving address: ' + error.message);
+    function selectAddress(addressId) {
+        selectedAddressId = addressId;
+        renderAddresses();
     }
-}
 
-function loadOrderSummary(cart) {
-    const itemsDiv = document.getElementById('orderItems');
-    itemsDiv.innerHTML = cart.map(item => {
-        const itemTotal = parseFloat(item.price) * item.quantity;
-        return `
-            <div class="flex justify-between text-sm">
-                <span>${item.name} x${item.quantity}</span>
-                <span>R${itemTotal.toFixed(2)}</span>
-            </div>
-        `;
-    }).join('');
-    
-    const subtotal = cart.reduce((sum, item) => sum + parseFloat(item.price) * item.quantity, 0);
-    const shipping = 0; // Free shipping for now
-    const total = subtotal + shipping;
-    
-    document.getElementById('orderSubtotal').textContent = `R${subtotal.toFixed(2)}`;
-    document.getElementById('orderShipping').textContent = `R${shipping.toFixed(2)}`;
-    document.getElementById('orderTotal').textContent = `R${total.toFixed(2)}`;
-}
 
-async function placeOrder() {
-    if (!selectedAddressId) {
-        alert('Please select a delivery address');
-        return;
-    }
-    
-    const token = localStorage.getItem('token');
-    const cart = getCart();
-    
-    const items = cart.map(item => ({
-        product_id: item.id,
-        product_name: item.name,
-        quantity: item.quantity,
-        price: parseFloat(item.price),
-        subtotal: parseFloat(item.price) * item.quantity
-    }));
-    
-    const subtotal = items.reduce((sum, item) => sum + item.subtotal, 0);
-    const shipping = 0;
-    const total = subtotal + shipping;
-    
-    const selectedAddress = addresses.find(a => a.id === selectedAddressId);
-    
-    try {
-        const btn = document.getElementById('placeOrderBtn');
-        btn.disabled = true;
-        btn.textContent = 'Processing...';
-        
-        // Step 1: Create order with pending status
-        const orderResponse = await fetch('/api/shop/orders', {
-            method: 'POST',
+    function setDefaultAddress(addressId) {
+        const token = localStorage.getItem('token');
+        fetch(`/api/addresses/${addressId}/set-default`, {
+            method: 'PATCH',
             headers: {
-                'Content-Type': 'application/json',
-                'Authorization': `Bearer ${token}`
-            },
-            body: JSON.stringify({
-                items: items,
-                total: total,
-                shipping: {
-                    method: 'standard',
-                    cost: shipping
-                },
-                delivery_address: selectedAddress
-            })
-        });
-        
-        const orderResult = await orderResponse.json();
-        
-        if (!orderResult.success) {
-            alert('Error: ' + (orderResult.error?.message || 'Failed to create order'));
-            btn.disabled = false;
-            btn.textContent = 'Place Order';
-            return;
-        }
-        
-        const orderId = orderResult.data.id;
-        
-        // Step 2: Initiate Yoco payment
-        btn.textContent = 'Redirecting to payment...';
-        
-        const paymentResponse = await fetch(`/api/shop/orders/${orderId}/pay`, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
                 'Authorization': `Bearer ${token}`
             }
-        });
-        
-        const paymentResult = await paymentResponse.json();
-        
-        if (paymentResult.success && paymentResult.data.redirect_url) {
-            // Clear cart before redirecting
-            saveCart([]);
-            updateCartIcon();
-            
-            // Redirect to Yoco checkout
-            window.location.href = paymentResult.data.redirect_url;
-        } else {
-            alert('Error: ' + (paymentResult.error?.message || 'Failed to initiate payment'));
-            btn.disabled = false;
-            btn.textContent = 'Place Order';
-        }
-    } catch (error) {
-        console.error('Error placing order:', error);
-        alert('Error placing order: ' + error.message);
-        const btn = document.getElementById('placeOrderBtn');
-        btn.disabled = false;
-        btn.textContent = 'Place Order';
+        })
+            .then(res => res.json())
+            .then(result => {
+                if (result.success) {
+                    loadAddresses();
+                } else {
+                    alert('Error: ' + (result.error?.message || 'Failed to set default address'));
+                }
+            })
+            .catch(error => {
+                console.error('Error setting default address:', error);
+                alert('Error setting default address');
+            });
     }
-}
+
+    function showAddAddressForm() {
+        editingAddressId = null;
+        document.getElementById('addressFormTitle').textContent = 'Add New Address';
+        document.getElementById('addressFormId').value = '';
+        document.getElementById('addressFormElement').reset();
+        document.getElementById('addressForm').classList.remove('hidden');
+        document.getElementById('addressForm').scrollIntoView({ behavior: 'smooth' });
+    }
+
+    function hideAddressForm() {
+        document.getElementById('addressForm').classList.add('hidden');
+        editingAddressId = null;
+    }
+
+    function editAddress(addressId) {
+        const addr = addresses.find(a => a.id === addressId);
+        if (!addr) return;
+
+        editingAddressId = addressId;
+        document.getElementById('addressFormTitle').textContent = 'Edit Address';
+        document.getElementById('addressFormId').value = addressId;
+        document.getElementById('addressUnitNumber').value = addr.unit_number || '';
+        document.getElementById('addressBuildingName').value = addr.building_name || '';
+        document.getElementById('addressStreet').value = addr.street_address || '';
+        document.getElementById('addressCity').value = addr.city || '';
+        document.getElementById('addressProvince').value = addr.province || '';
+        document.getElementById('addressPostalCode').value = addr.postal_code || '';
+        document.getElementById('addressCountry').value = addr.country || 'South Africa';
+        document.getElementById('addressInstructions').value = addr.delivery_instructions || '';
+        document.getElementById('addressIsDefault').checked = addr.is_default || false;
+
+        document.getElementById('addressForm').classList.remove('hidden');
+        document.getElementById('addressForm').scrollIntoView({ behavior: 'smooth' });
+    }
+
+    async function saveAddress(event) {
+        event.preventDefault();
+
+        const token = localStorage.getItem('token');
+        const addressId = document.getElementById('addressFormId').value;
+
+        const addressData = {
+            street_address: document.getElementById('addressStreet').value,
+            city: document.getElementById('addressCity').value,
+            province: document.getElementById('addressProvince').value,
+            postal_code: document.getElementById('addressPostalCode').value,
+            country: document.getElementById('addressCountry').value,
+            unit_number: document.getElementById('addressUnitNumber').value || null,
+            building_name: document.getElementById('addressBuildingName').value || null,
+            delivery_instructions: document.getElementById('addressInstructions').value || null,
+            is_default: document.getElementById('addressIsDefault').checked
+        };
+
+        const url = addressId ? `/api/addresses/${addressId}` : '/api/addresses';
+        const method = addressId ? 'PATCH' : 'POST';
+
+        try {
+            const response = await fetch(url, {
+                method: method,
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${token}`
+                },
+                body: JSON.stringify(addressData)
+            });
+
+            const result = await response.json();
+
+            if (result.success) {
+                hideAddressForm();
+                await loadAddresses();
+            } else {
+                alert('Error: ' + (result.error?.message || 'Failed to save address'));
+            }
+        } catch (error) {
+            console.error('Error saving address:', error);
+            alert('Error saving address: ' + error.message);
+        }
+    }
+
+    function loadOrderSummary(cart) {
+        const itemsDiv = document.getElementById('orderItems');
+        itemsDiv.innerHTML = cart.map(item => {
+            const itemTotal = parseFloat(item.price) * item.quantity;
+            return `
+            <div class="flex justify-between text-sm py-2 border-b border-gray-50 last:border-0">
+                <div class="flex items-center">
+                    <span class="bg-gray-100 text-gray-600 px-2 py-0.5 rounded text-xs mr-2">x${item.quantity}</span>
+                    <span class="text-gray-700 truncate max-w-[140px]">${item.name}</span>
+                </div>
+                <span class="font-medium text-gray-900">R${itemTotal.toFixed(2)}</span>
+            </div>
+        `;
+        }).join('');
+
+        const subtotal = cart.reduce((sum, item) => sum + parseFloat(item.price) * item.quantity, 0);
+        const shipping = 0; // Free shipping for now
+        const total = subtotal + shipping;
+
+        document.getElementById('orderSubtotal').textContent = `R${subtotal.toFixed(2)}`;
+        // document.getElementById('orderShipping').textContent = `R${shipping.toFixed(2)}`;
+        document.getElementById('orderTotal').textContent = `R${total.toFixed(2)}`;
+    }
+
+    async function placeOrder() {
+        if (!selectedAddressId) {
+            alert('Please select a delivery address');
+            document.getElementById('addressList').scrollIntoView({ behavior: 'smooth' });
+            return;
+        }
+
+        const token = localStorage.getItem('token');
+        const cart = getCart();
+
+        const items = cart.map(item => ({
+            product_id: item.id,
+            product_name: item.name,
+            quantity: item.quantity,
+            price: parseFloat(item.price),
+            subtotal: parseFloat(item.price) * item.quantity
+        }));
+
+        const subtotal = items.reduce((sum, item) => sum + item.subtotal, 0);
+        const shipping = 0;
+        const total = subtotal + shipping;
+
+        const selectedAddress = addresses.find(a => a.id === selectedAddressId);
+
+        try {
+            const btn = document.getElementById('placeOrderBtn');
+            const originalText = btn.innerHTML;
+            btn.disabled = true;
+            btn.innerHTML = '<svg class="animate-spin -ml-1 mr-3 h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg> Processing...';
+
+            // Step 1: Create order with pending status
+            const orderResponse = await fetch('/api/shop/orders', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${token}`
+                },
+                body: JSON.stringify({
+                    items: items,
+                    total: total,
+                    shipping: {
+                        method: 'standard',
+                        cost: shipping
+                    },
+                    delivery_address: selectedAddress
+                })
+            });
+
+            const orderResult = await orderResponse.json();
+
+            if (!orderResult.success) {
+                alert('Error: ' + (orderResult.error?.message || 'Failed to create order'));
+                btn.disabled = false;
+                btn.innerHTML = originalText;
+                return;
+            }
+
+            const orderId = orderResult.data.id;
+
+            // Step 2: Initiate Yoco payment
+            btn.innerHTML = '<svg class="animate-spin -ml-1 mr-3 h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg> Redirecting to Yoco...';
+
+            const paymentResponse = await fetch(`/api/shop/orders/${orderId}/pay`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${token}`
+                }
+            });
+
+            const paymentResult = await paymentResponse.json();
+
+            if (paymentResult.success && paymentResult.data.redirect_url) {
+                // Clear cart before redirecting
+                saveCart([]);
+                updateCartIcon();
+
+                // Redirect to Yoco checkout
+                window.location.href = paymentResult.data.redirect_url;
+            } else {
+                alert('Error: ' + (paymentResult.error?.message || 'Failed to initiate payment'));
+                btn.disabled = false;
+                btn.innerHTML = originalText;
+            }
+        } catch (error) {
+            console.error('Error placing order:', error);
+            alert('Error placing order: ' + error.message);
+            const btn = document.getElementById('placeOrderBtn');
+            btn.disabled = false;
+            btn.innerHTML = 'Place Order & Pay';
+        }
+    }
 </script>
 {% endblock %}
-

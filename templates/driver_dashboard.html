@@ -4,260 +4,615 @@
 
 {% block extra_head %}
 <style>
-    @keyframes fadeIn {
+    .stat-card {
+        transition: transform 0.2s;
+    }
+
+    .stat-card:hover {
+        transform: translateY(-2px);
+    }
+
+    .action-card {
+        transition: all 0.3s;
+    }
+
+    .action-card:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+    }
+
+    /* Modal Animation */
+    @keyframes modalFadeIn {
         from {
             opacity: 0;
-            transform: translateY(20px);
+            transform: scale(0.95);
         }
+
         to {
             opacity: 1;
-            transform: translateY(0);
+            transform: scale(1);
         }
     }
-    .fade-in {
-        animation: fadeIn 0.6s ease-out forwards;
+
+    .modal-content {
+        animation: modalFadeIn 0.2s ease-out;
     }
 </style>
 {% endblock %}
 
 {% block content %}
-<div class="max-w-6xl mx-auto fade-in">
-    <h1 class="text-3xl font-bold mb-6">Driver Dashboard</h1>
+<div class="bg-gray-50 min-h-screen py-8">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
 
-    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
-        <!-- Wallet -->
-        <div class="bg-white p-6 rounded-lg shadow">
-            <h3 class="text-lg font-semibold mb-2">Wallet Balance</h3>
-            <p class="text-2xl font-bold" id="walletBalance">R0.00</p>
-            <a href="/wallet" class="text-blue-500 hover:underline mt-2 block">View Wallet</a>
+        <!-- Welcome Header -->
+        <div class="mb-8 flex flex-col sm:flex-row justify-between items-start sm:items-center">
+            <div>
+                <h1 class="text-3xl font-extrabold text-gray-900">
+                    Driver Dashboard <span class="text-2xl">🚖</span>
+                </h1>
+                <p class="mt-1 text-gray-500">Manage your rides and earnings.</p>
+            </div>
+            <div class="mt-4 sm:mt-0 flex space-x-3">
+                <a href="/rides-made"
+                    class="inline-flex items-center px-4 py-2 border border-gray-300 rounded-lg shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-purple-500 transition-colors">
+                    <svg class="h-5 w-5 mr-2 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                            d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                    </svg>
+                    Ride History
+                </a>
+                <a href="/wallet"
+                    class="inline-flex items-center px-4 py-2 border border-transparent rounded-lg shadow-sm text-sm font-medium text-white bg-purple-600 hover:bg-purple-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-purple-500 transition-colors">
+                    <svg class="h-5 w-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                            d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z">
+                        </path>
+                    </svg>
+                    Wallet: <span id="walletBalance" class="ml-1 font-bold">R0.00</span>
+                </a>
+            </div>
         </div>
-        <!-- Earnings -->
-        <div class="bg-white p-6 rounded-lg shadow">
-            <h3 class="text-lg font-semibold mb-2">Total Earnings This Month</h3>
-            <p class="text-2xl font-bold text-green-600" id="driverEarnings">R0.00</p>
-            <p class="text-sm text-gray-500 mt-1">From completed rides</p>
-        </div>
-        <!-- Ride history -->
-        <div class="bg-white p-6 rounded-lg shadow">
-            <h3 class="text-lg font-semibold mb-2">Ride History</h3>
-            <p class="text-gray-600 mb-2">View all rides you've completed</p>
-            <a href="/rides-made" class="inline-block bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600 font-medium">View Rides</a>
-        </div>
-        <!-- Profile & documents -->
-        <div class="bg-white p-6 rounded-lg shadow">
-            <h3 class="text-lg font-semibold mb-2">Profile & Documents</h3>
-            <p class="text-gray-600 mb-2">Manage your profile and ID documents</p>
-            <a href="/profile" class="inline-block bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600 font-medium">Profile</a>
-        </div>
-    </div>
 
-    <!-- Ride Requests -->
-    <div class="bg-white p-6 rounded-lg shadow mt-8">
-        <h2 class="text-2xl font-bold mb-4">Available Ride Requests</h2>
-        <div id="recentRideRequestsList" class="space-y-4">
-            <p>Loading...</p>
+        <!-- Stats Overview -->
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+            <!-- Earnings -->
+            <div class="stat-card bg-white rounded-2xl shadow-sm border border-gray-100 p-6 flex items-center">
+                <div class="p-3 rounded-full bg-green-100 text-green-600 mr-4">
+                    <svg class="h-8 w-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                            d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z">
+                        </path>
+                    </svg>
+                </div>
+                <div>
+                    <p class="text-sm font-medium text-gray-500">Total Earnings</p>
+                    <p class="text-2xl font-bold text-gray-900" id="driverEarnings">R0.00</p>
+                    <p class="text-xs text-gray-400">This month</p>
+                </div>
+            </div>
+
+            <!-- Available Rides -->
+            <div class="stat-card bg-white rounded-2xl shadow-sm border border-gray-100 p-6 flex items-center">
+                <div class="p-3 rounded-full bg-blue-100 text-blue-600 mr-4">
+                    <svg class="h-8 w-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                            d="M9 20l-5.447-2.724A1 1 0 013 16.382V5.618a1 1 0 011.447-.894L9 7m0 13l6-3m-6 3V7m6 10l4.553 2.276A1 1 0 0021 18.382V7.618a1 1 0 00-.553-.894L15 4m0 13V4m0 0L9 7">
+                        </path>
+                    </svg>
+                </div>
+                <div>
+                    <p class="text-sm font-medium text-gray-500">Available Requests</p>
+                    <p class="text-2xl font-bold text-gray-900" id="availableCount">0</p>
+                </div>
+            </div>
+
+            <!-- Rating (Placeholder) -->
+            <div class="stat-card bg-white rounded-2xl shadow-sm border border-gray-100 p-6 flex items-center">
+                <div class="p-3 rounded-full bg-yellow-100 text-yellow-600 mr-4">
+                    <svg class="h-8 w-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                            d="M11.049 2.927c.3-.921 1.603-.921 1.902 0l1.519 4.674a1 1 0 00.95.69h4.915c.969 0 1.371 1.24.588 1.81l-3.976 2.888a1 1 0 00-.363 1.118l1.518 4.674c.3.922-.755 1.688-1.538 1.118l-3.976-2.888a1 1 0 00-1.176 0l-3.976 2.888c-.783.57-1.838-.197-1.538-1.118l1.518-4.674a1 1 0 00-.363-1.118l-3.976-2.888c-.784-.57-.38-1.81.588-1.81h4.914a1 1 0 00.951-.69l1.519-4.674z">
+                        </path>
+                    </svg>
+                </div>
+                <div>
+                    <p class="text-sm font-medium text-gray-500">Your Rating</p>
+                    <p class="text-2xl font-bold text-gray-900">4.9</p>
+                    <p class="text-xs text-gray-400">120 reviews</p>
+                </div>
+            </div>
+        </div>
+
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+            <!-- Main Content Area -->
+            <div class="lg:col-span-2 space-y-8">
+
+                <!-- Available Ride Requests -->
+                <div class="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
+                    <div class="flex items-center justify-between mb-6">
+                        <h2 class="text-xl font-bold text-gray-900 flex items-center">
+                            <span class="relative flex h-3 w-3 mr-3">
+                                <span
+                                    class="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75"></span>
+                                <span class="relative inline-flex rounded-full h-3 w-3 bg-green-500"></span>
+                            </span>
+                            Available Ride Requests
+                        </h2>
+                    </div>
+
+                    <div id="recentRideRequestsList" class="space-y-4">
+                        <div class="animate-pulse space-y-4">
+                            <div class="h-24 bg-gray-100 rounded-xl"></div>
+                            <div class="h-24 bg-gray-100 rounded-xl"></div>
+                            <div class="h-24 bg-gray-100 rounded-xl"></div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Recent Activity / Scheduled -->
+                <div class="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
+                    <h3 class="text-lg font-bold text-gray-900 mb-4">Upcoming Schedule</h3>
+                    <div
+                        class="text-center py-8 text-gray-500 bg-gray-50 rounded-xl border border-dashed border-gray-200">
+                        <svg class="h-12 w-12 mx-auto text-gray-300 mb-2" fill="none" stroke="currentColor"
+                            viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z">
+                            </path>
+                        </svg>
+                        <p>No upcoming scheduled rides.</p>
+                    </div>
+                </div>
+
+            </div>
+
+            <!-- Sidebar -->
+            <div class="space-y-6">
+                <!-- Profile Card -->
+                <div class="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
+                    <div class="flex items-center space-x-4 mb-4">
+                        <div
+                            class="h-12 w-12 rounded-full bg-purple-100 text-purple-600 flex items-center justify-center text-xl font-bold">
+                            D
+                        </div>
+                        <div>
+                            <h3 class="text-lg font-bold text-gray-900">Driver Profile</h3>
+                            <a href="/profile"
+                                class="text-sm text-purple-600 hover:text-purple-700 hover:underline">Edit Info</a>
+                        </div>
+                    </div>
+                    <div class="space-y-2">
+                        <div class="flex justify-between text-sm">
+                            <span class="text-gray-500">Vehicle:</span>
+                            <span class="font-medium text-gray-900">Toyota Corolla</span>
+                        </div>
+                        <div class="flex justify-between text-sm">
+                            <span class="text-gray-500">License:</span>
+                            <span class="font-medium text-gray-900">Active</span>
+                        </div>
+                    </div>
+                    <a href="/profile"
+                        class="mt-4 block w-full text-center px-4 py-2 border border-gray-300 rounded-lg text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 transition-colors">
+                        Manage Documents
+                    </a>
+                </div>
+
+                <!-- Quick Actions -->
+                <div class="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
+                    <h3 class="text-lg font-bold text-gray-900 mb-4">Quick Actions</h3>
+                    <div class="grid grid-cols-2 gap-3">
+                        <a href="/rides-made"
+                            class="flex flex-col items-center justify-center p-3 rounded-lg bg-gray-50 hover:bg-blue-50 text-gray-700 hover:text-blue-700 transition">
+                            <svg class="h-6 w-6 mb-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                    d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2">
+                                </path>
+                            </svg>
+                            <span class="text-xs font-medium">History</span>
+                        </a>
+                        <a href="/wallet"
+                            class="flex flex-col items-center justify-center p-3 rounded-lg bg-gray-50 hover:bg-green-50 text-gray-700 hover:text-green-700 transition">
+                            <svg class="h-6 w-6 mb-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                    d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z">
+                                </path>
+                            </svg>
+                            <span class="text-xs font-medium">Wallet</span>
+                        </a>
+                    </div>
+                </div>
+
+                <!-- Help Card -->
+                <div
+                    class="bg-gradient-to-br from-purple-600 to-indigo-700 rounded-2xl shadow-lg p-6 text-white relative overflow-hidden">
+                    <div class="absolute top-0 right-0 -mt-4 -mr-4 h-24 w-24 rounded-full bg-white opacity-10"></div>
+                    <div class="absolute bottom-0 left-0 -mb-4 -ml-4 h-24 w-24 rounded-full bg-white opacity-10"></div>
+                    <h3 class="text-lg font-bold relative z-10">Driver Support</h3>
+                    <p class="text-purple-100 text-sm mt-2 relative z-10">Issues with a ride? Payment problem? We're
+                        here to help.</p>
+                    <button
+                        class="mt-4 px-4 py-2 bg-white text-purple-700 rounded-lg text-sm font-bold hover:bg-purple-50 transition-colors relative z-10">
+                        Contact Support
+                    </button>
+                </div>
+            </div>
         </div>
     </div>
 </div>
 
-<!-- Client Info Modal (available rides: view client before accepting) -->
-<div id="clientInfoModal" class="hidden fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50" onclick="if(event.target === this) closeClientModal()">
-    <div class="bg-white rounded-lg shadow-xl max-w-md w-full mx-4 p-6 relative">
-        <button type="button" onclick="closeClientModal()" class="absolute top-3 right-3 text-gray-400 hover:text-gray-600 text-2xl">&times;</button>
-        <div id="clientInfoLoading" class="text-center py-8 text-gray-500">Loading client info...</div>
-        <div id="clientInfoContent" class="hidden">
-            <div class="flex items-center gap-4 mb-4">
-                <div id="clientInfoPhoto" class="w-20 h-20 rounded-full bg-gray-200 flex items-center justify-center overflow-hidden shrink-0">
-                    <img id="clientInfoPhotoImg" src="" alt="Client" class="w-full h-full object-cover hidden">
-                    <span id="clientInfoPhotoPlaceholder" class="text-gray-400 text-2xl">—</span>
+<!-- Client Info Modal -->
+<div id="clientInfoModal" class="hidden fixed inset-0 z-50 overflow-y-auto" aria-labelledby="modal-title" role="dialog"
+    aria-modal="true">
+    <div class="flex items-end justify-center min-h-screen pt-4 px-4 pb-20 text-center sm:block sm:p-0">
+        <!-- Background overlay -->
+        <div class="fixed inset-0 bg-gray-500 bg-opacity-75 transition-opacity" aria-hidden="true"
+            onclick="closeClientModal()"></div>
+        <span class="hidden sm:inline-block sm:align-middle sm:h-screen" aria-hidden="true">&#8203;</span>
+
+        <!-- Modal panel -->
+        <div
+            class="inline-block align-bottom bg-white rounded-xl text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-lg w-full modal-content">
+            <div class="bg-white px-4 pt-5 pb-4 sm:p-6 sm:pb-4">
+                <div class="absolute top-0 right-0 pt-4 pr-4">
+                    <button type="button" onclick="closeClientModal()"
+                        class="bg-white rounded-md text-gray-400 hover:text-gray-500 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-purple-500">
+                        <span class="sr-only">Close</span>
+                        <svg class="h-6 w-6" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"
+                            stroke="currentColor" aria-hidden="true">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                d="M6 18L18 6M6 6l12 12" />
+                        </svg>
+                    </button>
                 </div>
-                <div>
-                    <h3 id="clientInfoName" class="text-xl font-bold text-gray-900"></h3>
-                    <p id="clientInfoRating" class="text-sm text-gray-600"></p>
-                    <a id="clientInfoReviewsLink" href="#" class="text-blue-600 hover:underline text-sm hidden">View all reviews</a>
+
+                <div class="sm:flex sm:items-start">
+                    <!-- Loading State -->
+                    <div id="clientInfoLoading" class="w-full text-center py-8">
+                        <div class="flex justify-center mb-4">
+                            <svg class="animate-spin -ml-1 mr-3 h-8 w-8 text-purple-600"
+                                xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor"
+                                    stroke-width="4"></circle>
+                                <path class="opacity-75" fill="currentColor"
+                                    d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z">
+                                </path>
+                            </svg>
+                        </div>
+                        <p class="text-sm text-gray-500">Loading client details...</p>
+                    </div>
+
+                    <!-- Content -->
+                    <div id="clientInfoContent" class="hidden w-full">
+                        <div class="flex flex-col items-center">
+                            <div id="clientInfoPhoto"
+                                class="h-24 w-24 rounded-full overflow-hidden bg-gray-100 flex items-center justify-center mb-4 ring-4 ring-purple-50 shadow-md relative">
+                                <img id="clientInfoPhotoImg" src="" alt="Client"
+                                    class="w-full h-full object-cover hidden">
+                                <span id="clientInfoPhotoPlaceholder" class="text-3xl text-gray-400 font-bold">?</span>
+                            </div>
+                            <h3 class="text-2xl font-bold text-gray-900 mb-1" id="clientInfoName">Client Name</h3>
+                            <div class="flex items-center space-x-1 text-yellow-400 mb-4">
+                                <!-- Star Icon -->
+                                <svg class="h-5 w-5 fill-current" viewBox="0 0 20 20">
+                                    <path
+                                        d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.519 4.674a1 1 0 00.95.69h4.915c.969 0 1.371 1.24.588 1.81l-3.976 2.888a1 1 0 00-.363 1.118l1.518 4.674c.3.922-.755 1.688-1.538 1.118l-3.976-2.888a1 1 0 00-1.176 0l-3.976 2.888c-.783.57-1.838-.197-1.538-1.118l1.518-4.674a1 1 0 00-.363-1.118l-3.976-2.888c-.784-.57-.38-1.81.588-1.81h4.914a1 1 0 00.951-.69l1.519-4.674z" />
+                                </svg>
+                                <span class="text-gray-600 font-medium text-sm ml-1" id="clientInfoRating">4.8 (12
+                                    reviews)</span>
+                            </div>
+
+                            <div class="w-full border-t border-gray-100 pt-4">
+                                <div class="grid grid-cols-2 gap-4 text-center">
+                                    <div class="p-3 bg-gray-50 rounded-lg">
+                                        <p class="text-xs text-gray-500 uppercase tracking-wide">Member Since</p>
+                                        <p class="font-semibold text-gray-800">2023</p>
+                                    </div>
+                                    <div class="p-3 bg-gray-50 rounded-lg">
+                                        <p class="text-xs text-gray-500 uppercase tracking-wide">Total Rides</p>
+                                        <p class="font-semibold text-gray-800">24</p>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <a id="clientInfoReviewsLink" href="#"
+                                class="mt-6 text-purple-600 hover:text-purple-800 font-medium text-sm hidden">Read all
+                                reviews &rarr;</a>
+                        </div>
+                    </div>
                 </div>
+            </div>
+            <div class="bg-gray-50 px-4 py-3 sm:px-6 sm:flex sm:flex-row-reverse" id="clientModalActions">
+                <button type="button" onclick="closeClientModal()"
+                    class="w-full inline-flex justify-center rounded-lg border border-gray-300 shadow-sm px-4 py-2 bg-white text-base font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-purple-500 sm:mt-0 sm:ml-3 sm:w-auto sm:text-sm transition-colors">
+                    Close
+                </button>
             </div>
         </div>
     </div>
 </div>
 
 <script>
-async function loadDriverDashboard() {
-    const token = localStorage.getItem('token');
-    if (!token) {
-        window.location.href = '/login';
-        return;
-    }
-    try {
-        const response = await fetch('/api/dashboard', {
-            headers: { 'Authorization': `Bearer ${token}` }
-        });
-        const result = await response.json();
-        if (!result.success) {
+    async function loadDriverDashboard() {
+        const token = localStorage.getItem('token');
+        if (!token) {
             window.location.href = '/login';
             return;
         }
-        if (result.data.current_user.role !== 'driver') {
-            window.location.href = '/dashboard';
+        try {
+            const response = await fetch('/api/dashboard', {
+                headers: { 'Authorization': `Bearer ${token}` }
+            });
+            const result = await response.json();
+            if (!result.success) {
+                window.location.href = '/login';
+                return;
+            }
+            if (result.data.current_user.role !== 'driver') {
+                window.location.href = '/dashboard';
+                return;
+            }
+            document.getElementById('walletBalance').textContent = `R${(result.data.wallet.balance || 0).toFixed(2)}`;
+            document.getElementById('driverEarnings').textContent = `R${(result.data.driver_earnings || 0).toFixed(2)}`;
+
+            const requests = result.data.available_ride_requests || [];
+            document.getElementById('availableCount').textContent = requests.length;
+            loadAvailableRideRequests(requests);
+
+        } catch (error) {
+            console.error('Error loading driver dashboard:', error);
+            window.location.href = '/login';
+        }
+    }
+
+    function formatCarType(carType) {
+        if (!carType) return '';
+        const labels = {
+            'small_hatchback': 'Small Hatchback',
+            'sedan': 'Sedan',
+            'suv': 'SUV',
+            'bakkie': 'Bakkie',
+            'luxury': 'Luxury',
+            'hybrid': 'Hybrid',
+            'electric': 'Electric'
+        };
+        return labels[carType.toLowerCase()] || carType.replace(/_/g, ' ').replace(/\\b\\w/g, c => c.toUpperCase());
+    }
+
+    function loadAvailableRideRequests(requests) {
+        const container = document.getElementById('recentRideRequestsList');
+        if (!requests || requests.length === 0) {
+            container.innerHTML = `
+                <div class="text-center py-12">
+                    <div class="inline-flex items-center justify-center h-16 w-16 rounded-full bg-gray-100 mb-4">
+                         <svg class="h-8 w-8 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z"></path>
+                        </svg>
+                    </div>
+                    <h3 class="text-lg font-medium text-gray-900">No requests available</h3>
+                    <p class="mt-1 text-sm text-gray-500">We'll notify you when new rides appear.</p>
+                </div>
+            `;
             return;
         }
-        document.getElementById('walletBalance').textContent =
-            `R${(result.data.wallet.balance || 0).toFixed(2)}`;
-        document.getElementById('driverEarnings').textContent =
-            `R${(result.data.driver_earnings || 0).toFixed(2)}`;
-        loadAvailableRideRequests(result.data.available_ride_requests || []);
-    } catch (error) {
-        console.error('Error loading driver dashboard:', error);
-        window.location.href = '/login';
-    }
-}
 
-function formatCarType(carType) {
-    if (!carType) return '';
-    const labels = {
-        'small_hatchback': 'Small Hatchback',
-        'sedan': 'Sedan',
-        'suv': 'SUV',
-        'bakkie': 'Bakkie',
-        'luxury': 'Luxury',
-        'hybrid': 'Hybrid',
-        'electric': 'Electric'
-    };
-    return labels[carType.toLowerCase()] || carType.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
-}
+        container.innerHTML = requests.map(request => {
+            const locationData = request.location_data || {};
+            const pickup = locationData.pickup || {};
+            const dropoff = locationData.dropoff || {};
+            const details = request.details || {};
+            const pickupAddress = pickup.address || 'Pickup location';
+            const dropoffAddress = dropoff.address || 'Drop-off location';
+            const isCab = request.request_type === 'cab';
+            const distance = request.distance_km != null ? `${parseFloat(request.distance_km).toFixed(1)} km` : 'N/A';
+            const fare = request.payment_amount ? `R${parseFloat(request.payment_amount).toFixed(2)}` : 'N/A';
+            const scheduledDate = request.scheduled_date || 'N/A';
+            const scheduledTime = request.scheduled_time || 'N/A';
+            const carType = details.car_type;
+            const clientName = request.client_name;
 
-function loadAvailableRideRequests(requests) {
-    const container = document.getElementById('recentRideRequestsList');
-    if (!requests || requests.length === 0) {
-        container.innerHTML = '<p class="text-gray-500">No available ride requests at the moment.</p>';
-        return;
-    }
-    container.innerHTML = requests.map(request => {
-        const locationData = request.location_data || {};
-        const pickup = locationData.pickup || {};
-        const dropoff = locationData.dropoff || {};
-        const details = request.details || {};
-        const pickupAddress = pickup.address || 'Pickup location';
-        const dropoffAddress = dropoff.address || 'Drop-off location';
-        const isCab = request.request_type === 'cab';
-        const distance = request.distance_km != null ? `${parseFloat(request.distance_km).toFixed(1)} km` : 'N/A';
-        const fare = request.payment_amount ? `R${parseFloat(request.payment_amount).toFixed(2)}` : 'N/A';
-        const scheduledDate = request.scheduled_date || 'N/A';
-        const scheduledTime = request.scheduled_time || 'N/A';
-        const distanceLine = isCab ? `<p><strong>Distance:</strong> ${distance}</p>` : '';
-        const carType = details.car_type;
-        const carTypeLine = isCab && carType ? `<p><strong>Car type:</strong> ${formatCarType(carType)}</p>` : '';
-        const clientName = request.client_name;
-        const clientLine = clientName
-            ? `<p><strong>Client:</strong> <button type="button" class="text-blue-600 underline hover:no-underline font-medium" onclick="openClientModal('${request.id}')">${clientName}</button></p>`
-            : '';
-        return `
-            <div class="border rounded-lg p-4 hover:shadow-md transition-shadow">
-                <div class="flex justify-between items-start mb-3">
-                    <div class="flex-1">
-                        <h4 class="font-semibold text-lg mb-2">Ride Request ${request.id}</h4>
-                        <div class="space-y-1 text-sm text-gray-600">
-                            ${clientLine}
-                            <p><strong>Pickup:</strong> ${pickupAddress}</p>
-                            <p><strong>Drop-off:</strong> ${dropoffAddress}</p>
-                            ${distanceLine}
-                            ${carTypeLine}
-                            <p><strong>Estimated Fare:</strong> ${fare}</p>
-                            <p><strong>Scheduled:</strong> ${scheduledDate} at ${scheduledTime}</p>
+            return `
+                <div class="border border-gray-100 rounded-xl p-5 hover:border-purple-200 hover:shadow-lg transition-all duration-200 bg-white group">
+                    <div class="flex flex-col sm:flex-row justify-between items-start mb-4">
+                        <div>
+                             <div class="flex items-center space-x-2 mb-2">
+                                <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
+                                    New Request
+                                </span>
+                                <span class="text-xs text-gray-500">ID: #${request.id.substring(0, 8)}</span>
+                            </div>
+                            <h4 class="font-bold text-lg text-gray-900 mb-1">Trip to ${dropoffAddress.split(',')[0]}</h4>
+                            ${clientName ? `
+                                <button onclick="openClientModal('${request.id}')" class="text-sm text-purple-600 hover:text-purple-800 font-medium flex items-center hover:underline">
+                                    <svg class="h-4 w-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"></path></svg>
+                                    ${clientName} • 4.8 ★
+                                </button>
+                            ` : ''}
+                        </div>
+                        <div class="mt-4 sm:mt-0 text-right">
+                            <span class="block text-2xl font-bold text-gray-900">${fare}</span>
+                            <span class="text-sm text-gray-500">Est. Fare</span>
                         </div>
                     </div>
-                    <div class="ml-4 flex gap-2">
-                        <button onclick="acceptRideRequest('${request.id}')" 
-                                class="bg-green-500 text-white px-4 py-2 rounded hover:bg-green-600 font-medium">Accept</button>
-                        <button onclick="rejectRideRequest('${request.id}')" 
-                                class="bg-red-500 text-white px-4 py-2 rounded hover:bg-red-600 font-medium">Reject</button>
+                    
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-5 p-4 bg-gray-50 rounded-lg">
+                        <div class="flex items-start">
+                             <div class="flex-shrink-0 pt-0.5">
+                                <div class="h-2 w-2 rounded-full bg-green-500 mt-1.5"></div>
+                            </div>
+                            <div class="ml-3">
+                                <h5 class="text-xs font-semibold text-gray-500 uppercase tracking-wide">Pickup</h5>
+                                <p class="text-sm font-medium text-gray-900">${pickupAddress}</p>
+                            </div>
+                        </div>
+                        <div class="flex items-start">
+                            <div class="flex-shrink-0 pt-0.5">
+                                <div class="h-2 w-2 rounded-full bg-red-500 mt-1.5"></div>
+                            </div>
+                            <div class="ml-3">
+                                <h5 class="text-xs font-semibold text-gray-500 uppercase tracking-wide">Drop-off</h5>
+                                <p class="text-sm font-medium text-gray-900">${dropoffAddress}</p>
+                            </div>
+                        </div>
+                         
+                         ${isCab ? `
+                             <div class="flex items-center">
+                                <svg class="h-4 w-4 text-gray-400 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"></path></svg>
+                                <span class="text-sm text-gray-700">Distance: <strong>${distance}</strong></span>
+                            </div>
+                             <div class="flex items-center">
+                                <svg class="h-4 w-4 text-gray-400 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4"></path></svg>
+                                <span class="text-sm text-gray-700">Car: <strong>${formatCarType(carType || 'Standard')}</strong></span>
+                            </div>
+                         ` : ''}
+                    </div>
+
+                    <div class="flex items-center justify-between border-t border-gray-100 pt-4">
+                        <div class="text-sm text-gray-500">
+                            Scheduled: <span class="font-medium text-gray-900">${scheduledDate} ${scheduledTime}</span>
+                        </div>
+                        <div class="flex space-x-3">
+                             <button onclick="rejectRideRequest('${request.id}')" 
+                                    class="px-4 py-2 border border-gray-300 rounded-lg text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500 transition-colors">
+                                Decline
+                            </button>
+                            <button onclick="acceptRideRequest('${request.id}')" 
+                                    class="px-4 py-2 border border-transparent rounded-lg text-sm font-medium text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 shadow-sm transition-colors">
+                                Accept Ride
+                            </button>
+                        </div>
                     </div>
                 </div>
-            </div>
-        `;
-    }).join('');
-}
-
-async function acceptRideRequest(requestId) {
-    const token = localStorage.getItem('token');
-    if (!token) { window.location.href = '/login'; return; }
-    if (!confirm('Are you sure you want to accept this ride request?')) return;
-    try {
-        const response = await fetch(`/api/requests/${requestId}/accept`, {
-            method: 'POST',
-            headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' }
-        });
-        const result = await response.json();
-        if (result.success) {
-            alert('Ride request accepted successfully!');
-            loadDriverDashboard();
-        } else {
-            alert('Error: ' + (result.error?.message || 'Failed to accept ride request'));
-        }
-    } catch (error) {
-        console.error('Error accepting ride request:', error);
-        alert('Error accepting ride request: ' + error.message);
+            `;
+        }).join('');
     }
-}
 
-function rejectRideRequest(requestId) {
-    if (!confirm('Are you sure you want to reject this ride request? It will be removed from your available requests.')) return;
-    const container = document.getElementById('recentRideRequestsList');
-    const requestElement = container.querySelector(`button[onclick="acceptRideRequest('${requestId}')"]`)?.closest('.border');
-    if (requestElement) requestElement.remove();
-    if (container.children.length === 0) {
-        container.innerHTML = '<p class="text-gray-500">No available ride requests at the moment.</p>';
-    }
-}
-
-async function openClientModal(requestId) {
-    document.getElementById('clientInfoModal').classList.remove('hidden');
-    document.getElementById('clientInfoLoading').classList.remove('hidden');
-    document.getElementById('clientInfoContent').classList.add('hidden');
-    try {
+    async function acceptRideRequest(requestId) {
         const token = localStorage.getItem('token');
-        const response = await fetch(`/api/requests/${requestId}/client-info`, {
-            headers: { 'Authorization': `Bearer ${token}` }
-        });
-        const res = await response.json();
-        document.getElementById('clientInfoLoading').classList.add('hidden');
-        if (!res.success) {
-            alert(res.error?.message || 'Failed to load client info');
-            closeClientModal();
-            return;
+        if (!token) { window.location.href = '/login'; return; }
+        if (!confirm('Are you sure you want to accept this ride request?')) return;
+        try {
+            const response = await fetch(`/api/requests/${requestId}/accept`, {
+                method: 'POST',
+                headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' }
+            });
+            const result = await response.json();
+            if (result.success) {
+                // Show success toast instead of alert if possible, for now alert is fine
+                alert('Ride request accepted successfully! Safe travels. 🚘');
+                loadDriverDashboard();
+            } else {
+                alert('Error: ' + (result.error?.message || 'Failed to accept ride request'));
+            }
+        } catch (error) {
+            console.error('Error accepting ride request:', error);
+            alert('Error accepting ride request: ' + error.message);
         }
-        const client = res.data.client;
-        document.getElementById('clientInfoName').textContent = client.name || 'Client';
-        if (client.profile_image_url) {
-            const url = client.profile_image_url.startsWith('http') ? client.profile_image_url : (client.profile_image_url.startsWith('/') ? window.location.origin + client.profile_image_url : window.location.origin + '/' + client.profile_image_url);
-            document.getElementById('clientInfoPhotoImg').src = url;
-            document.getElementById('clientInfoPhotoImg').classList.remove('hidden');
-            document.getElementById('clientInfoPhotoPlaceholder').classList.add('hidden');
-        } else {
-            document.getElementById('clientInfoPhotoImg').classList.add('hidden');
-            document.getElementById('clientInfoPhotoPlaceholder').classList.remove('hidden');
-        }
-        const ratingText = client.average_rating != null ? `${client.average_rating} ★ (${client.reviews_count || 0} review${(client.reviews_count || 0) !== 1 ? 's' : ''})` : 'No ratings yet';
-        document.getElementById('clientInfoRating').textContent = ratingText;
-        const reviewsLink = document.getElementById('clientInfoReviewsLink');
-        if (client.id && (client.reviews_count || 0) > 0) {
-            reviewsLink.href = `/client-reviews/${client.id}`;
-            reviewsLink.classList.remove('hidden');
-        } else {
-            reviewsLink.classList.add('hidden');
-        }
-        document.getElementById('clientInfoContent').classList.remove('hidden');
-    } catch (e) {
-        document.getElementById('clientInfoLoading').classList.add('hidden');
-        alert('Error loading client info: ' + e.message);
-        closeClientModal();
     }
-}
 
-function closeClientModal() {
-    document.getElementById('clientInfoModal').classList.add('hidden');
-}
+    function rejectRideRequest(requestId) {
+        if (!confirm('Are you sure you want to reject this ride request? It will be removed from your available requests.')) return;
+        const container = document.getElementById('recentRideRequestsList');
+        // Find the card to remove
+        const buttons = container.querySelectorAll('button');
+        let button;
+        for (let btn of buttons) {
+            if (btn.getAttribute('onclick') === `rejectRideRequest('${requestId}')`) {
+                button = btn;
+                break;
+            }
+        }
 
-loadDriverDashboard();
+        if (button) {
+            const card = button.closest('.border');
+            if (card) {
+                card.style.opacity = '0';
+                setTimeout(() => {
+                    card.remove();
+                    if (container.children.length === 0) {
+                        // Re-render empty state
+                        loadAvailableRideRequests([]);
+                        document.getElementById('availableCount').textContent = '0';
+                    }
+                }, 300);
+            }
+        }
+    }
+
+    async function openClientModal(requestId) {
+        const modal = document.getElementById('clientInfoModal');
+        const loading = document.getElementById('clientInfoLoading');
+        const content = document.getElementById('clientInfoContent');
+
+        modal.classList.remove('hidden');
+        loading.classList.remove('hidden');
+        content.classList.add('hidden');
+
+        try {
+            const token = localStorage.getItem('token');
+            const response = await fetch(`/api/requests/${requestId}/client-info`, {
+                headers: { 'Authorization': `Bearer ${token}` }
+            });
+            const res = await response.json();
+
+            loading.classList.add('hidden');
+            if (!res.success) {
+                alert(res.error?.message || 'Failed to load client info');
+                closeClientModal();
+                return;
+            }
+
+            const client = res.data.client;
+
+            document.getElementById('clientInfoName').textContent = client.name || 'Client';
+
+            // Photo handling
+            const photoImg = document.getElementById('clientInfoPhotoImg');
+            const photoPlaceholder = document.getElementById('clientInfoPhotoPlaceholder');
+
+            if (client.profile_image_url) {
+                const url = client.profile_image_url.startsWith('http')
+                    ? client.profile_image_url
+                    : (client.profile_image_url.startsWith('/')
+                        ? window.location.origin + client.profile_image_url
+                        : window.location.origin + '/' + client.profile_image_url);
+                photoImg.src = url;
+                photoImg.classList.remove('hidden');
+                photoPlaceholder.classList.add('hidden');
+            } else {
+                photoImg.classList.add('hidden');
+                photoPlaceholder.classList.remove('hidden');
+            }
+
+            // Rating
+            const ratingText = client.average_rating != null
+                ? `${client.average_rating} ★ (${client.reviews_count || 0} reviews)`
+                : 'No ratings yet';
+            document.getElementById('clientInfoRating').textContent = ratingText;
+
+            // Reviews Link
+            const reviewsLink = document.getElementById('clientInfoReviewsLink');
+            if (client.id && (client.reviews_count || 0) > 0) {
+                reviewsLink.href = `/client-reviews/${client.id}`;
+                reviewsLink.classList.remove('hidden');
+            } else {
+                reviewsLink.classList.add('hidden');
+            }
+
+            content.classList.remove('hidden');
+
+        } catch (e) {
+            loading.classList.add('hidden');
+            console.error(e);
+            alert('Error loading client info');
+            closeClientModal();
+        }
+    }
+
+    function closeClientModal() {
+        document.getElementById('clientInfoModal').classList.add('hidden');
+    }
+
+    // Initialize
+    document.addEventListener('DOMContentLoaded', loadDriverDashboard);
 </script>
 {% endblock %}

@@ -2,204 +2,274 @@
 
 {% block title %}Shopping Cart - MzansiServe{% endblock %}
 
-{% block extra_head %}
-<style>
-    @keyframes fadeInFromLeft {
-        from {
-            opacity: 0;
-            transform: translateX(-30px);
-        }
-        to {
-            opacity: 1;
-            transform: translateX(0);
-        }
-    }
-    
-    .fade-in-left {
-        animation: fadeInFromLeft 0.6s ease-out forwards;
-    }
-</style>
-{% endblock %}
-
 {% block content %}
-<div class="mt-8 fade-in-left">
-    <h2 class="text-2xl font-bold mb-6">Shopping Cart</h2>
-    
-    <!-- Empty Cart Message -->
-    <div id="emptyCart" class="hidden text-center py-12">
-        <svg class="mx-auto h-24 w-24 text-gray-400 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z"></path>
-        </svg>
-        <p class="text-xl text-gray-600 mb-2">Your cart is empty</p>
-        <a href="/shop" class="inline-block bg-blue-500 text-white px-6 py-2 rounded hover:bg-blue-600 mt-4">
-            Continue Shopping
-        </a>
-    </div>
-    
-    <!-- Cart Content -->
-    <div id="cartContent" class="hidden">
-        <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
-            <!-- Cart Items -->
-            <div class="lg:col-span-2">
-                <div id="cartItems" class="bg-white rounded-lg shadow divide-y">
-                    <!-- Items will be rendered here -->
+<div class="bg-gray-50 min-h-screen py-12">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+
+        <!-- Step Wizard -->
+        <div class="mb-12">
+            <div class="flex items-center justify-center space-x-4 sm:space-x-12">
+                <div class="flex flex-col items-center">
+                    <div
+                        class="w-10 h-10 bg-purple-600 text-white rounded-full flex items-center justify-center font-bold shadow-lg ring-4 ring-purple-50">
+                        1</div>
+                    <span class="mt-2 text-sm font-semibold text-purple-900">Cart</span>
+                </div>
+                <div class="w-12 sm:w-24 h-1 bg-gray-200 rounded-full"></div>
+                <div class="flex flex-col items-center">
+                    <div
+                        class="w-10 h-10 bg-gray-200 text-gray-500 rounded-full flex items-center justify-center font-bold">
+                        2</div>
+                    <span class="mt-2 text-sm font-medium text-gray-500">Checkout</span>
+                </div>
+                <div class="w-12 sm:w-24 h-1 bg-gray-200 rounded-full"></div>
+                <div class="flex flex-col items-center">
+                    <div
+                        class="w-10 h-10 bg-gray-200 text-gray-500 rounded-full flex items-center justify-center font-bold">
+                        3</div>
+                    <span class="mt-2 text-sm font-medium text-gray-500">Payment</span>
                 </div>
             </div>
-            
-            <!-- Cart Summary -->
-            <div class="lg:col-span-1">
-                <div class="bg-white rounded-lg shadow p-6 sticky top-4">
-                    <h3 class="text-xl font-bold mb-4">Order Summary</h3>
-                    
-                    <div class="space-y-2 mb-4">
-                        <div class="flex justify-between text-gray-600">
-                            <span>Subtotal</span>
-                            <span id="cartSubtotal">R0.00</span>
+        </div>
+
+        <h2 class="text-3xl font-extrabold text-gray-900 mb-8">Shopping Cart</h2>
+
+        <!-- Loading State -->
+        <div id="cartLoading" class="text-center py-24">
+            <div class="inline-block animate-spin rounded-full h-8 w-8 border-4 border-purple-500 border-t-transparent">
+            </div>
+            <p class="mt-4 text-gray-500">Loading your cart...</p>
+        </div>
+
+        <!-- Empty Cart -->
+        <div id="emptyCart"
+            class="hidden flex flex-col items-center justify-center py-16 bg-white rounded-2xl shadow-sm border border-gray-100 text-center">
+            <div class="w-24 h-24 bg-purple-50 rounded-full flex items-center justify-center mb-6">
+                <svg class="h-12 w-12 text-purple-200" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                        d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z">
+                    </path>
+                </svg>
+            </div>
+            <h3 class="text-xl font-bold text-gray-900 mb-2">Your cart is empty</h3>
+            <p class="text-gray-500 mb-8 max-w-sm">Looks like you haven't added anything to your cart yet.</p>
+            <a href="/shop"
+                class="inline-flex items-center px-6 py-3 border border-transparent text-base font-medium rounded-lg shadow-sm text-white bg-purple-600 hover:bg-purple-700 transition-colors">
+                Start Shopping
+            </a>
+        </div>
+
+        <!-- Cart Content -->
+        <div id="cartContent" class="hidden">
+            <div class="flex flex-col lg:flex-row gap-8">
+                <!-- Cart Items -->
+                <div class="flex-1">
+                    <div class="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
+                        <div
+                            class="hidden sm:grid grid-cols-12 gap-4 p-4 bg-gray-50 border-b border-gray-100 text-sm font-medium text-gray-500 uppercase tracking-wider">
+                            <div class="col-span-6">Product</div>
+                            <div class="col-span-2 text-center">Price</div>
+                            <div class="col-span-2 text-center">Quantity</div>
+                            <div class="col-span-2 text-right">Total</div>
                         </div>
-                        <div class="flex justify-between text-gray-600">
-                            <span>Shipping</span>
-                            <span id="cartShipping">R0.00</span>
+                        <div id="cartItems" class="divide-y divide-gray-100">
+                            <!-- Items will be rendered here -->
                         </div>
-                        <div class="border-t pt-2 mt-2">
-                            <div class="flex justify-between text-lg font-bold">
-                                <span>Total</span>
-                                <span id="cartTotal">R0.00</span>
+                    </div>
+                </div>
+
+                <!-- Cart Summary -->
+                <div class="w-full lg:w-96 flex-shrink-0">
+                    <div class="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 sticky top-8">
+                        <h3 class="text-lg font-bold text-gray-900 mb-6">Order Summary</h3>
+
+                        <div class="space-y-4 mb-6">
+                            <div class="flex justify-between text-gray-600">
+                                <span>Subtotal</span>
+                                <span id="cartSubtotal" class="font-medium">R0.00</span>
+                            </div>
+                            <div class="flex justify-between text-gray-600">
+                                <span>Shipping</span>
+                                <span id="cartShipping" class="font-medium text-green-600">Free</span>
+                            </div>
+                            <div class="border-t border-gray-100 pt-4 mt-4">
+                                <div class="flex justify-between items-center">
+                                    <span class="text-base font-bold text-gray-900">Total</span>
+                                    <span id="cartTotal" class="text-2xl font-extrabold text-purple-600">R0.00</span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <button id="checkoutBtn" onclick="checkout()"
+                            class="w-full bg-purple-600 text-white py-4 rounded-xl font-bold hover:bg-purple-700 focus:outline-none focus:ring-4 focus:ring-purple-200 shadow-lg transition-all transform hover:-translate-y-0.5 mb-4 flex items-center justify-center">
+                            Proceed to Checkout
+                            <svg class="ml-2 w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                    d="M17 8l4 4m0 0l-4 4m4-4H3"></path>
+                            </svg>
+                        </button>
+
+                        <a href="/shop"
+                            class="flex items-center justify-center w-full py-3 text-sm font-medium text-gray-600 hover:text-purple-600 transition-colors">
+                            <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                    d="M10 19l-7-7m0 0l7-7m-7 7h18"></path>
+                            </svg>
+                            Continue Shopping
+                        </a>
+
+                        <div class="mt-6 pt-6 border-t border-gray-100">
+                            <div class="flex items-center justify-center space-x-2 text-gray-400">
+                                <span class="sr-only">Secure Payment</span>
+                                <svg class="h-6 w-auto" viewBox="0 0 24 24" fill="currentColor">
+                                    <path
+                                        d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1 14H9v-2h2v2zm0-4H9V7h2v5z" />
+                                </svg>
+                                <span class="text-xs">Secure Checkout Powered by Yoco</span>
                             </div>
                         </div>
                     </div>
-                    
-                    <button id="checkoutBtn" onclick="checkout()" class="w-full bg-green-500 text-white py-3 rounded hover:bg-green-600 font-semibold mb-4">
-                        Proceed to Checkout
-                    </button>
-                    
-                    <a href="/shop" class="block text-center text-blue-600 hover:text-blue-800">
-                        Continue Shopping
-                    </a>
                 </div>
             </div>
         </div>
     </div>
-    
-    <!-- Loading State -->
-    <div id="cartLoading" class="text-center py-12">
-        <p class="text-gray-600">Loading cart...</p>
-    </div>
 </div>
 
 <script>
-// Load cart on page load
-document.addEventListener('DOMContentLoaded', function() {
-    loadCart();
-    updateCartIcon(); // Update cart icon badge
-});
+    // Load cart on page load
+    document.addEventListener('DOMContentLoaded', function () {
+        loadCart();
+        updateCartIcon(); // Update cart icon badge
+    });
 
-function loadCart() {
-    const cart = getCart();
-    const loadingDiv = document.getElementById('cartLoading');
-    const emptyDiv = document.getElementById('emptyCart');
-    const contentDiv = document.getElementById('cartContent');
-    const itemsDiv = document.getElementById('cartItems');
-    
-    loadingDiv.classList.add('hidden');
-    
-    if (cart.length === 0) {
-        emptyDiv.classList.remove('hidden');
-        contentDiv.classList.add('hidden');
-        return;
-    }
-    
-    emptyDiv.classList.add('hidden');
-    contentDiv.classList.remove('hidden');
-    
-    // Render cart items
-    itemsDiv.innerHTML = cart.map(item => {
-        const itemTotal = parseFloat(item.price) * item.quantity;
-        return `
-            <div class="p-4 flex items-center space-x-4" data-product-id="${item.id}">
-                <div class="flex-shrink-0">
-                    ${item.image ? 
-                        `<img src="${item.image.startsWith('http') ? item.image : '/uploads/' + item.image}" alt="${item.name}" class="w-24 h-24 object-cover rounded">` :
-                        '<div class="w-24 h-24 bg-gray-200 rounded flex items-center justify-center text-gray-500 text-xs">No Image</div>'
-                    }
-                </div>
-                <div class="flex-grow">
-                    <h4 class="font-semibold text-lg mb-1">${item.name}</h4>
-                    <p class="text-gray-600 mb-2">R${parseFloat(item.price).toFixed(2)}</p>
-                    <div class="flex items-center space-x-3">
-                        <label class="text-sm text-gray-600">Quantity:</label>
-                        <div class="flex items-center border rounded">
-                            <button onclick="updateQuantity('${item.id}', ${item.quantity - 1})" class="px-3 py-1 hover:bg-gray-100">-</button>
-                            <input type="number" value="${item.quantity}" min="1" 
-                                   onchange="updateQuantity('${item.id}', parseInt(this.value))" 
-                                   class="w-16 text-center border-x py-1">
-                            <button onclick="updateQuantity('${item.id}', ${item.quantity + 1})" class="px-3 py-1 hover:bg-gray-100">+</button>
+    function loadCart() {
+        const cart = getCart();
+        const loadingDiv = document.getElementById('cartLoading');
+        const emptyDiv = document.getElementById('emptyCart');
+        const contentDiv = document.getElementById('cartContent');
+        const itemsDiv = document.getElementById('cartItems');
+
+        loadingDiv.classList.add('hidden');
+
+        if (cart.length === 0) {
+            emptyDiv.classList.remove('hidden');
+            contentDiv.classList.add('hidden');
+            return;
+        }
+
+        emptyDiv.classList.add('hidden');
+        contentDiv.classList.remove('hidden');
+
+        // Render cart items
+        itemsDiv.innerHTML = cart.map(item => {
+            const itemTotal = parseFloat(item.price) * item.quantity;
+            return `
+            <div class="p-6 transition-colors hover:bg-gray-50" data-product-id="${item.id}">
+                <div class="flex flex-col sm:flex-row items-center">
+                    <!-- Product Image & Name -->
+                    <div class="flex-1 flex items-center w-full mb-4 sm:mb-0">
+                        <div class="flex-shrink-0 w-20 h-20 bg-gray-100 rounded-lg overflow-hidden border border-gray-200">
+                            ${item.image ?
+                    `<img src="${item.image.startsWith('http') ? item.image : '/uploads/' + item.image}" alt="${item.name}" class="w-full h-full object-cover">` :
+                    '<div class="w-full h-full flex items-center justify-center text-gray-400 text-xs">No Image</div>'
+                }
+                        </div>
+                        <div class="ml-4 flex-1">
+                            <h4 class="text-lg font-bold text-gray-900"><a href="/shop/product/${item.id}" class="hover:text-purple-600 transition-colors">${item.name}</a></h4>
+                            <p class="text-sm text-gray-500 mt-1">Unit Price: R${parseFloat(item.price).toFixed(2)}</p>
+                        </div>
+                    </div>
+                    
+                    <!-- Mobile Price/Qty/Total wrapper -->
+                    <div class="w-full sm:w-auto flex flex-row sm:grid sm:grid-cols-6 items-center justify-between sm:gap-4 flex-1">
+                        
+                        <!-- Price (Desktop) -->
+                        <div class="hidden sm:block sm:col-span-2 text-center text-gray-900 font-medium">
+                            R${parseFloat(item.price).toFixed(2)}
+                        </div>
+                        
+                        <!-- Quantity -->
+                        <div class="sm:col-span-2 flex justify-center">
+                            <div class="flex items-center border border-gray-300 rounded-lg bg-white">
+                                <button onclick="updateQuantity('${item.id}', ${item.quantity - 1})" class="px-3 py-1 text-gray-600 hover:bg-gray-100 rounded-l-lg transition-colors focus:outline-none h-9 w-9 flex items-center justify-center">
+                                    <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 12H4"></path></svg>
+                                </button>
+                                <input type="number" value="${item.quantity}" min="1" 
+                                       onchange="updateQuantity('${item.id}', parseInt(this.value))" 
+                                       class="w-12 text-center border-none py-1 text-gray-900 font-medium focus:ring-0 text-sm h-9">
+                                <button onclick="updateQuantity('${item.id}', ${item.quantity + 1})" class="px-3 py-1 text-gray-600 hover:bg-gray-100 rounded-r-lg transition-colors focus:outline-none h-9 w-9 flex items-center justify-center">
+                                    <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path></svg>
+                                </button>
+                            </div>
+                        </div>
+                        
+                        <!-- Total -->
+                        <div class="sm:col-span-2 text-right">
+                            <p class="font-bold text-lg text-purple-600">R${itemTotal.toFixed(2)}</p>
+                            <button onclick="removeItem('${item.id}')" class="text-xs text-red-500 hover:text-red-700 mt-1 underline">
+                                Remove
+                            </button>
                         </div>
                     </div>
                 </div>
-                <div class="text-right">
-                    <p class="font-bold text-lg mb-2">R${itemTotal.toFixed(2)}</p>
-                    <button onclick="removeItem('${item.id}')" class="text-red-600 hover:text-red-800 text-sm">
-                        Remove
-                    </button>
-                </div>
             </div>
         `;
-    }).join('');
-    
-    updateCartSummary();
-}
+        }).join('');
 
-function updateQuantity(productId, quantity) {
-    if (quantity < 1) {
-        removeItem(productId);
-        return;
+        updateCartSummary();
     }
-    
-    updateCartQuantity(productId, quantity);
-    loadCart(); // Reload to update display
-}
 
-function removeItem(productId) {
-    if (confirm('Are you sure you want to remove this item from your cart?')) {
-        removeFromCart(productId);
+    function updateQuantity(productId, quantity) {
+        if (quantity < 1) {
+            removeItem(productId);
+            return;
+        }
+
+        updateCartQuantity(productId, quantity);
         loadCart(); // Reload to update display
     }
-}
 
-function updateCartSummary() {
-    const cart = getCart();
-    let subtotal = 0;
-    
-    cart.forEach(item => {
-        subtotal += parseFloat(item.price) * item.quantity;
-    });
-    
-    // For now, free shipping. Can be updated later
-    const shipping = 0;
-    const total = subtotal + shipping;
-    
-    document.getElementById('cartSubtotal').textContent = `R${subtotal.toFixed(2)}`;
-    document.getElementById('cartShipping').textContent = `R${shipping.toFixed(2)}`;
-    document.getElementById('cartTotal').textContent = `R${total.toFixed(2)}`;
-}
+    function removeItem(productId) {
+        if (confirm('Are you sure you want to remove this item from your cart?')) {
+            removeFromCart(productId);
+            loadCart(); // Reload to update display
+        }
+    }
 
-function checkout() {
-    const token = localStorage.getItem('token');
-    if (!token) {
-        alert('Please log in to proceed with checkout');
-        window.location.href = '/login?redirect=/cart';
-        return;
+    function updateCartSummary() {
+        const cart = getCart();
+        let subtotal = 0;
+
+        cart.forEach(item => {
+            subtotal += parseFloat(item.price) * item.quantity;
+        });
+
+        // For now, free shipping. Can be updated later
+        const shipping = 0;
+        const total = subtotal + shipping;
+
+        document.getElementById('cartSubtotal').textContent = `R${subtotal.toFixed(2)}`;
+        // document.getElementById('cartShipping').textContent = `R${shipping.toFixed(2)}`;
+        document.getElementById('cartTotal').textContent = `R${total.toFixed(2)}`;
     }
-    
-    const cart = getCart();
-    if (cart.length === 0) {
-        alert('Your cart is empty');
-        return;
+
+    function checkout() {
+        const token = localStorage.getItem('token');
+        if (!token) {
+            // Save current cart just in case
+            localStorage.setItem('redirect_after_login', '/checkout');
+            window.location.href = '/login?redirect=/checkout';
+            return;
+        }
+
+        const cart = getCart();
+        if (cart.length === 0) {
+            alert('Your cart is empty');
+            return;
+        }
+
+        // Redirect to checkout page
+        window.location.href = '/checkout';
     }
-    
-    // Redirect to checkout page
-    window.location.href = '/checkout';
-}
 </script>
 {% endblock %}
-

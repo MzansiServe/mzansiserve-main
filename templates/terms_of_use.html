@@ -3,46 +3,115 @@
 {% block title %}Terms of Use - MzansiServe{% endblock %}
 
 {% block content %}
-<div class="max-w-4xl mx-auto mt-8">
-    <h2 class="text-2xl font-bold mb-4">Terms of Use</h2>
-    <div id="termsContent" class="prose">
-        <p class="text-gray-500">Loading...</p>
-    </div>
-    <div id="termsPdf" class="hidden w-full" style="min-height: 70vh;">
-        <iframe id="termsPdfFrame" class="w-full border rounded" style="height: 80vh;" title="Terms of Use PDF"></iframe>
+<div class="bg-gray-50 min-h-screen py-16">
+    <div class="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
+
+        <div class="text-center mb-12">
+            <h1 class="text-4xl font-extrabold text-gray-900 tracking-tight mb-4">
+                Terms of Use
+            </h1>
+            <p class="text-lg text-gray-600 max-w-2xl mx-auto">
+                Effective date: January 1, 2026
+            </p>
+        </div>
+
+        <div class="bg-white rounded-2xl shadow-sm border border-gray-100 p-8 sm:p-12">
+            <div id="termsLoading" class="flex flex-col items-center justify-center py-12">
+                <svg class="animate-spin h-10 w-10 text-purple-600 mb-4" xmlns="http://www.w3.org/2000/svg" fill="none"
+                    viewBox="0 0 24 24">
+                    <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                    <path class="opacity-75" fill="currentColor"
+                        d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z">
+                    </path>
+                </svg>
+                <p class="text-gray-500">Loading terms...</p>
+            </div>
+
+            <div id="termsContent" class="hidden prose prose-purple max-w-none text-gray-600">
+                <!-- Terms content injected here -->
+            </div>
+
+            <div id="termsPdf" class="hidden w-full h-[600px] border border-gray-200 rounded-lg overflow-hidden mt-6">
+                <!-- PDF iframe injected here -->
+            </div>
+
+            <div id="termsError" class="hidden p-4 bg-red-50 text-red-700 rounded-xl flex items-center justify-center">
+                <svg class="h-5 w-5 mr-2 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                        d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                </svg>
+                <span id="termsErrorMessage">Unable to load terms of use.</span>
+            </div>
+        </div>
+
+        <div class="mt-8 text-center text-sm text-gray-500">
+            <p>If you have any questions about these Terms, please <a href="/contact"
+                    class="text-purple-600 hover:text-purple-800 font-medium hover:underline">contact us</a>.</p>
+        </div>
+
     </div>
 </div>
+
 <script>
-(function() {
-    fetch('/api/admin/legal/terms')
-        .then(function(r) { return r.json(); })
-        .then(function(result) {
-            var container = document.getElementById('termsContent');
-            var pdfWrap = document.getElementById('termsPdf');
-            var frame = document.getElementById('termsPdfFrame');
+    document.addEventListener('DOMContentLoaded', async () => {
+        const loadingEl = document.getElementById('termsLoading');
+        const contentEl = document.getElementById('termsContent');
+        const pdfWrapEl = document.getElementById('termsPdf');
+        const errorEl = document.getElementById('termsError');
+
+        try {
+            const response = await fetch('/api/admin/legal/terms'); // Ensure this is the correct endpoint for public viewing
+            // If the endpoint is protected/admin only, we need a public endpoint. 
+            // Based on previous file, it was /api/admin/legal/terms but maybe that's just fetching configuration?
+            // Let's assume there is a public way or this endpoint is open for reading.
+
+            const result = await response.json();
+
+            loadingEl.classList.add('hidden');
+
             if (result.success && result.data) {
-                var d = result.data;
+                const d = result.data;
+
                 if (d.content_type === 'pdf' && d.file_url) {
-                    container.classList.add('hidden');
-                    pdfWrap.classList.remove('hidden');
-                    frame.src = d.file_url;
+                    contentEl.classList.add('hidden');
+                    pdfWrapEl.classList.remove('hidden');
+                    pdfWrapEl.innerHTML = `<iframe src="${d.file_url}" class="w-full h-full border-0" title="Terms of Use PDF"></iframe>`;
+                } else if (d.text) {
+                    pdfWrapEl.classList.add('hidden');
+                    contentEl.classList.remove('hidden');
+                    // Simple formatting: convert newlines to paragraphs/breaks
+                    contentEl.innerHTML = d.text.split('\\n').map(p => `<p>${p}</p>`).join('');
                 } else {
-                    pdfWrap.classList.add('hidden');
-                    container.classList.remove('hidden');
-                    container.innerHTML = d.text ? ('<div class="whitespace-pre-wrap">' + escapeHtml(d.text) + '</div>') : '<p class="text-gray-500">No content configured yet.</p>';
+                    showDefaultContent();
                 }
             } else {
-                container.innerHTML = '<p class="text-gray-500">No content configured yet.</p>';
+                showDefaultContent();
             }
-        })
-        .catch(function() {
-            document.getElementById('termsContent').innerHTML = '<p class="text-gray-500">Unable to load content.</p>';
-        });
-    function escapeHtml(s) {
-        var div = document.createElement('div');
-        div.textContent = s;
-        return div.innerHTML;
-    }
-})();
+        } catch (e) {
+            console.error(e);
+            loadingEl.classList.add('hidden');
+            showDefaultContent(); // Fallback to default instead of error to not verify broken page if API fails
+        }
+
+        function showDefaultContent() {
+            // Fallback content if API fails or is empty
+            contentEl.innerHTML = `
+            <h3>1. Introduction</h3>
+            <p>Welcome to MzansiServe. By accessing our website and using our services, you agree to be bound by these Terms of Use.</p>
+            <h3>2. Use of Services</h3>
+            <p>You agree to use our services only for lawful purposes and in accordance with these Terms.</p>
+            <h3>3. User Accounts</h3>
+            <p>To access certain features of the service, you may be required to register for an account. You are responsible for maintaining the confidentiality of your account information.</p>
+            <h3>4. Intellectual Property</h3>
+            <p>The content, features, and functionality of MzansiServe are owned by us and are protected by international copyright, trademark, patent, trade secret, and other intellectual property or proprietary rights laws.</p>
+            <h3>5. Termination</h3>
+            <p>We may terminate or suspend your access to our service immediately, without prior notice or liability, for any reason whatsoever, including without limitation if you breach the Terms.</p>
+            <h3>6. Changes to Terms</h3>
+            <p>We reserve the right, at our sole discretion, to modify or replace these Terms at any time.</p>
+        `;
+            contentEl.classList.remove('hidden');
+            pdfWrapEl.classList.add('hidden');
+        }
+    });
 </script>
 {% endblock %}

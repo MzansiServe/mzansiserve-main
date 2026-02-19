@@ -7,12 +7,13 @@
     .login-container {
         animation: fadeInFromTop 0.8s ease-out;
     }
-    
+
     @keyframes fadeInFromTop {
         from {
             opacity: 0;
             transform: translateY(-30px);
         }
+
         to {
             opacity: 1;
             transform: translateY(0);
@@ -22,127 +23,166 @@
 {% endblock %}
 
 {% block content %}
-<div class="max-w-md mx-auto mt-8 login-container">
-    <h2 class="text-2xl font-bold mb-4">Login</h2>
-    <form id="loginForm" class="space-y-4">
+<div class="min-h-[calc(100vh-200px)] flex items-center justify-center py-12 px-4 sm:px-6 lg:px-8">
+    <div class="max-w-md w-full space-y-8 bg-white p-8 rounded-xl shadow-lg login-container">
         <div>
-            <label for="email" class="block text-sm font-medium mb-1">Email</label>
-            <input type="email" id="email" name="email" required 
-                   class="w-full px-3 py-2 border rounded-md">
+            <h2 class="mt-2 text-center text-3xl font-extrabold text-gray-900">
+                Welcome Back
+            </h2>
+            <p class="mt-2 text-center text-sm text-gray-600">
+                Sign in to your account
+            </p>
         </div>
-        <div>
-            <label for="role" class="block text-sm font-medium mb-1">Log in as</label>
-            <select id="role" name="role" required class="w-full px-3 py-2 border rounded-md">
-                <option value="">Select role (enter email first)</option>
-                <option value="client">Client</option>
-                <option value="driver">Driver</option>
-                <option value="professional">Professional</option>
-                <option value="service-provider">Service Provider</option>
-            </select>
-            <p class="text-sm text-gray-500 mt-1">Select the role you registered with. You can only log in if you have an account for this email and role.</p>
-        </div>
-        <div>
-            <label for="password" class="block text-sm font-medium mb-1">Password</label>
-            <input type="password" id="password" name="password" required 
-                   class="w-full px-3 py-2 border rounded-md">
-        </div>
-        <div>
-            <button type="submit" class="w-full bg-blue-500 text-white py-2 rounded hover:bg-blue-600">
-                Login
-            </button>
-        </div>
-    </form>
-    <div class="mt-4 text-center space-y-2">
-        <div>
-            <a href="/forgot-password" class="text-blue-500 hover:underline">Forgot Password?</a>
-        </div>
-        <div>
-            <span class="text-gray-600">Don't have an account? </span>
-            <a href="/register" class="text-blue-500 hover:underline font-medium">Register here</a>
+        <form id="loginForm" class="mt-8 space-y-6">
+            <div class="rounded-md shadow-sm -space-y-px">
+                <div class="mb-4">
+                    <label for="email" class="block text-sm font-medium text-gray-700 mb-1">Email address</label>
+                    <input id="email" name="email" type="email" autocomplete="email" required
+                        class="appearance-none relative block w-full px-3 py-3 border border-gray-300 placeholder-gray-500 text-gray-900 rounded-lg focus:outline-none focus:ring-purple-500 focus:border-purple-500 focus:z-10 sm:text-sm"
+                        placeholder="name@example.com">
+                </div>
+                <div class="mb-4">
+                    <label for="role" class="block text-sm font-medium text-gray-700 mb-1">Account Role</label>
+                    <div class="relative">
+                        <select id="role" name="role" required
+                            class="block w-full px-3 py-3 border border-gray-300 text-gray-900 rounded-lg focus:outline-none focus:ring-purple-500 focus:border-purple-500 sm:text-sm appearance-none">
+                            <option value="">Enter email to load roles...</option>
+                            <option value="client">Client</option>
+                            <option value="driver">Driver</option>
+                            <option value="professional">Professional</option>
+                            <option value="service-provider">Service Provider</option>
+                        </select>
+                        <div
+                            class="pointer-events-none absolute inset-y-0 right-0 flex items-center px-2 text-gray-700">
+                            <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                    d="M19 9l-7 7-7-7"></path>
+                            </svg>
+                        </div>
+                    </div>
+                </div>
+                <div class="mb-6">
+                    <label for="password" class="block text-sm font-medium text-gray-700 mb-1">Password</label>
+                    <input id="password" name="password" type="password" autocomplete="current-password" required
+                        class="appearance-none relative block w-full px-3 py-3 border border-gray-300 placeholder-gray-500 text-gray-900 rounded-lg focus:outline-none focus:ring-purple-500 focus:border-purple-500 focus:z-10 sm:text-sm"
+                        placeholder="••••••••">
+                </div>
+            </div>
+
+            <div class="flex items-center justify-between">
+                <div class="text-sm">
+                    <a href="/forgot-password" class="font-medium text-purple-600 hover:text-purple-500">
+                        Forgot your password?
+                    </a>
+                </div>
+            </div>
+
+            <div>
+                <button type="submit"
+                    class="group relative w-full flex justify-center py-3 px-4 border border-transparent text-sm font-bold rounded-lg text-white bg-purple-600 hover:bg-purple-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-purple-500 shadow-md transition-all duration-200 transform hover:scale-[1.02]">
+                    <span class="absolute left-0 inset-y-0 flex items-center pl-3">
+                        <svg class="h-5 w-5 text-purple-500 group-hover:text-purple-400"
+                            xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor"
+                            aria-hidden="true">
+                            <path fill-rule="evenodd"
+                                d="M5 9V7a5 5 0 0110 0v2a2 2 0 012 2v5a2 2 0 01-2 2H5a2 2 0 01-2-2v-5a2 2 0 012-2zm8-2v2H7V7a3 3 0 016 0z"
+                                clip-rule="evenodd" />
+                        </svg>
+                    </span>
+                    Sign in
+                </button>
+            </div>
+        </form>
+        <div class="text-center mt-4">
+            <p class="text-sm text-gray-600">
+                Don't have an account?
+                <a href="/register" class="font-medium text-purple-600 hover:text-purple-500 transition-colors">
+                    Register here
+                </a>
+            </p>
         </div>
     </div>
 </div>
 
 <script>
-const ROLE_OPTIONS = {
-    'client': 'Client',
-    'driver': 'Driver',
-    'professional': 'Professional',
-    'service-provider': 'Service Provider'
-};
+    const ROLE_OPTIONS = {
+        'client': 'Client',
+        'driver': 'Driver',
+        'professional': 'Professional',
+        'service-provider': 'Service Provider'
+    };
 
-// Fetch and filter role options when email is entered
-document.getElementById('email').addEventListener('blur', async function() {
-    const email = this.value.trim();
-    const roleSelect = document.getElementById('role');
-    if (!email || !email.includes('@')) {
-        roleSelect.innerHTML = '<option value="">Select role (enter email first)</option>' +
-            Object.entries(ROLE_OPTIONS).map(([v, l]) => `<option value="${v}">${l}</option>`).join('');
-        return;
-    }
-    try {
-        const res = await fetch('/api/auth/roles-for-email?email=' + encodeURIComponent(email));
-        const data = await res.json();
-        const roles = (data.data && data.data.roles) || [];
-        roleSelect.innerHTML = '<option value="">Select role</option>';
-        if (roles.length > 0) {
-            roles.forEach(r => {
-                if (ROLE_OPTIONS[r]) roleSelect.innerHTML += `<option value="${r}">${ROLE_OPTIONS[r]}</option>`;
-            });
-        } else {
+    // Fetch and filter role options when email is entered
+    document.getElementById('email').addEventListener('blur', async function () {
+        const email = this.value.trim();
+        const roleSelect = document.getElementById('role');
+        if (!email || !email.includes('@')) {
+            roleSelect.innerHTML = '<option value="">Select role (enter email first)</option>' +
+                Object.entries(ROLE_OPTIONS).map(([v, l]) => `<option value="${v}">${l}</option>`).join('');
+            return;
+        }
+        try {
+            const res = await fetch('/api/auth/roles-for-email?email=' + encodeURIComponent(email));
+            const data = await res.json();
+            const roles = (data.data && data.data.roles) || [];
+            roleSelect.innerHTML = '<option value="">Select role</option>';
+            if (roles.length > 0) {
+                roles.forEach(r => {
+                    if (ROLE_OPTIONS[r]) roleSelect.innerHTML += `<option value="${r}">${ROLE_OPTIONS[r]}</option>`;
+                });
+            } else {
+                Object.entries(ROLE_OPTIONS).forEach(([v, l]) => {
+                    roleSelect.innerHTML += `<option value="${v}">${l}</option>`;
+                });
+            }
+        } catch (e) {
             Object.entries(ROLE_OPTIONS).forEach(([v, l]) => {
-                roleSelect.innerHTML += `<option value="${v}">${l}</option>`;
+                if (!roleSelect.querySelector('option[value="' + v + '"]')) {
+                    roleSelect.innerHTML += `<option value="${v}">${l}</option>`;
+                }
             });
         }
-    } catch (e) {
-        Object.entries(ROLE_OPTIONS).forEach(([v, l]) => {
-            if (!roleSelect.querySelector('option[value="' + v + '"]')) {
-                roleSelect.innerHTML += `<option value="${v}">${l}</option>`;
-            }
-        });
-    }
-});
+    });
 
-document.getElementById('loginForm').addEventListener('submit', async (e) => {
-    e.preventDefault();
-    const formData = new FormData(e.target);
-    const data = Object.fromEntries(formData);
-    if (!data.role) {
-        alert('Please select a role');
-        return;
-    }
-    
-    try {
-        const response = await fetch('/api/auth/login', {
-            method: 'POST',
-            headers: {'Content-Type': 'application/json'},
-            body: JSON.stringify(data)
-        });
-        
-        const result = await response.json();
-        if (result.success) {
-            localStorage.setItem('token', result.data.token);
-            // Trigger recon check on login (month-end earnings transfer)
-            fetch('/api/dashboard/recon-check', {
-                headers: { 'Authorization': 'Bearer ' + result.data.token }
-            }).catch(function() {});
-            const role = result.data.user && result.data.user.role;
-            let redirectUrl = '/dashboard';
-            if (role === 'driver') {
-                redirectUrl = '/driver-dashboard';
-            } else if (role === 'professional') {
-                redirectUrl = '/professional-dashboard';
-            } else if (role === 'service-provider') {
-                redirectUrl = '/service-provider-dashboard';
-            }
-            window.location.href = redirectUrl;
-        } else {
-            alert(result.error?.message || 'Login failed');
+    document.getElementById('loginForm').addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const formData = new FormData(e.target);
+        const data = Object.fromEntries(formData);
+        if (!data.role) {
+            alert('Please select a role');
+            return;
         }
-    } catch (error) {
-        alert('Error: ' + error.message);
-    }
-});
+
+        try {
+            const response = await fetch('/api/auth/login', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(data)
+            });
+
+            const result = await response.json();
+            if (result.success) {
+                localStorage.setItem('token', result.data.token);
+                // Trigger recon check on login (month-end earnings transfer)
+                fetch('/api/dashboard/recon-check', {
+                    headers: { 'Authorization': 'Bearer ' + result.data.token }
+                }).catch(function () { });
+                const role = result.data.user && result.data.user.role;
+                let redirectUrl = '/dashboard';
+                if (role === 'driver') {
+                    redirectUrl = '/driver-dashboard';
+                } else if (role === 'professional') {
+                    redirectUrl = '/professional-dashboard';
+                } else if (role === 'service-provider') {
+                    redirectUrl = '/service-provider-dashboard';
+                }
+                window.location.href = redirectUrl;
+            } else {
+                alert(result.error?.message || 'Login failed');
+            }
+        } catch (error) {
+            alert('Error: ' + error.message);
+        }
+    });
 </script>
 {% endblock %}
-

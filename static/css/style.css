@@ -1,6 +1,10 @@
 /* Custom styles for MzansiServe */
 body {
     font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+    background-color: #F9FAFB;
+    /* gray-50 */
+    color: #111827;
+    /* gray-900 */
 }
 
 /* Navbar link hover underline (thicker + fade-in) */
@@ -16,8 +20,10 @@ nav .nav-link::after {
     left: 15%;
     right: 15%;
     bottom: 0.35rem;
-    height: 3px; /* thickness of underline */
-    background-color: #f4c21b; /* MzansiServe accent yellow */
+    height: 3px;
+    /* thickness of underline */
+    background-color: #A855F7;
+    /* PHPStorm Purple Accent */
     opacity: 0;
     transform: scaleX(0.3);
     transform-origin: center;
@@ -30,14 +36,11 @@ nav .nav-link:hover::after {
 }
 
 /* Navbar background gradient (blue to magenta) */
-.mzansi-navbar {
-    background: linear-gradient(to right, #4a8ff0 0%, #7a5fc2 50%, #c2187a 100%);
-}
+/* Navbar background - handled by Tailwind in HTML */
+/* Gradient removed for Gumtree style */
 
-/* Footer background gradient (blue to magenta) */
-.mzansi-footer {
-    background: linear-gradient(to right, #4a8ff0 0%, #7a5fc2 50%, #c2187a 100%);
-}
+/* Footer background - handled by Tailwind in HTML */
+/* Gradient removed for Gumtree style */
 
 /* Navbar link layout: full height, equal width, inline display */
 nav .nav-links-container {
@@ -46,7 +49,7 @@ nav .nav-links-container {
     flex-wrap: nowrap;
 }
 
-nav .nav-links-container > * {
+nav .nav-links-container>* {
     flex: 1;
     display: inline-flex;
 }
@@ -58,6 +61,38 @@ nav .nav-link {
     height: 100%;
     padding: 0 1rem;
     white-space: nowrap;
+}
+
+/* UI Resets for Soft Design */
+input,
+select,
+textarea {
+    border-color: #E5E7EB !important;
+    /* gray-200 */
+    transition: all 0.2s;
+}
+
+input:focus,
+select:focus,
+textarea:focus {
+    border-color: #A855F7 !important;
+    box-shadow: 0 0 0 3px rgba(168, 85, 247, 0.1) !important;
+    outline: none;
+}
+
+.card,
+.bg-white.shadow {
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -1px rgba(0, 0, 0, 0.03) !important;
+    border: none !important;
+}
+
+button,
+.button {
+    transition: all 0.2s;
+}
+
+button:active {
+    transform: translateY(1px);
 }
 
 
@@ -73,53 +108,57 @@ nav .nav-link {
 
 /* Responsive Navigation Styles */
 @media (max-width: 767px) {
+
     /* Hide desktop navigation on mobile */
     nav .nav-links-container {
         display: none !important;
     }
-    
+
     /* Adjust logo size on mobile - same height as mobile nav */
     .nav-logo {
         height: 64px !important;
         max-height: 64px !important;
         width: auto !important;
     }
-    
+
     /* Mobile menu container */
     .mobile-menu {
         position: fixed;
         top: 64px;
         left: 0;
         right: 0;
-        background: linear-gradient(to right, #4a8ff0 0%, #7a5fc2 50%, #c2187a 100%);
+        background: white;
         max-height: 0;
         overflow: hidden;
         transition: max-height 0.3s ease-out;
         z-index: 40;
-        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05);
     }
-    
+
     .mobile-menu.active {
         max-height: 100vh;
         overflow-y: auto;
     }
-    
+
     /* Mobile nav links */
     .mobile-nav-link {
         display: block;
         padding: 1rem 1.5rem;
-        color: white;
+        color: #374151;
+        /* gray-700 */
         text-decoration: none;
-        border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+        border-bottom: 1px solid rgba(0, 0, 0, 0.05);
         transition: background-color 0.2s;
     }
-    
+
     .mobile-nav-link:hover {
-        background-color: rgba(255, 255, 255, 0.1);
+        background-color: #F3E8FF;
+        /* purple-100 */
+        color: #A855F7;
     }
-    
+
     .mobile-nav-section {
-        border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+        border-bottom: 1px solid rgba(0, 0, 0, 0.05);
     }
 }
 
@@ -128,15 +167,14 @@ nav .nav-link {
     .mobile-menu {
         display: none !important;
     }
-    
+
     /* Hide hamburger button on desktop */
     #hamburgerBtn {
         display: none !important;
     }
-    
+
     /* Ensure desktop navigation is visible */
     nav .nav-links-container {
         display: flex !important;
     }
 }
-
