@@ -375,7 +375,7 @@ def request_payment_callback():
                     <div class="overlay">
                       <div class="card">
                         <h1>Payment Successful</h1>
-                        <p>Your cab request has been created and paid successfully.</p>
+                        <p>Your service request has been created and paid successfully.</p>
                         <p>You will be redirected to your requested services in a moment...</p>
                       </div>
                     </div>

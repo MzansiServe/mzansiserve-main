@@ -231,30 +231,61 @@ def create_request():
             payment_amount=payment_amount,
             payment_status='pending'
         )
-        
+
         if data.get('notes'):
             service_request.details['notes'] = data['notes']
-        
-        db.session.add(service_request)
-        
-        # Check wallet balance
+
+        # For service providers, verify wallet balance and deduct immediately
         wallet = Wallet.query.filter_by(user_id=user_id).first()
+        if not wallet:
+            wallet = WalletService.get_or_create_wallet(user_id)
+        
         wallet_balance = float(wallet.balance) if wallet and wallet.balance else 0.0
-        sufficient_funds = wallet_balance >= payment_amount
-        
+
+        if data['type'] == 'provider':
+            if wallet_balance < payment_amount:
+                return error_response('INSUFFICIENT_FUNDS', f'Insufficient wallet balance. Required: R{payment_amount:.2f}', {
+                    'balance': wallet_balance,
+                    'required': payment_amount
+                }, 400)
+            
+            # Deduct from wallet
+            try:
+                WalletService.add_transaction(
+                    wallet_id=wallet.id,
+                    user_id=user_id,
+                    transaction_type='payment',
+                    amount=payment_amount,
+                    external_id=request_id,
+                    description=f"Call-out fee for {data['type']} request {request_id}"
+                )
+                service_request.payment_status = 'paid'
+                # For providers, request is ready to be shown once paid
+                service_request.status = 'pending' 
+            except Exception as e:
+                db.session.rollback()
+                return error_response('PAYMENT_ERROR', f'Failed to process wallet payment: {str(e)}', None, 500)
+        else:
+            # Professionals and others might use different flows (e.g. Yoco)
+            # If created here, it stays unpaid until checkout completes
+            service_request.payment_status = 'pending'
+            service_request.status = 'unpaid'
+
+        db.session.add(service_request)
         db.session.commit()
-        
+
         return success_response({
             'id': request_id,
-            'status': 'pending',
+            'status': service_request.status,
+            'payment_status': service_request.payment_status,
             'payment_amount': payment_amount,
-            'wallet_balance': wallet_balance,
-            'sufficient_funds': sufficient_funds
+            'wallet_balance': float(wallet.balance)
         }, 'Service request created successfully', 201)
-        
+
     except ValidationError as e:
         return error_response('VALIDATION_ERROR', 'Invalid input data', e.messages, 400)
     except Exception as e:
+        db.session.rollback()
         current_app.logger.error(f"Create request error: {str(e)}")
         return error_response('INTERNAL_ERROR', 'Failed to create request', None, 500)
 
