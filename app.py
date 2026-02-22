@@ -7,6 +7,7 @@ import sys
 
 from flask import Flask, render_template, send_from_directory, request
 from flask_migrate import Migrate
+from flask_cors import CORS
 from dotenv import load_dotenv
 
 from backend.models import User, CarouselItem, FooterContent
@@ -41,6 +42,9 @@ def create_app(config_class=Config):
     app.config.from_object(config_class)
     _configure_logging(app)
 
+    # Initialize CORS
+    CORS(app)
+
     # Initialize extensions
     db.init_app(app)
     jwt.init_app(app)
@@ -53,7 +57,8 @@ def create_app(config_class=Config):
     app.cli.add_command(cli)
     
     # Register blueprints (API routes)
-    from backend.routes import auth, requests, payments, shop, admin, dashboard, location, profile, address, faq, drivers, clients
+    from backend.routes import auth, requests, payments, shop, admin, dashboard, location, profile, address, faq, drivers, clients, public
+    app.register_blueprint(public.bp, url_prefix='/api/public')
     app.register_blueprint(auth.bp, url_prefix='/api/auth')
     app.register_blueprint(requests.bp, url_prefix='/api/requests')
     app.register_blueprint(drivers.bp, url_prefix='/api/drivers')

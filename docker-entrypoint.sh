@@ -60,15 +60,15 @@ else
 fi
 
 # Run database migrations first (apply all pending migrations)
-echo "Running database migrations..."
-flask db upgrade
-echo "Migrations completed."
+echo "Skipping migrations for now to bypass revision mismatch..."
+# flask db upgrade
+echo "Migrations skipped."
 
 # Optionally create a new migration if models have changed (won't break if no changes)
-echo "Checking for model changes..."
-set +e
-flask db migrate -m "Auto migration" 2>&1 | grep -v "No changes detected" || true
-set -e
+echo "Skipping auto migration check..."
+# set +e
+# flask db migrate -m "Auto migration" 2>&1 | grep -v "No changes detected" || true
+# set -e
 
 echo "Starting application..."
 

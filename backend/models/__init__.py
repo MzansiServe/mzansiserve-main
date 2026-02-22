@@ -16,6 +16,8 @@ from backend.models.country import Country
 from backend.models.product_image import ProductImage
 from backend.models.carousel import CarouselItem
 from backend.models.footer_cms import FooterContent
+from backend.models.testimonial import Testimonial
+from backend.models.landing_feature import LandingFeature
 from backend.models.driver_rating import DriverRating
 from backend.models.client_rating import ClientRating
 from backend.models.professional_rating import ProfessionalRating
@@ -50,6 +52,8 @@ __all__ = [
     'ProductImage',
     'CarouselItem',
     'FooterContent',
+    'Testimonial',
+    'LandingFeature',
     'DriverRating',
     'ClientRating',
     'ProfessionalRating',

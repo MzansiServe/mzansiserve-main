@@ -275,7 +275,6 @@ def update_profile():
 
 
 @bp.route('/professionals', methods=['GET'])
-@require_auth
 def list_professionals():
     """
     List professionals, including their services and hourly rates.
@@ -348,8 +347,38 @@ def list_professionals():
         current_app.logger.error(f"List professionals error: {str(e)}")
         return error_response('INTERNAL_ERROR', 'Failed to list professionals', None, 500)
 
+@bp.route('/professional/<uuid:prof_id>', methods=['GET'])
+def get_professional(prof_id):
+    """Get details of a single professional"""
+    try:
+        prof = User.query.filter_by(id=prof_id, role='professional', is_active=True, is_approved=True, is_paid=True).first()
+        if not prof:
+            return error_response('NOT_FOUND', 'Professional not found', None, 404)
+        
+        services = (prof.data or {}).get('professional_services') or []
+        
+        # Compute minimum hourly rate
+        min_rate = None
+        for svc in services:
+            try:
+                rate = svc.get('hourly_rate')
+                if rate is not None:
+                    rate_val = float(rate)
+                    if min_rate is None or rate_val < min_rate:
+                        min_rate = rate_val
+            except (TypeError, ValueError):
+                continue
+
+        return success_response({
+            'professional': prof.to_dict(),
+            'services': services,
+            'min_hourly_rate': min_rate
+        })
+    except Exception as e:
+        current_app.logger.error(f"Get professional error: {str(e)}")
+        return error_response('INTERNAL_ERROR', 'Failed to get professional', None, 500)
+
 @bp.route('/service-providers', methods=['GET'])
-@require_auth
 def list_service_providers():
     """
     List service providers, including their services.
@@ -392,6 +421,24 @@ def list_service_providers():
     except Exception as e:
         current_app.logger.error(f"List service providers error: {str(e)}")
         return error_response('INTERNAL_ERROR', 'Failed to list service providers', None, 500)
+
+@bp.route('/service-provider/<uuid:provider_id>', methods=['GET'])
+def get_service_provider(provider_id):
+    """Get details of a single service provider"""
+    try:
+        provider = User.query.filter_by(id=provider_id, role='service-provider', is_active=True, is_approved=True, is_paid=True).first()
+        if not provider:
+            return error_response('NOT_FOUND', 'Service provider not found', None, 404)
+        
+        services = (provider.data or {}).get('provider_services') or []
+        
+        return success_response({
+            'provider': provider.to_dict(),
+            'services': services
+        })
+    except Exception as e:
+        current_app.logger.error(f"Get service provider error: {str(e)}")
+        return error_response('INTERNAL_ERROR', 'Failed to get service provider', None, 500)
 
 @bp.route('/pay-registration-fee', methods=['POST'])
 @require_auth

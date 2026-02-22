@@ -1060,3 +1060,163 @@ def seed_agents(clear):
     db.session.commit()
     click.echo(f'Agents: {created} created, {skipped} skipped.')
 
+
+@cli.command('seed-banners')
+@click.option('--clear', is_flag=True, help='Clear existing banners before seeding (optional)')
+@with_appcontext
+def seed_banners(clear):
+    """Populate the home page carousel with default hero banners."""
+    from backend.models.carousel import CarouselItem
+    import os
+    import shutil
+    from flask import current_app
+    
+    if clear:
+        deleted = CarouselItem.query.delete()
+        db.session.commit()
+        click.echo(f'Removed {deleted} existing banner(s).')
+        
+    created = 0
+    skipped = 0
+    
+    # We will copy the frontend assets to the backend uploads directory
+    uploads_dir = current_app.config.get('UPLOAD_FOLDER', 'uploads')
+    os.makedirs(uploads_dir, exist_ok=True)
+    
+    # Source images from frontend (since the container copies the whole repo to /app)
+    # The default images are in /app/frontend/src/assets/
+    frontend_assets_dir = os.path.join(current_app.root_path, 'frontend', 'src', 'assets')
+    
+    default_banners = [
+        {
+            'order': 1,
+            'badge': 'Transport',
+            'title': 'Reliable Rides,\nAnytime, Anywhere',
+            'subtitle': 'Book verified drivers across South Africa. Safe, affordable, and at your fingertips.',
+            'cta_text': 'Book a Ride',
+            'cta_link': '/transport',
+            'cta_color': 'bg-gradient-purple shadow-glow-purple',
+            'image_file': 'hero-transport.jpg'
+        },
+        {
+            'order': 2,
+            'badge': 'Professionals',
+            'title': 'Expert Help,\nOne Click Away',
+            'subtitle': 'Hire accredited lawyers, doctors, accountants, engineers and more — all verified.',
+            'cta_text': 'Find an Expert',
+            'cta_link': '/professionals',
+            'cta_color': 'bg-sa-blue shadow-lg',
+            'image_file': 'hero-professionals.jpg'
+        },
+        {
+            'order': 3,
+            'badge': 'Services',
+            'title': 'Home & Garden\nServices on Demand',
+            'subtitle': 'From cleaning to events, DSTV to repairs — trusted service providers at your door.',
+            'cta_text': 'Get a Service',
+            'cta_link': '/services',
+            'cta_color': 'bg-gradient-gold shadow-glow-gold',
+            'image_file': 'hero-services.jpg'
+        },
+        {
+            'order': 4,
+            'badge': 'Shop',
+            'title': 'Buy & Sell\nLocally with Ease',
+            'subtitle': 'Discover products from local sellers. A marketplace built for Mzansi.',
+            'cta_text': 'Start Shopping',
+            'cta_link': '/shop',
+            'cta_color': 'bg-sa-red shadow-lg',
+            'image_file': 'hero-shop.jpg'
+        }
+    ]
+    
+    for banner in default_banners:
+        if CarouselItem.query.filter_by(badge=banner['badge']).first():
+            click.echo(f"  Skip {banner['badge']} banner: already exists")
+            skipped += 1
+            continue
+            
+        # Try to copy the image
+        src_path = os.path.join(frontend_assets_dir, banner['image_file'])
+        dest_filename = f"carousel_seed_{banner['image_file']}"
+        dest_path = os.path.join(uploads_dir, dest_filename)
+        
+        image_url = None
+        try:
+            if os.path.exists(src_path):
+                shutil.copy2(src_path, dest_path)
+                image_url = f"/uploads/{dest_filename}"
+                click.echo(f"  Copied {banner['image_file']} to uploads.")
+            else:
+                click.echo(f"  Warning: Source image {src_path} not found.")
+        except Exception as e:
+            click.echo(f"  Warning: Could not copy image {banner['image_file']}: {e}")
+            
+        item = CarouselItem(
+            image_url=image_url,
+            cta_link=banner['cta_link'],
+            cta_text=banner['cta_text'],
+            title=banner['title'],
+            subtitle=banner['subtitle'],
+            badge=banner['badge'],
+            cta_color=banner['cta_color'],
+            order=banner['order'],
+            is_active=True
+        )
+        db.session.add(item)
+        created += 1
+        click.echo(f"  Added {banner['badge']} banner.")
+        
+    db.session.commit()
+    click.echo(f'Banners: {created} created, {skipped} skipped.')
+
+
+@cli.command('seed-landing-content')
+@click.option('--clear', is_flag=True, help='Clear existing data before seeding')
+@with_appcontext
+def seed_landing_content(clear):
+    """Seed default landing page testimonials and Why Choose Us features."""
+    from backend.models.testimonial import Testimonial
+    from backend.models.landing_feature import LandingFeature
+
+    if clear:
+        d1 = Testimonial.query.delete()
+        d2 = LandingFeature.query.delete()
+        db.session.commit()
+        click.echo(f'Cleared {d1} testimonials and {d2} features.')
+
+    # ── Landing Features (Why Choose Us) ─────────────────────────────────────
+    features_data = [
+        {'icon': 'ShieldCheck', 'title': 'Fully Verified', 'description': 'Every provider is vetted through SARS, Home Affairs, CIPC, and SAPS databases.', 'order': 1},
+        {'icon': 'Clock', 'title': 'Instant Booking', 'description': 'Book any service in seconds. No long calls, no waiting — just tap and go.', 'order': 2},
+        {'icon': 'BadgeCheck', 'title': 'Accredited Experts', 'description': 'Professional bodies validate credentials so you don\'t have to do due diligence.', 'order': 3},
+        {'icon': 'Headphones', 'title': 'Dedicated Support', 'description': 'Our Mzansi-based support team is available to help — any time, any issue.', 'order': 4},
+    ]
+    feat_created = 0
+    for fdata in features_data:
+        if LandingFeature.query.filter_by(title=fdata['title']).first():
+            click.echo(f"  Skip feature: {fdata['title']}")
+            continue
+        db.session.add(LandingFeature(**fdata, is_active=True))
+        feat_created += 1
+        click.echo(f"  Added feature: {fdata['title']}")
+    db.session.commit()
+
+    # ── Testimonials ──────────────────────────────────────────────────────────
+    testimonials_data = [
+        {'name': 'Sipho Dlamini', 'role': 'Homeowner, Johannesburg', 'rating': 5, 'text': 'I booked a plumber through MzansiServe and he arrived within the hour. Verified, professional, and affordable. Highly recommend!', 'order': 1},
+        {'name': 'Zanele Mokoena', 'role': 'Business Owner, Cape Town', 'rating': 5, 'text': 'The drivers on this platform are punctual and courteous. I use MzansiServe for all my business transport needs now.', 'order': 2},
+        {'name': 'Thabo Sithole', 'role': 'Software Engineer, Durban', 'rating': 5, 'text': 'Found an amazing accountant for my small business through the platform. The verification process gives me peace of mind.', 'order': 3},
+        {'name': 'Lerato Khumalo', 'role': 'Event Planner, Pretoria', 'rating': 5, 'text': 'I hired a caterer and DJ through MzansiServe for my client\'s event. Both were exceptional. This platform is a game-changer for SA events!', 'order': 4},
+    ]
+    test_created = 0
+    for tdata in testimonials_data:
+        if Testimonial.query.filter_by(name=tdata['name']).first():
+            click.echo(f"  Skip testimonial: {tdata['name']}")
+            continue
+        db.session.add(Testimonial(**tdata, is_active=True))
+        test_created += 1
+        click.echo(f"  Added testimonial: {tdata['name']}")
+    db.session.commit()
+
+    click.echo(f'Done! Features: {feat_created} created. Testimonials: {test_created} created.')
