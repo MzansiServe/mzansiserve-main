@@ -27,6 +27,10 @@ from backend.models.withdrawal_request import WithdrawalRequest
 from backend.models.agent import Agent
 from backend.models.vehicle_image import VehicleImage
 from backend.models.pending_profile_update import PendingProfileUpdate
+from backend.models.chat import ChatMessage
+from backend.models.api_log import ExternalApiLog
+from backend.models.report import Report
+from backend.models.agent_commission import AgentCommission
 
 __all__ = [
     'User',
@@ -63,5 +67,9 @@ __all__ = [
     'Agent',
     'VehicleImage',
     'PendingProfileUpdate',
+    'ChatMessage',
+    'ExternalApiLog',
+    'Report',
+    'AgentCommission',
 ]
 

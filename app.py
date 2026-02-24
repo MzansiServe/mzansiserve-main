@@ -43,7 +43,8 @@ def create_app(config_class=Config):
     _configure_logging(app)
 
     # Initialize CORS
-    CORS(app)
+    # Initialize CORS - Allow all origins and ports for mobile apps
+    CORS(app, resources={r"/api/*": {"origins": "*"}})
 
     # Initialize extensions
     db.init_app(app)
@@ -57,7 +58,7 @@ def create_app(config_class=Config):
     app.cli.add_command(cli)
     
     # Register blueprints (API routes)
-    from backend.routes import auth, requests, payments, shop, admin, dashboard, location, profile, address, faq, drivers, clients, public
+    from backend.routes import auth, requests, payments, shop, admin, dashboard, location, profile, address, faq, drivers, clients, public, chat, reports
     app.register_blueprint(public.bp, url_prefix='/api/public')
     app.register_blueprint(auth.bp, url_prefix='/api/auth')
     app.register_blueprint(requests.bp, url_prefix='/api/requests')
@@ -71,6 +72,8 @@ def create_app(config_class=Config):
     app.register_blueprint(profile.bp, url_prefix='/api/profile')
     app.register_blueprint(address.bp, url_prefix='/api/addresses')
     app.register_blueprint(faq.bp, url_prefix='/api/faq')
+    app.register_blueprint(chat.bp, url_prefix='/api/chat')
+    app.register_blueprint(reports.bp, url_prefix='/api/reports')
     
     @app.context_processor
     def inject_google_maps_api_key():
@@ -121,7 +124,7 @@ def create_app(config_class=Config):
     @app.route('/dashboard')
     def dashboard_page():
         return render_template('dashboard.html')
-
+    
     @app.route('/driver-dashboard')
     def driver_dashboard_page():
         return render_template('driver_dashboard.html')
@@ -229,5 +232,6 @@ app = create_app()
 if __name__ == '__main__':
     with app.app_context():
         db.create_all()
-    app.run(host='0.0.0.0', port=5000, debug=True)
+    port = int(os.environ.get('PORT', 5006))
+    app.run(host='0.0.0.0', port=port, debug=True)
 

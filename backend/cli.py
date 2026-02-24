@@ -52,7 +52,7 @@ def create_admin(email, password, full_name):
 @cli.command('add-user')
 @click.option('--email', prompt=True, help='User email address')
 @click.option('--password', prompt=True, hide_input=True, confirmation_prompt=True, help='User password')
-@click.option('--role', type=click.Choice(['client', 'driver', 'professional', 'service-provider', 'admin']), 
+@click.option('--role', type=click.Choice(['client', 'driver', 'professional', 'service-provider', 'admin', 'agent']), 
               prompt=True, help='User role')
 @click.option('--full-name', prompt=True, help='User full name')
 @click.option('--is-paid', is_flag=True, default=False, help='Mark user as paid')
@@ -158,7 +158,7 @@ def change_password(email, role, user_id, password):
     click.echo(f'Password changed successfully for {user.email}{role_info}')
 
 @cli.command('create-users')
-@click.option('--role', type=click.Choice(['client', 'driver', 'professional', 'service-provider']), 
+@click.option('--role', type=click.Choice(['client', 'driver', 'professional', 'service-provider', 'agent']), 
               prompt=True, help='User role')
 @click.option('--count', default=1, prompt=True, help='Number of users to create')
 @click.option('--email-prefix', default='user', help='Email prefix (will be user1@example.com, user2@example.com, etc.)')
@@ -213,8 +213,8 @@ def create_users(role, count, email_prefix, domain, password):
 @click.option('--approved', is_flag=True, default=False, help='Mark users as approved')
 @with_appcontext
 def seed_users(count, email_prefix, domain, password, paid, approved):
-    """Seed users of all roles (client, driver, professional, service-provider)"""
-    roles = ['client', 'driver', 'professional', 'service-provider']
+    """Seed users of all roles (client, driver, professional, service-provider, agent)"""
+    roles = ['client', 'driver', 'professional', 'service-provider', 'agent']
     total_created = 0
     total_skipped = 0
     
@@ -1220,3 +1220,60 @@ def seed_landing_content(clear):
     db.session.commit()
 
     click.echo(f'Done! Features: {feat_created} created. Testimonials: {test_created} created.')
+
+
+@cli.command('seed-settings')
+@click.option('--clear', is_flag=True, help='Clear existing settings before seeding')
+@with_appcontext
+def seed_settings(clear):
+    """Seed default application settings."""
+    from backend.models.setting import AppSetting
+    
+    if clear:
+        deleted = AppSetting.query.delete()
+        db.session.commit()
+        click.echo(f'Removed {deleted} existing setting(s).')
+    
+    settings_data = [
+        {'key': 'callout_fee_amount', 'value': 150.0},
+        {'key': 'professional_callout_fee_amount', 'value': 250.0},
+        {'key': 'provider_callout_fee_amount', 'value': 150.0},
+        {'key': 'driver_admin_fee_rate', 'value': 0.10},
+        {'key': 'agent_commission_default', 'value': 20.0},
+        {'key': 'agent_commission_driver', 'value': 25.0},
+        {'key': 'agent_commission_professional', 'value': 30.0},
+        {'key': 'agent_commission_service-provider', 'value': 25.0},
+        {'key': 'agent_commission_client', 'value': 10.0},
+    ]
+    
+    created = 0
+    skipped = 0
+    
+    for s_data in settings_data:
+        existing = AppSetting.query.get(s_data['key'])
+        if existing:
+            click.echo(f"  Skip setting: {s_data['key']} (already exists)")
+            skipped += 1
+            continue
+            
+        setting = AppSetting(key=s_data['key'], value=s_data['value'])
+        db.session.add(setting)
+        created += 1
+        click.echo(f"  Added setting: {s_data['key']}")
+    
+    db.session.commit()
+    click.echo(f'Settings: {created} created, {skipped} skipped.')
+
+
+@cli.command('execute-sql')
+@click.argument('sql')
+@with_appcontext
+def execute_sql(sql):
+    """Execute raw SQL against the database"""
+    try:
+        db.session.execute(db.text(sql))
+        db.session.commit()
+        click.echo("SQL executed successfully.")
+    except Exception as e:
+        db.session.rollback()
+        click.echo(f"Error executing SQL: {str(e)}")

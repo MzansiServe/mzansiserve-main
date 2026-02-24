@@ -1,4 +1,5 @@
 import type { Config } from "tailwindcss";
+import tailwindAnimate from "tailwindcss-animate";
 
 export default {
   darkMode: ["class"],
@@ -14,8 +15,7 @@ export default {
     },
     extend: {
       fontFamily: {
-        roboto: ["Roboto", "sans-serif"],
-        sans: ["Roboto", "sans-serif"],
+        sans: ["Outfit", "sans-serif"],
       },
       colors: {
         border: "hsl(var(--border))",
@@ -122,5 +122,5 @@ export default {
       },
     },
   },
-  plugins: [require("tailwindcss-animate")],
+  plugins: [tailwindAnimate],
 } satisfies Config;

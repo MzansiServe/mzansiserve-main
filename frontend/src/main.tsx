@@ -1,4 +1,5 @@
 import { createRoot } from "react-dom/client";
+import { GoogleOAuthProvider } from "@react-oauth/google";
 import App from "./App.tsx";
 import "./index.css";
 
@@ -8,4 +9,10 @@ const routerFutureFlags = {
     v7_relativeSplatPath: true,
 };
 
-createRoot(document.getElementById("root")!).render(<App />);
+const GOOGLE_CLIENT_ID = import.meta.env.VITE_GOOGLE_CLIENT_ID || "YOUR_GOOGLE_CLIENT_ID.apps.googleusercontent.com";
+
+createRoot(document.getElementById("root")!).render(
+    <GoogleOAuthProvider clientId={GOOGLE_CLIENT_ID}>
+        <App />
+    </GoogleOAuthProvider>
+);

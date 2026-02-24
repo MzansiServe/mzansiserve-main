@@ -130,7 +130,7 @@ export const WithdrawalsManagement = () => {
                 <div>
                     <h3 className="text-xl font-bold text-slate-900 leading-tight flex items-center gap-2">
                         Withdrawal Requests
-                        <Badge variant="outline" className=" bg-[#ede7f6] text-[#5e35b1] border-[#d1c4e9] font-black text-[10px]">{requests.filter(r => r.status === 'pending').length} New</Badge>
+                        <Badge variant="outline" className=" bg-[#ede7f6] text-[#5e35b1] border-[#d1c4e9] font-bold text-[10px]">{requests.filter(r => r.status === 'pending').length} New</Badge>
                     </h3>
                     <p className="text-sm text-slate-500">Approve or reverse withdrawal requests from earners.</p>
                 </div>
@@ -192,7 +192,7 @@ export const WithdrawalsManagement = () => {
                                                         {req.user_name?.charAt(0).toUpperCase() || "U"}
                                                     </div>
                                                     <span className="text-sm font-bold text-slate-900">{req.user_name || "User"}</span>
-                                                    <Badge variant="outline" className="text-[8px] font-black uppercase border-slate-200 text-slate-400  px-1">{req.user_role}</Badge>
+                                                    <Badge variant="outline" className="text-[8px] font-bold uppercase border-slate-200 text-slate-400  px-1">{req.user_role}</Badge>
                                                 </div>
                                                 <div className="flex items-center gap-4 text-[10px] text-slate-400 font-medium">
                                                     <span className="flex items-center gap-1"><Mail className="w-3 h-3" /> {req.user_email}</span>
@@ -203,7 +203,7 @@ export const WithdrawalsManagement = () => {
                                         </td>
                                         <td className="px-6 py-4 whitespace-nowrap">
                                             <div className="flex flex-col">
-                                                <span className="text-lg font-black text-slate-900 tracking-tighter">R {req.amount.toFixed(2)}</span>
+                                                <span className="text-lg font-bold text-slate-900 tracking-tighter">R {req.amount.toFixed(2)}</span>
                                                 {req.admin_notes && <span className="text-[10px] text-slate-400 italic flex items-center gap-1"><MessageSquare className="w-2.5 h-2.5" /> notes present</span>}
                                             </div>
                                         </td>
@@ -214,7 +214,7 @@ export const WithdrawalsManagement = () => {
                                             {req.status === 'pending' ? (
                                                 <Button
                                                     onClick={() => { setSelectedRequest(req); setActionNotes(req.admin_notes || ""); setIsActionModalOpen(true); }}
-                                                    className="h-8  bg-[#5e35b1] hover:bg-[#4527a0] font-black text-[11px] uppercase tracking-wider px-4 shadow-sm"
+                                                    className="h-8  bg-[#5e35b1] hover:bg-[#4527a0] font-bold text-[11px] uppercase tracking-wider px-4 shadow-sm"
                                                 >
                                                     Resolve
                                                 </Button>
@@ -241,7 +241,7 @@ export const WithdrawalsManagement = () => {
             <Dialog open={isActionModalOpen} onOpenChange={setIsActionModalOpen}>
                 <DialogContent className=" border-none shadow-2xl bg-white sm:max-w-[450px] p-8">
                     <DialogHeader>
-                        <DialogTitle className="text-2xl font-black text-slate-900 tracking-tight">Resolve Withdrawal</DialogTitle>
+                        <DialogTitle className="text-2xl font-bold text-slate-900 tracking-tight">Resolve Withdrawal</DialogTitle>
                         <DialogDescription className="text-slate-500 font-medium">
                             {selectedRequest?.status === 'pending'
                                 ? "Complete the payment or reverse the funds back to user wallet."
@@ -252,8 +252,8 @@ export const WithdrawalsManagement = () => {
                     <div className="py-6 space-y-6">
                         <div className="bg-[#ede7f6]/30 p-4  border border-[#ede7f6] flex items-center justify-between">
                             <div>
-                                <p className="text-[10px] font-black text-[#5e35b1] uppercase tracking-widest">Amount to Pay</p>
-                                <p className="text-3xl font-black text-slate-900 tracking-tighter">R {selectedRequest?.amount.toFixed(2)}</p>
+                                <p className="text-[10px] font-bold text-[#5e35b1] uppercase tracking-widest">Amount to Pay</p>
+                                <p className="text-3xl font-bold text-slate-900 tracking-tighter">R {selectedRequest?.amount.toFixed(2)}</p>
                             </div>
                             <div className="h-12 w-12  bg-white shadow-sm flex items-center justify-center text-[#5e35b1]">
                                 <DollarSign className="h-6 w-6" />
@@ -261,7 +261,7 @@ export const WithdrawalsManagement = () => {
                         </div>
 
                         <div className="space-y-2">
-                            <label className="text-[11px] font-black text-slate-400 uppercase tracking-widest ml-1">Administrative Notes</label>
+                            <label className="text-[11px] font-bold text-slate-400 uppercase tracking-widest ml-1">Administrative Notes</label>
                             <Textarea
                                 placeholder="Payment reference, transaction ID, or reason for reversal..."
                                 className="font-medium resize-none p-4"
@@ -285,7 +285,7 @@ export const WithdrawalsManagement = () => {
                                 </Button>
                                 <Button
                                     disabled={processingAction}
-                                    className="flex-1 h-12  bg-emerald-500 hover:bg-emerald-600 font-black px-8 shadow-lg shadow-emerald-200"
+                                    className="flex-1 h-12  bg-emerald-500 hover:bg-emerald-600 font-bold px-8 shadow-lg shadow-emerald-200"
                                     onClick={() => handleAction('paid')}
                                 >
                                     {processingAction ? <Loader2 className="animate-spin h-5 w-5" /> : "Confirm Paid"}

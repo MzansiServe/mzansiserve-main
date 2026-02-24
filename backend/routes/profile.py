@@ -14,6 +14,7 @@ from backend.utils.response import success_response, error_response
 from backend.utils.decorators import require_auth
 from backend.utils.auth import validate_sa_id
 from backend.services.payment_service import PaymentService
+from backend.services.agent_service import AgentService
 
 bp = Blueprint('profile', __name__)
 
@@ -33,18 +34,18 @@ ALLOWED_AFTER_APPROVAL_BY_ROLE = {
 }
 
 class NextOfKinSchema(Schema):
-    full_name = fields.Str(allow_none=True, missing=None)
-    contact_number = fields.Str(allow_none=True, missing=None)
-    contact_email = fields.Email(allow_none=True, missing=None)
+    full_name = fields.Str(allow_none=True, load_default=None)
+    contact_number = fields.Str(allow_none=True, load_default=None)
+    contact_email = fields.Email(allow_none=True, load_default=None)
 
 
 class ServiceSchema(Schema):
     """Represents a service offered by a professional or service provider."""
 
     name = fields.Str(required=True)
-    description = fields.Str(allow_none=True, missing=None)
+    description = fields.Str(allow_none=True, load_default=None)
     # Hourly rate is mainly for professionals; optional for service providers.
-    hourly_rate = fields.Float(allow_none=True, missing=None)
+    hourly_rate = fields.Float(allow_none=True, load_default=None)
 
 
 class DriverServiceSchema(Schema):
@@ -52,26 +53,26 @@ class DriverServiceSchema(Schema):
 
     car_make = fields.Str(required=True)
     car_model = fields.Str(required=True)
-    car_year = fields.Int(allow_none=True, missing=None)
-    registration_number = fields.Str(allow_none=True, missing=None)
+    car_year = fields.Int(allow_none=True, load_default=None)
+    registration_number = fields.Str(allow_none=True, load_default=None)
     car_type = fields.Str(required=True)  # standard, premium, suv; pricing is admin-configured
 
 
 class UpdateProfileSchema(Schema):
-    full_name = fields.Str(allow_none=True, missing=None)
-    surname = fields.Str(allow_none=True, missing=None)
-    phone = fields.Str(allow_none=True, missing=None)
-    gender = fields.Str(allow_none=True, missing=None)
-    sa_citizen = fields.Bool(allow_none=True, missing=False)
-    sa_id = fields.Str(allow_none=True, missing=None)
-    next_of_kin = fields.Nested(NextOfKinSchema, allow_none=True, missing=None)
+    full_name = fields.Str(allow_none=True, load_default=None)
+    surname = fields.Str(allow_none=True, load_default=None)
+    phone = fields.Str(allow_none=True, load_default=None)
+    gender = fields.Str(allow_none=True, load_default=None)
+    sa_citizen = fields.Bool(allow_none=True, load_default=False)
+    sa_id = fields.Str(allow_none=True, load_default=None)
+    next_of_kin = fields.Nested(NextOfKinSchema, allow_none=True, load_default=None)
     # Professional metadata
-    highest_qualification = fields.Str(allow_none=True, missing=None)
-    professional_body = fields.Str(allow_none=True, missing=None)
+    highest_qualification = fields.Str(allow_none=True, load_default=None)
+    professional_body = fields.Str(allow_none=True, load_default=None)
     # Role-specific fields
-    professional_services = fields.List(fields.Nested(ServiceSchema), allow_none=True, missing=None)
-    provider_services = fields.List(fields.Nested(ServiceSchema), allow_none=True, missing=None)
-    driver_services = fields.List(fields.Nested(DriverServiceSchema), allow_none=True, missing=None)
+    professional_services = fields.List(fields.Nested(ServiceSchema), allow_none=True, load_default=None)
+    provider_services = fields.List(fields.Nested(ServiceSchema), allow_none=True, load_default=None)
+    driver_services = fields.List(fields.Nested(DriverServiceSchema), allow_none=True, load_default=None)
 
 @bp.route('', methods=['GET'])
 @require_auth
@@ -539,6 +540,10 @@ def payment_callback():
                             if payment.status == 'pending' and payment.amount * 100 >= REGISTRATION_FEE_AMOUNT:
                                 user.is_paid = True
                                 payment.status = 'completed'
+                                
+                                # Award commission to agent if applicable
+                                AgentService.award_commission(user)
+                                
                                 db.session.commit()
                                 current_app.logger.info(f"User {user.id} registration fee paid successfully")
                                 

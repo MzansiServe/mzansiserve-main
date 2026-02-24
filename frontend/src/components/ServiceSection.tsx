@@ -58,7 +58,8 @@ const shopIcons: Record<string, LucideIcon> = {
   'home': Home
 };
 
-const getIcon = (name: string, mapping: Record<string, LucideIcon>, fallback: LucideIcon): LucideIcon => {
+const getIcon = (name: string | undefined, mapping: Record<string, LucideIcon>, fallback: LucideIcon): LucideIcon => {
+  if (!name) return fallback;
   const lowerName = name.toLowerCase();
   for (const [key, icon] of Object.entries(mapping)) {
     if (lowerName.includes(key)) return icon;
@@ -209,9 +210,9 @@ const ServiceSections = () => {
             badgeClass: "bg-sa-red/10 text-sa-red",
             link: "/shop",
             cards: shopCats.length > 0 ? shopCats.map((c: any) => ({
-              icon: getIcon(c.name, shopIcons, ShoppingBag),
-              title: c.name,
-              description: c.description || `Discover ${c.name} products.`
+              icon: getIcon(c.title, shopIcons, ShoppingBag),
+              title: c.title,
+              description: c.description || `Discover ${c.title} products.`
             })) : [
               { icon: ShoppingBag, title: "Fashion & Accessories", description: "Clothing, shoes, bags, and jewellery from local brands." },
               { icon: Smartphone, title: "Electronics & Tech", description: "Gadgets, phones, laptops, and tech accessories." },

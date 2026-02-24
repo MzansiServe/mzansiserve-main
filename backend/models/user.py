@@ -50,7 +50,7 @@ class User(UserMixin, db.Model):
     
     __table_args__ = (
         db.UniqueConstraint('email', 'role', name='uq_user_email_role'),
-        db.CheckConstraint("role IN ('client', 'driver', 'professional', 'service-provider', 'admin')", name='check_role'),
+        db.CheckConstraint("role IN ('client', 'driver', 'professional', 'service-provider', 'admin', 'agent')", name='check_role'),
         db.CheckConstraint("id_verification_status IN ('pending', 'verified', 'rejected')", name='check_id_verification_status'),
     )
     
@@ -79,6 +79,9 @@ class User(UserMixin, db.Model):
             'id': str(self.id),
             'email': self.email,
             'role': self.role,
+            'name': self.data.get('full_name', '') if self.data else '',
+            'full_name': self.data.get('full_name', '') if self.data else '',
+            'phone': self.data.get('phone', '') if self.data else '',
             'is_admin': self.is_admin,
             'is_paid': self.is_paid,
             'is_approved': self.is_approved,

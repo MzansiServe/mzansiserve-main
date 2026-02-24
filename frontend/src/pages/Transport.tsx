@@ -161,11 +161,51 @@ const Transport = () => {
 
     setIsRequesting(true);
     try {
-      await new Promise(r => setTimeout(r, 2000));
-      setRequestSuccess(true);
-      setStep(3);
-    } catch (e) {
-      toast({ variant: "destructive", title: "Request failed", description: "Could not request ride." });
+      const payload = {
+        pickup: {
+          address: pickup,
+          lat: pickupCoords?.lat,
+          lng: pickupCoords?.lng
+        },
+        dropoff: {
+          address: dropoff,
+          lat: dropoffCoords?.lat,
+          lng: dropoffCoords?.lng
+        },
+        date,
+        time,
+        preferences: {
+          car_type: selectedVehicle,
+          driver_preference: driverPref
+        },
+        payment_amount: quote.amount,
+        distance_km: distanceKm
+      };
+
+      const res = await apiFetch('/api/requests/cab-checkout', {
+        method: 'POST',
+        data: payload
+      });
+
+      if (res.success && res.data?.redirect_url) {
+        toast({ title: "Redirecting", description: "Taking you to secure checkout..." });
+        // Small delay to let toast show
+        setTimeout(() => {
+          window.location.href = res.data.redirect_url;
+        }, 1000);
+      } else {
+        toast({ 
+          variant: "destructive", 
+          title: "Request failed", 
+          description: res.message || "Could not initiate checkout." 
+        });
+      }
+    } catch (e: any) {
+      toast({ 
+        variant: "destructive", 
+        title: "Request failed", 
+        description: e.message || "An unexpected error occurred." 
+      });
     } finally {
       setIsRequesting(false);
     }
@@ -177,7 +217,7 @@ const Transport = () => {
 
       <div className="flex-1 container mx-auto px-4 py-24 lg:px-8 max-w-4xl">
         <div className="text-center mb-10">
-          <h1 className="text-3xl font-extrabold text-slate-900 sm:text-4xl tracking-tight">Request a Ride</h1>
+          <h1 className="text-3xl font-semibold text-slate-900 sm:text-4xl tracking-tight">Request a Ride</h1>
           <p className="mt-3 text-lg text-slate-500">Get where you need to go safely and reliably across Mzansi.</p>
         </div>
 
@@ -353,7 +393,7 @@ const Transport = () => {
                   </h3>
                   <div className="text-right bg-slate-50 px-3 py-1.5 rounded-lg border border-slate-100">
                     <p className="text-xs text-slate-500 uppercase font-semibold">Est. Distance</p>
-                    <p className="font-extrabold text-slate-900 text-lg">{distanceKm?.toFixed(1)} <span className="text-sm font-medium text-slate-500">km</span></p>
+                    <p className="font-semibold text-slate-900 text-lg">{distanceKm?.toFixed(1)} <span className="text-sm font-medium text-slate-500">km</span></p>
                   </div>
                 </div>
 
@@ -462,7 +502,7 @@ const Transport = () => {
                       <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="bg-primary/5 border border-primary/20 rounded-xl p-5 flex items-center justify-between shadow-sm">
                         <div>
                           <p className="text-xs font-bold text-primary/60 uppercase tracking-wider">Estimated Total</p>
-                          <p className="text-3xl font-extrabold text-primary">R {quote.amount.toFixed(2)}</p>
+                          <p className="text-3xl font-semibold text-primary">R {quote.amount.toFixed(2)}</p>
                         </div>
                         <Button onClick={handleRequestRide} disabled={isRequesting} className="h-12 px-8 text-base">
                           {isRequesting ? <Loader2 className="animate-spin h-5 w-5" /> : "Request Ride"}
@@ -477,7 +517,7 @@ const Transport = () => {
             {step === 3 && (
               <motion.div key="step3" initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} className="p-12 flex flex-col items-center text-center">
                 <CheckCircle2 className="w-16 h-16 text-emerald-500 mb-6" />
-                <h2 className="text-3xl font-extrabold text-slate-900 mb-2">Confirmed!</h2>
+                <h2 className="text-3xl font-semibold text-slate-900 mb-2">Confirmed!</h2>
                 <p className="text-slate-500 mb-8">Your ride request has been sent successfully.</p>
                 <Button onClick={() => window.location.href = '/'}>Return Home</Button>
               </motion.div>

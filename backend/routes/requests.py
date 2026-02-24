@@ -1021,13 +1021,11 @@ def get_client_info(request_id):
         service_request = ServiceRequest.query.get(request_id)
         if not service_request:
             return error_response('NOT_FOUND', 'Service request not found', None, 404)
-        if service_request.request_type != 'cab':
-            return error_response('INVALID_REQUEST', 'Not a cab request', 400)
-        # Driver can view client info for: (1) their accepted/completed ride, or (2) pending request (browsing available)
-        if user.role != 'driver':
-            return error_response('FORBIDDEN', 'Only drivers can view client info', 403)
+        # Provider can view client info for: (1) their accepted/completed ride, or (2) pending request (browsing available)
+        if user.role not in ('driver', 'professional', 'service-provider'):
+            return error_response('FORBIDDEN', 'Only providers can view client info', 403)
         if str(service_request.provider_id) != user_id and service_request.status != 'pending':
-            return error_response('FORBIDDEN', 'Only the driver for this ride can view client info', 403)
+            return error_response('FORBIDDEN', 'Only the assigned provider can view client info', 403)
         client = service_request.requester
         if not client:
             return error_response('INVALID_REQUEST', 'No client assigned to this request', 400)
@@ -1059,7 +1057,7 @@ def get_client_info(request_id):
 @bp.route('/<request_id>/rate-client', methods=['POST'])
 @require_auth
 def rate_client(request_id):
-    """Driver rates the client (requester) after a completed cab ride."""
+    """Provider rates the client (requester) after a completed service."""
     try:
         user_id = get_jwt_identity()
         service_request = ServiceRequest.query.get(request_id)
@@ -1068,7 +1066,7 @@ def rate_client(request_id):
         if service_request.request_type != 'cab':
             return error_response('INVALID_REQUEST', 'Not a cab request', 400)
         if str(service_request.provider_id) != user_id:
-            return error_response('FORBIDDEN', 'Only the driver can rate the client', 403)
+            return error_response('FORBIDDEN', 'Only the assigned provider can rate the client', 403)
         if service_request.status not in ('accepted', 'completed'):
             return error_response('INVALID_REQUEST', 'Request must be accepted or completed to rate', 400)
         existing = ClientRating.query.filter_by(service_request_id=request_id).first()

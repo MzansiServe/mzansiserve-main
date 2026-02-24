@@ -174,6 +174,30 @@ export const UsersManagement = () => {
         }
     };
 
+    const handleImpersonate = async (userId: number) => {
+        try {
+            const adminHeaders = { Authorization: `Bearer ${localStorage.getItem("adminToken")}` };
+            const res = await apiFetch(`/api/admin/users/${userId}/impersonate`, {
+                method: "POST",
+                headers: adminHeaders
+            });
+            if (res?.success) {
+                // Store impersonated token
+                localStorage.setItem("token", res.data.token);
+                localStorage.setItem("user", JSON.stringify(res.data.user));
+                toast({ title: "Impersonation Active", description: `You are now logged in as ${res.data.user.email}` });
+                // Redirect to home
+                window.location.href = "/";
+            }
+        } catch (error: any) {
+            toast({
+                title: "Error",
+                description: error.message || "Failed to impersonate user.",
+                variant: "destructive"
+            });
+        }
+    };
+
     const handleSuspend = async (userId: number) => {
         const user = users.find(u => u.id === userId);
         if (user) {
@@ -396,7 +420,7 @@ export const UsersManagement = () => {
             <div className="bg-white p-6  shadow-sm border border-gray-100 mb-8 mt-2">
                 <div className="grid grid-cols-1 md:grid-cols-4 gap-6 items-end">
                     <div>
-                        <label className="block text-[11px] font-black text-slate-400 uppercase tracking-widest mb-2 ml-1">Role</label>
+                        <label className="block text-[11px] font-bold text-slate-400 uppercase tracking-widest mb-2 ml-1">Role</label>
                         <select
                             value={roleFilter}
                             onChange={(e) => { setRoleFilter(e.target.value); setPage(1); }}
@@ -411,7 +435,7 @@ export const UsersManagement = () => {
                         </select>
                     </div>
                     <div>
-                        <label className="block text-[11px] font-black text-slate-400 uppercase tracking-widest mb-2 ml-1">Approval Status</label>
+                        <label className="block text-[11px] font-bold text-slate-400 uppercase tracking-widest mb-2 ml-1">Approval Status</label>
                         <select
                             value={approvalFilter}
                             onChange={(e) => { setApprovalFilter(e.target.value); setPage(1); }}
@@ -519,6 +543,13 @@ export const UsersManagement = () => {
                                                         <ShieldCheck className="h-4 w-4" />
                                                     </button>
                                                 )}
+                                                <button
+                                                    onClick={() => handleImpersonate(user.id)}
+                                                    className="text-purple-600 hover:text-purple-900 bg-purple-50 hover:bg-purple-100 p-1.5 transition-colors"
+                                                    title="Impersonate User"
+                                                >
+                                                    <UserCircle className="h-4 w-4" />
+                                                </button>
                                                 {user.is_active && (
                                                     <button
                                                         onClick={() => handleSuspend(user.id)}
@@ -603,7 +634,7 @@ export const UsersManagement = () => {
                                 </div>
                                 <div className="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-5 bg-white p-6  border border-slate-200 shadow-sm">
                                     <div className="space-y-2">
-                                        <Label htmlFor="first_name" className="text-[11px] font-black text-slate-400 uppercase tracking-widest ml-1">First Name</Label>
+                                        <Label htmlFor="first_name" className="text-[11px] font-bold text-slate-400 uppercase tracking-widest ml-1">First Name</Label>
                                         <Input
                                             id="first_name"
                                             value={editFormData.first_name || ""}
@@ -612,7 +643,7 @@ export const UsersManagement = () => {
                                         />
                                     </div>
                                     <div className="space-y-2">
-                                        <Label htmlFor="last_name" className="text-[11px] font-black text-slate-400 uppercase tracking-widest ml-1">Last Name</Label>
+                                        <Label htmlFor="last_name" className="text-[11px] font-bold text-slate-400 uppercase tracking-widest ml-1">Last Name</Label>
                                         <Input
                                             id="last_name"
                                             value={editFormData.last_name || ""}
@@ -621,7 +652,7 @@ export const UsersManagement = () => {
                                         />
                                     </div>
                                     <div className="space-y-2">
-                                        <Label htmlFor="email" className="text-[11px] font-black text-slate-400 uppercase tracking-widest ml-1">Email <span className="text-red-500">*</span></Label>
+                                        <Label htmlFor="email" className="text-[11px] font-bold text-slate-400 uppercase tracking-widest ml-1">Email <span className="text-red-500">*</span></Label>
                                         <Input
                                             id="email"
                                             type="email"
@@ -632,7 +663,7 @@ export const UsersManagement = () => {
                                         />
                                     </div>
                                     <div className="space-y-2">
-                                        <Label htmlFor="password" className="text-[11px] font-black text-slate-400 uppercase tracking-widest ml-1">
+                                        <Label htmlFor="password" className="text-[11px] font-bold text-slate-400 uppercase tracking-widest ml-1">
                                             Password {selectedUser ? "(Leave blank to keep current)" : <span className="text-red-500">*</span>}
                                         </Label>
                                         <Input
@@ -645,7 +676,7 @@ export const UsersManagement = () => {
                                         />
                                     </div>
                                     <div className="space-y-2">
-                                        <Label htmlFor="username" className="text-[11px] font-black text-slate-400 uppercase tracking-widest ml-1">Username</Label>
+                                        <Label htmlFor="username" className="text-[11px] font-bold text-slate-400 uppercase tracking-widest ml-1">Username</Label>
                                         <Input
                                             id="username"
                                             value={editFormData.username || ""}
@@ -654,7 +685,7 @@ export const UsersManagement = () => {
                                         />
                                     </div>
                                     <div className="space-y-2">
-                                        <Label htmlFor="phone" className="text-[11px] font-black text-slate-400 uppercase tracking-widest ml-1">Phone Number</Label>
+                                        <Label htmlFor="phone" className="text-[11px] font-bold text-slate-400 uppercase tracking-widest ml-1">Phone Number</Label>
                                         <Input
                                             id="phone"
                                             value={editFormData.phone || ""}
@@ -663,7 +694,7 @@ export const UsersManagement = () => {
                                         />
                                     </div>
                                     <div className="space-y-2">
-                                        <Label htmlFor="role" className="text-[11px] font-black text-slate-400 uppercase tracking-widest ml-1">Account Role</Label>
+                                        <Label htmlFor="role" className="text-[11px] font-bold text-slate-400 uppercase tracking-widest ml-1">Account Role</Label>
                                         <select
                                             id="role"
                                             value={editFormData.role}
@@ -678,7 +709,7 @@ export const UsersManagement = () => {
                                         </select>
                                     </div>
                                     <div className="space-y-2">
-                                        <Label htmlFor="gender" className="text-[11px] font-black text-slate-400 uppercase tracking-widest ml-1">Gender</Label>
+                                        <Label htmlFor="gender" className="text-[11px] font-bold text-slate-400 uppercase tracking-widest ml-1">Gender</Label>
                                         <select
                                             id="gender"
                                             value={editFormData.gender}
@@ -716,7 +747,7 @@ export const UsersManagement = () => {
                                         </div>
                                         {editFormData.is_sa_citizen && (
                                             <div className="flex-1 space-y-2 w-full animate-in fade-in slide-in-from-left-2 duration-300">
-                                                <Label htmlFor="sa_id_number" className="text-[11px] font-black text-slate-400 uppercase tracking-widest ml-1">SA Identity Number</Label>
+                                                <Label htmlFor="sa_id_number" className="text-[11px] font-bold text-slate-400 uppercase tracking-widest ml-1">SA Identity Number</Label>
                                                 <Input
                                                     id="sa_id_number"
                                                     value={editFormData.sa_id_number}
@@ -745,7 +776,7 @@ export const UsersManagement = () => {
                                 </div>
                                 <div className="grid grid-cols-1 md:grid-cols-3 gap-6 bg-white p-6  border border-slate-200 shadow-sm">
                                     <div className="space-y-2">
-                                        <Label htmlFor="nok_name" className="text-[11px] font-black text-slate-400 uppercase tracking-widest ml-1">Full Name</Label>
+                                        <Label htmlFor="nok_name" className="text-[11px] font-bold text-slate-400 uppercase tracking-widest ml-1">Full Name</Label>
                                         <Input
                                             id="nok_name"
                                             value={editFormData.next_of_kin_name}
@@ -786,7 +817,7 @@ export const UsersManagement = () => {
                                         <div className="space-y-6 bg-white p-6  border border-slate-200 shadow-sm">
                                             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                                                 <div className="space-y-2">
-                                                    <Label htmlFor="qualification" className="text-[11px] font-black text-slate-400 uppercase tracking-widest ml-1">Highest Qualification</Label>
+                                                    <Label htmlFor="qualification" className="text-[11px] font-bold text-slate-400 uppercase tracking-widest ml-1">Highest Qualification</Label>
                                                     <Input
                                                         id="qualification"
                                                         value={editFormData.highest_qualification}
@@ -795,7 +826,7 @@ export const UsersManagement = () => {
                                                     />
                                                 </div>
                                                 <div className="space-y-2">
-                                                    <Label htmlFor="pro_body" className="text-[11px] font-black text-slate-400 uppercase tracking-widest ml-1">Professional Body</Label>
+                                                    <Label htmlFor="pro_body" className="text-[11px] font-bold text-slate-400 uppercase tracking-widest ml-1">Professional Body</Label>
                                                     <Input
                                                         id="pro_body"
                                                         value={editFormData.professional_body}

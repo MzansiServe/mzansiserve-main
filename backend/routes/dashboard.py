@@ -10,6 +10,7 @@ from sqlalchemy import or_, and_, func
 from backend.models import User, Wallet, WalletTransaction, Order, ServiceRequest, Payment, AppSetting, WithdrawalRequest
 from backend.services.payment_service import PaymentService
 from backend.services.wallet_service import WalletService
+from backend.services.agent_service import AgentService
 from backend.services.recon_service import run_recon_for_user
 from backend.utils.response import success_response, error_response
 from backend.utils.decorators import require_auth
@@ -51,13 +52,32 @@ def get_dashboard():
         available_service_provider_requests = []
         recent_professional_jobs = []
         recent_service_provider_jobs = []
+
+        def _ride_request_with_client(r):
+            d = r.to_dict()
+            if r.requester_id and r.requester:
+                requester = r.requester
+                pdata = requester.data or {}
+                first = (pdata.get('full_name') or '').strip()
+                last = (pdata.get('surname') or '').strip()
+                d['client_name'] = f"{first} {last}".strip() or 'Client'
+                d['client_profile_image_url'] = requester.profile_image_url
+                d['client_id'] = str(requester.id)
+            return d
         
         if user.role == 'driver':
             # Get recent service rides requests (3 most recent) - rides driver has accepted
             request_type = 'cab'
             provider_id = user.id
-            recent_rides = ServiceRequest.query.filter_by(request_type=request_type, provider_id=provider_id)\
-                .order_by(ServiceRequest.created_at.desc()).limit(3).all()
+            recent_rides = ServiceRequest.query.filter_by(request_type=request_type, provider_id=provider_id, status='completed')\
+                .order_by(ServiceRequest.created_at.desc()).limit(5).all()
+            
+            # Active rides (accepted but not completed)
+            active_rides = ServiceRequest.query.filter(
+                ServiceRequest.request_type == 'cab',
+                ServiceRequest.provider_id == user.id,
+                ServiceRequest.status == 'accepted'
+            ).all()
             
             # Driver earnings: sum of payment_amount for completed cab rides (current month to date), minus admin fee
             # Get admin fee rate from settings (default to 10% if not set)
@@ -116,18 +136,6 @@ def get_dashboard():
                 
                 available_ride_requests.append(req)
 
-            # Serialize available_ride_requests with client (requester) display info
-            def _ride_request_with_client(r):
-                d = r.to_dict()
-                if r.requester_id and r.requester:
-                    requester = r.requester
-                    pdata = requester.data or {}
-                    first = (pdata.get('full_name') or '').strip()
-                    last = (pdata.get('surname') or '').strip()
-                    d['client_name'] = f"{first} {last}".strip() or 'Client'
-                    d['client_profile_image_url'] = requester.profile_image_url
-                    d['client_id'] = str(requester.id)
-                return d
 
             available_ride_requests_payload = [_ride_request_with_client(r) for r in available_ride_requests]
         
@@ -135,8 +143,16 @@ def get_dashboard():
             # Get recent professional jobs (3 most recent) - jobs professional has accepted
             recent_professional_jobs = ServiceRequest.query.filter_by(
                 request_type='professional',
-                provider_id=user.id
-            ).order_by(ServiceRequest.created_at.desc()).limit(3).all()
+                provider_id=user.id,
+                status='completed'
+            ).order_by(ServiceRequest.created_at.desc()).limit(5).all()
+
+            # Active professional jobs
+            active_professional_jobs = ServiceRequest.query.filter_by(
+                request_type='professional',
+                provider_id=user.id,
+                status='accepted'
+            ).all()
             
             # Professional earnings: sum of payment_amount for completed professional jobs, minus admin fee
             admin_fee_setting = AppSetting.query.get('professional_admin_fee_rate')  # professional admin fee rate
@@ -183,8 +199,16 @@ def get_dashboard():
             # Get recent service provider jobs (3 most recent) - jobs service provider has accepted
             recent_service_provider_jobs = ServiceRequest.query.filter_by(
                 request_type='provider',
-                provider_id=user.id
-            ).order_by(ServiceRequest.created_at.desc()).limit(3).all()
+                provider_id=user.id,
+                status='completed'
+            ).order_by(ServiceRequest.created_at.desc()).limit(5).all()
+
+            # Active provider jobs
+            active_service_provider_jobs = ServiceRequest.query.filter_by(
+                request_type='provider',
+                provider_id=user.id,
+                status='accepted'
+            ).all()
             
             # Service provider earnings: sum of payment_amount for completed provider jobs (current month to date), minus admin fee
             admin_fee_setting = AppSetting.query.get('driver_admin_fee_rate')  # Reuse driver admin fee rate
@@ -239,7 +263,10 @@ def get_dashboard():
             'available_professional_requests': [r.to_dict() for r in available_professional_requests],
             'available_service_provider_requests': [r.to_dict() for r in available_service_provider_requests],
             'recent_professional_jobs': [r.to_dict() for r in recent_professional_jobs],
-            'recent_service_provider_jobs': [r.to_dict() for r in recent_service_provider_jobs]
+            'recent_service_provider_jobs': [r.to_dict() for r in recent_service_provider_jobs],
+            'active_rides': [_ride_request_with_client(r) for r in active_rides] if user.role == 'driver' else [],
+            'active_professional_jobs': [_ride_request_with_client(r) for r in active_professional_jobs] if user.role == 'professional' else [],
+            'active_service_provider_jobs': [_ride_request_with_client(r) for r in active_service_provider_jobs] if user.role == 'service-provider' else []
         }
         if driver_earnings is not None:
             payload['driver_earnings'] = driver_earnings
@@ -247,6 +274,10 @@ def get_dashboard():
             payload['professional_earnings'] = professional_earnings
         if service_provider_earnings is not None:
             payload['service_provider_earnings'] = service_provider_earnings
+            
+        if user.role == 'agent':
+            payload['agent_stats'] = AgentService.get_agent_stats(user.id)
+            
         return success_response(payload)
         
     except Exception as e:
@@ -344,7 +375,7 @@ def get_orders():
 
 class TopUpSchema(Schema):
     amount = fields.Float(required=True, validate=lambda x: x >= 10.0)
-    currency = fields.Str(required=True, default='ZAR')
+    currency = fields.Str(required=True)
 
 @bp.route('/wallet/top-up', methods=['POST'])
 @require_auth

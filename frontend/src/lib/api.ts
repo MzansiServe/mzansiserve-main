@@ -6,7 +6,18 @@
 export const API_BASE_URL = import.meta.env.VITE_API_URL || "http://localhost:5006";
 
 interface FetchOptions extends RequestInit {
-    data?: any;
+    data?: unknown;
+}
+
+export interface ApiResponse<T = any> {
+    success: boolean;
+    data: T;
+    message?: string;
+    error?: string | {
+        code: string;
+        message: string;
+        details?: any;
+    };
 }
 
 /**
@@ -15,7 +26,7 @@ interface FetchOptions extends RequestInit {
 export async function apiFetch<T = any>(
     endpoint: string,
     options: FetchOptions = {}
-): Promise<T> {
+): Promise<ApiResponse<T>> {
     const { data, headers: customHeaders, ...customOptions } = options;
 
     const isCoreApi = endpoint.startsWith("/api/admin");
@@ -23,20 +34,18 @@ export async function apiFetch<T = any>(
         ? (localStorage.getItem("adminToken") || localStorage.getItem("token"))
         : (localStorage.getItem("token") || localStorage.getItem("adminToken"));
 
-    const headers: any = {
-        ...customHeaders,
-    };
+    const headers = new Headers(customHeaders);
 
-    if (token && !headers["Authorization"] && !headers["authorization"]) {
-        headers["Authorization"] = `Bearer ${token}`;
+    if (token && !headers.has("Authorization")) {
+        headers.set("Authorization", `Bearer ${token}`);
     }
 
     // Use either data or body (body is standard fetch, data is our custom wrapper)
     const requestBody = data || options.body;
     const isFormData = requestBody instanceof FormData;
 
-    if (requestBody && !isFormData && !headers["Content-Type"] && !headers["content-type"]) {
-        headers["Content-Type"] = "application/json";
+    if (requestBody && !isFormData && !headers.has("Content-Type")) {
+        headers.set("Content-Type", "application/json");
     }
 
     const config: RequestInit = {
@@ -52,7 +61,7 @@ export async function apiFetch<T = any>(
     const response = await fetch(url, config);
 
     // Parse JSON response
-    let result;
+    let result: ApiResponse<T> | null;
     try {
         result = await response.json();
     } catch (err) {
@@ -69,11 +78,23 @@ export async function apiFetch<T = any>(
             // window.location.href = '/login';
         }
 
-        const errorMessage = result?.message || result?.error || response.statusText;
-        throw new Error(errorMessage || "An error occurred");
+        let errorMessage = "An error occurred";
+        if (result) {
+            if (typeof result.error === 'object' && result.error !== null) {
+                errorMessage = result.error.message;
+            } else if (typeof result.error === 'string') {
+                errorMessage = result.error;
+            } else if (result.message) {
+                errorMessage = result.message;
+            }
+        } else {
+            errorMessage = response.statusText;
+        }
+        
+        throw new Error(errorMessage);
     }
 
-    return result;
+    return result as ApiResponse<T>;
 }
 
 export default apiFetch;

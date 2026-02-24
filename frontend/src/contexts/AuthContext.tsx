@@ -14,6 +14,7 @@ interface AuthContextType {
   login: (email: string, password: string, role: string) => Promise<{ success: boolean; error?: string }>;
   register: (data: FormData | Record<string, any>) => Promise<{ success: boolean; error?: string }>;
   logout: () => void;
+  setUser: (user: User | null) => void;
   isAuthenticated: boolean;
   isLoading: boolean;
 }
@@ -30,7 +31,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       const token = localStorage.getItem("token");
       if (token) {
         try {
-          const result = await apiFetch("/api/auth/profile");
+          const result = await apiFetch("/api/profile");
           if (result.success && result.data) {
             setUser(result.data.user);
           } else {
@@ -75,11 +76,9 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       const result = await apiFetch(endpoint, { data: payload });
 
       if (result.success) {
-        // Optional: register-with-payment may trigger a checkout URL rather than token immediately
-        if (result.checkout_url) {
-          // You might need to redirect to payment
-          window.location.href = result.checkout_url;
-          return { success: true };
+        // Optional: register-with-payment may trigger a redirect URL rather than token immediately
+        if (result.data?.redirect_url) {
+          return { success: true, redirect_url: result.data.redirect_url };
         }
 
         if (result.data?.token) {
@@ -100,7 +99,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   }, []);
 
   return (
-    <AuthContext.Provider value={{ user, login, register, logout, isAuthenticated: !!user, isLoading }}>
+    <AuthContext.Provider value={{ user, login, register, logout, setUser, isAuthenticated: !!user, isLoading }}>
       {children}
     </AuthContext.Provider>
   );

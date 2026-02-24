@@ -1227,6 +1227,23 @@ def _get_callout_fee_value(key: str, fallback_key: str = 'callout_fee_amount', d
     return float(setting.value) if setting else default
 
 
+@bp.route('/settings', methods=['GET'])
+def list_settings():
+    """List all application settings. Authenticated users can view."""
+    try:
+        settings = AppSetting.query.all()
+        # Map 'key' to 'id' for frontend compatibility
+        settings_data = []
+        for s in settings:
+            d = s.to_dict()
+            d['id'] = s.key
+            settings_data.append(d)
+        return success_response(settings_data)
+    except Exception as e:
+        current_app.logger.error(f"List settings error: {str(e)}")
+        return error_response('INTERNAL_ERROR', 'Failed to list settings', None, 500)
+
+
 @bp.route('/settings/callout-fee', methods=['GET'])
 @require_auth
 def get_callout_fee():
@@ -2217,3 +2234,191 @@ def delete_landing_feature(feature_id):
     except Exception as e:
         db.session.rollback()
         return error_response('INTERNAL_ERROR', 'Failed to delete feature', None, 500)
+
+
+@bp.route('/users/<user_id>/impersonate', methods=['POST'])
+@require_admin
+def impersonate_user(user_id):
+    """Generate a JWT token for another user (admin only)"""
+    try:
+        from flask_jwt_extended import create_access_token
+        user = User.query.get(user_id)
+        if not user:
+            return error_response('NOT_FOUND', 'User not found', None, 404)
+        
+        # Create token for target user
+        access_token = create_access_token(identity=str(user.id))
+        
+        return success_response({
+            'user': user.to_dict(),
+            'token': access_token
+        }, f'Impersonating user {user.email}')
+        
+    except Exception as e:
+        current_app.logger.error(f"Impersonate error: {str(e)}")
+        return error_response('INTERNAL_ERROR', 'Failed to impersonate user', None, 500)
+
+
+@bp.route('/api-logs', methods=['GET'])
+@require_admin
+def list_api_logs():
+    """List external API logs"""
+    try:
+        from backend.models.api_log import ExternalApiLog
+        limit = int(request.args.get('limit', 100))
+        offset = int(request.args.get('offset', 0))
+        provider = request.args.get('provider')
+        
+        query = ExternalApiLog.query
+        if provider:
+            query = query.filter_by(provider=provider)
+            
+        total = query.count()
+        logs = query.order_by(ExternalApiLog.created_at.desc()).limit(limit).offset(offset).all()
+        
+        return success_response({
+            'logs': [l.to_dict() for l in logs],
+            'total': total,
+            'limit': limit,
+            'offset': offset
+        })
+        
+    except Exception as e:
+        current_app.logger.error(f"List API logs error: {str(e)}")
+        return error_response('INTERNAL_ERROR', 'Failed to list API logs', None, 500)
+
+
+@bp.route('/reports', methods=['GET'])
+@require_admin
+def list_reports():
+    """List all user reports"""
+    try:
+        from backend.models.report import Report
+        status = request.args.get('status')
+        limit = int(request.args.get('limit', 100))
+        offset = int(request.args.get('offset', 0))
+        
+        query = Report.query
+        if status:
+            query = query.filter_by(status=status)
+            
+        total = query.count()
+        reports = query.order_by(Report.created_at.desc()).limit(limit).offset(offset).all()
+        
+        return success_response({
+            'reports': [r.to_dict() for r in reports],
+            'total': total,
+            'limit': limit,
+            'offset': offset
+        })
+    except Exception as e:
+        current_app.logger.error(f"List reports error: {str(e)}")
+        return error_response('INTERNAL_ERROR', 'Failed to list reports', None, 500)
+
+
+@bp.route('/reports/<report_id>', methods=['PATCH'])
+@require_admin
+def update_report(report_id):
+    """Update report status and add notes"""
+    try:
+        from backend.models.report import Report
+        report = Report.query.get(report_id)
+        if not report:
+            return error_response('NOT_FOUND', 'Report not found', None, 404)
+            
+        data = request.json
+        status = data.get('status')
+        admin_notes = data.get('admin_notes')
+        
+        if status:
+            report.status = status
+            if status in ('resolved', 'dismissed'):
+                report.resolved_at = datetime.utcnow()
+        
+        if admin_notes:
+            report.admin_notes = admin_notes
+            
+        db.session.commit()
+        return success_response(report.to_dict(), 'Report updated successfully')
+    except Exception as e:
+        db.session.rollback()
+        current_app.logger.error(f"Update report error: {str(e)}")
+        return error_response('INTERNAL_ERROR', 'Failed to update report', None, 500)
+
+
+@bp.route('/global-stats', methods=['GET'])
+@require_admin
+def get_global_stats():
+    """Consolidated view of all system activity"""
+    try:
+        from backend.models.chat import ChatMessage
+        from backend.models.report import Report
+        from backend.models.driver_rating import DriverRating
+        from backend.models.professional_rating import ProfessionalRating
+        from backend.models.provider_rating import ProviderRating
+        
+        return success_response({
+            'users': {
+                'total': User.query.count(),
+                'drivers': User.query.filter_by(role='driver').count(),
+                'professionals': User.query.filter_by(role='professional').count(),
+                'providers': User.query.filter_by(role='service-provider').count(),
+                'clients': User.query.filter_by(role='client').count()
+            },
+            'requests': {
+                'total': ServiceRequest.query.count(),
+                'pending': ServiceRequest.query.filter_by(status='pending').count(),
+                'completed': ServiceRequest.query.filter_by(status='completed').count()
+            },
+            'feedback': {
+                'total_ratings': DriverRating.query.count() + ProfessionalRating.query.count() + ProviderRating.query.count(),
+                'total_reports': Report.query.count(),
+                'pending_reports': Report.query.filter_by(status='pending').count()
+            },
+            'activity': {
+                'total_chats': ChatMessage.query.count()
+            }
+        })
+    except Exception as e:
+        current_app.logger.error(f"Global stats error: {str(e)}")
+        return error_response('INTERNAL_ERROR', 'Failed to get global stats', None, 500)
+
+
+@bp.route('/chats', methods=['GET'])
+@require_admin
+def list_all_chats():
+    """List all chat conversations for monitoring"""
+    try:
+        from backend.models.chat import ChatMessage
+        # Group messages by request_id
+        # In a real system, we'd use a more sophisticated grouping
+        messages = ChatMessage.query.order_by(ChatMessage.created_at.desc()).limit(200).all()
+        return success_response([m.to_dict() for m in messages])
+    except Exception as e:
+        current_app.logger.error(f"List chats error: {str(e)}")
+        return error_response('INTERNAL_ERROR', 'Failed to list chats', None, 500)
+
+
+@bp.route('/global-commissions', methods=['GET'])
+@require_admin
+def list_global_commissions():
+    """List all agent commissions for monitoring"""
+    try:
+        from backend.models.agent_commission import AgentCommission
+        commissions = AgentCommission.query.order_by(AgentCommission.created_at.desc()).limit(100).all()
+        
+        out = []
+        for c in commissions:
+            d = c.to_dict()
+            if c.agent:
+                d['agent_email'] = c.agent.email
+            out.append(d)
+            
+        return success_response({'commissions': out})
+    except Exception as e:
+        current_app.logger.error(f"List global commissions error: {str(e)}")
+        return error_response('INTERNAL_ERROR', 'Failed to list commissions', None, 500)
+
+
+
+

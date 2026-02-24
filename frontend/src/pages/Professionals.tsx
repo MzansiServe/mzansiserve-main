@@ -8,7 +8,6 @@ import ProviderCard from "@/components/ProviderCard";
 import { serviceSubcategories } from "@/lib/mock-data";
 import { useQuery } from "@tanstack/react-query";
 import { apiFetch } from "@/lib/api";
-import BookingStepWizard from "@/components/BookingStepWizard";
 
 const subcats = serviceSubcategories.Professionals;
 
@@ -32,6 +31,18 @@ const Professionals = () => {
       const fullName = `${data.full_name || ''} ${data.surname || ''}`.trim();
       const firstService = p.services && p.services.length > 0 ? p.services[0] : null;
 
+      // Pick a random banner and avatar for aesthetics if none exist
+      const mockBanners = [
+        "https://images.unsplash.com/photo-1541888081628-912235c4eb5e?q=80&w=800&auto=format&fit=crop",
+        "https://images.unsplash.com/photo-1581578731548-c64695cc6952?q=80&w=800&auto=format&fit=crop",
+        "https://images.unsplash.com/photo-1554224155-8d04cb21cd6c?q=80&w=800&auto=format&fit=crop",
+        "https://images.unsplash.com/photo-1507679799987-c73779587ccf?q=80&w=800&auto=format&fit=crop",
+      ];
+      const mockAvatars = [
+        "https://i.pravatar.cc/150?u=" + user.id,
+        "https://i.pravatar.cc/150?u=" + (user.id + 10),
+      ];
+
       return {
         id: user.id,
         name: fullName || "Professional",
@@ -44,7 +55,8 @@ const Professionals = () => {
         priceUnit: "/hour",
         description: firstService?.description || "Certified professional ready to assist you.",
         verified: user.is_approved,
-        image: user.profile_image_url || "/placeholder.svg",
+        image: user.profile_image_url || mockAvatars[user.id % 2],
+        bannerImage: user.banner_url || mockBanners[user.id % 4],
         available: true,
       };
     });
@@ -77,7 +89,6 @@ const Professionals = () => {
       </section>
 
       <section className="container mx-auto px-4 py-10 lg:px-8">
-        <BookingStepWizard currentStep={1} />
         <SearchFilter
           searchPlaceholder="Search professionals..."
           categories={subcats}

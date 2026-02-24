@@ -15,11 +15,11 @@ class AddressSchema(Schema):
     city = fields.Str(required=True)
     province = fields.Str(required=True)
     postal_code = fields.Str(required=True)
-    country = fields.Str(missing='South Africa')
+    country = fields.Str(load_default='South Africa')
     unit_number = fields.Str(allow_none=True)
     building_name = fields.Str(allow_none=True)
     delivery_instructions = fields.Str(allow_none=True)
-    is_default = fields.Bool(missing=False)
+    is_default = fields.Bool(load_default=False)
 
 @bp.route('', methods=['GET'])
 @require_auth
@@ -55,7 +55,7 @@ def create_address():
         
         # If this is set as default, unset other defaults
         if data.get('is_default'):
-            DeliveryAddress.query.filter_by(user_id=user_id, is_default=True).update({'is_default': False})
+            DeliveryAddress.query.filter_by(user_id=user_id, is_load_default=True).update({'is_default': False})
             db.session.commit()
         
         address = DeliveryAddress(
@@ -117,7 +117,7 @@ def update_address(address_id):
         
         # If this is set as default, unset other defaults
         if data.get('is_default') and not address.is_default:
-            DeliveryAddress.query.filter_by(user_id=user_id, is_default=True).update({'is_default': False})
+            DeliveryAddress.query.filter_by(user_id=user_id, is_load_default=True).update({'is_default': False})
         
         for key, value in data.items():
             setattr(address, key, value)
@@ -174,7 +174,7 @@ def set_default_address(address_id):
             return error_response('FORBIDDEN', 'Access denied', None, 403)
         
         # Unset other defaults
-        DeliveryAddress.query.filter_by(user_id=user_id, is_default=True).update({'is_default': False})
+        DeliveryAddress.query.filter_by(user_id=user_id, is_load_default=True).update({'is_default': False})
         
         # Set this as default
         address.is_default = True

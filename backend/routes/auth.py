@@ -6,8 +6,10 @@ import logging
 import os
 import uuid
 
-from flask import Blueprint, request, current_app
+from flask import Blueprint, request, current_app, jsonify
 from flask_jwt_extended import create_access_token, get_jwt_identity, jwt_required
+from google.oauth2 import id_token
+from google.auth.transport.requests import Request
 from marshmallow import Schema, fields, ValidationError, validate
 
 from backend.models import User, PasswordResetToken, EmailVerificationToken, Country, ServiceType, UserSelectedService, Agent, VehicleImage
@@ -17,6 +19,7 @@ from backend.utils.auth import create_password_reset_token, create_email_verific
 from backend.services.email_service import EmailService
 from backend.services.wallet_service import WalletService
 from backend.services.payment_service import PaymentService
+from backend.services.agent_service import AgentService
 
 bp = Blueprint('auth', __name__)
 logger = logging.getLogger(__name__)
@@ -135,6 +138,79 @@ def login():
     except Exception as e:
         logger.exception("login: failed")
         return error_response('INTERNAL_ERROR', 'Login failed', None, 500)
+
+@bp.route('/google-login', methods=['POST'])
+def google_login():
+    """Google OAuth login endpoint"""
+    try:
+        logger.info("google_login: request received")
+        data = request.json
+        token = data.get('token')
+        role = data.get('role', 'client')
+
+        if not token:
+            return error_response('MISSING_TOKEN', 'Google token is required', None, 400)
+
+        # Verify Google Token
+        client_id = current_app.config.get('GOOGLE_CLIENT_ID')
+        if not client_id:
+            logger.error("google_login: GOOGLE_CLIENT_ID not configured")
+            return error_response('CONFIG_ERROR', 'Google Client ID not configured', None, 500)
+
+        try:
+            idinfo = id_token.verify_oauth2_token(token, Request(), client_id)
+            
+            # ID token is valid. Get user's Google ID and email.
+            google_id = idinfo['sub']
+            email = idinfo['email']
+            name = idinfo.get('name', '')
+            
+            # Check if user exists
+            user = User.query.filter_by(email=email, role=role).first()
+            
+            if not user:
+                # Create new user
+                logger.info("google_login: creating new user email=%s role=%s", email, role)
+                user = User(
+                    email=email,
+                    role=role,
+                    is_admin=False,
+                    is_paid=True, # Google users are often considered verified
+                    is_approved=True,
+                    is_active=True,
+                    email_verified=True,
+                    tracking_number=generate_tracking_number()
+                )
+                # Set a dummy password for Google users to satisfy non-nullable constraint
+                user.set_password(str(uuid.uuid4()))
+                user.data = {
+                    'full_name': name,
+                    'google_id': google_id,
+                    'registration_method': 'google'
+                }
+                db.session.add(user)
+                db.session.commit()
+                
+                # Create wallet
+                WalletService.get_or_create_wallet(user.id)
+            
+            # Login successful
+            access_token = create_access_token(identity=str(user.id))
+            logger.info("google_login: success user_id=%s", user.id)
+            
+            return success_response({
+                'user': user.to_dict(),
+                'token': access_token
+            }, 'Google login successful')
+
+        except ValueError:
+            # Invalid token
+            logger.warning("google_login: invalid token")
+            return error_response('INVALID_TOKEN', 'Invalid Google token', None, 401)
+
+    except Exception as e:
+        logger.exception("google_login: failed")
+        return error_response('INTERNAL_ERROR', 'Google login failed', None, 500)
 
 class AdminLoginSchema(Schema):
     email = fields.Email(required=True)
@@ -316,48 +392,71 @@ def register_with_payment():
         
         # Validate basic registration fields
         if not registration_data.get('email') or not registration_data.get('password') or not registration_data.get('role'):
+            logger.warning("register_with_payment: missing email, password, or role")
             return error_response('MISSING_FIELDS', 'Email, password, and role are required', None, 400)
         
         # Validate password confirmation
         if registration_data.get('password_confirm') is None:
+            logger.warning("register_with_payment: missing password_confirm")
             return error_response('MISSING_FIELDS', 'Password confirmation is required', None, 400)
         if registration_data.get('password') != registration_data.get('password_confirm'):
+            logger.warning("register_with_payment: password mismatch")
             return error_response('PASSWORD_MISMATCH', 'Password and confirmation do not match', None, 400)
         
         # Check if (email, role) combination already exists
         if User.query.filter_by(email=registration_data['email'], role=registration_data['role']).first():
+            logger.warning("register_with_payment: user already exists email=%s role=%s", registration_data['email'], registration_data['role'])
             return error_response('USER_EXISTS', 'An account with this email and role already exists', None, 400)
 
-        # Optional agent_id: validate if provided
-        agent_id_raw = registration_data.get('agent_id')
+        # Optional agent_id: validate if provided (supports UUID or short code)
+        agent_code_raw = registration_data.get('agent_id')
         agent_uuid = None
-        if agent_id_raw:
-            try:
-                agent_uuid = uuid.UUID(agent_id_raw) if isinstance(agent_id_raw, str) else agent_id_raw
-            except (ValueError, TypeError):
-                return error_response('INVALID_FIELDS', 'Invalid agent selected.', None, 400)
-            if not Agent.query.get(agent_uuid):
-                return error_response('INVALID_FIELDS', 'Selected agent not found.', None, 400)
+        if agent_code_raw:
+            # Try to find by short code first (e.g. AGT001)
+            agent_by_code = Agent.query.filter_by(agent_id=agent_code_raw).first()
+            if agent_by_code:
+                agent_uuid = agent_by_code.id
+            else:
+                # Try to parse as UUID
+                try:
+                    agent_uuid = uuid.UUID(agent_code_raw)
+                    if not Agent.query.get(agent_uuid):
+                        logger.warning("register_with_payment: agent not found by UUID=%s", agent_uuid)
+                        return error_response('INVALID_FIELDS', 'Invalid agent code.', None, 400)
+                except (ValueError, TypeError):
+                    logger.warning("register_with_payment: invalid agent code format=%s", agent_code_raw)
+                    return error_response('INVALID_FIELDS', 'Invalid agent code format.', None, 400)
         
         # All roles: ID/Passport number, profile photo, and next of kin are mandatory
         if not registration_data.get('id_number') or not str(registration_data.get('id_number', '')).strip():
+            logger.warning("register_with_payment: missing id_number")
             return error_response('MISSING_FIELDS', 'ID/Passport number is required for all roles', None, 400)
-        if not request.files.get('profile_photo') or not (request.files['profile_photo'].filename or '').strip():
+        
+        profile_photo = request.files.get('profile_photo')
+        if not profile_photo or not (profile_photo.filename or '').strip():
+            logger.warning("register_with_payment: missing profile_photo")
             return error_response('MISSING_FIELDS', 'Profile photo is required for all roles', None, 400)
+            
         nok = registration_data.get('next_of_kin')
         if not nok or not isinstance(nok, dict):
+            logger.warning("register_with_payment: missing next_of_kin or not a dict")
             return error_response('MISSING_FIELDS', 'Next of kin is required for all roles', None, 400)
         if not (nok.get('full_name') or '').strip():
+            logger.warning("register_with_payment: missing next_of_kin full_name")
             return error_response('MISSING_FIELDS', 'Next of kin full name is required', None, 400)
         if not (nok.get('contact_number') or '').strip() and not (nok.get('contact_email') or '').strip():
+            logger.warning("register_with_payment: missing next_of_kin contact info")
             return error_response('MISSING_FIELDS', 'Next of kin contact number or email is required', None, 400)
+        
         contact_number = (nok.get('contact_number') or '').strip()
         if contact_number and not contact_number.replace('+', '').replace(' ', '').isdigit():
+            logger.warning("register_with_payment: invalid next_of_kin contact_number=%s", contact_number)
             return error_response('INVALID_FIELDS', 'Next of kin contact number must contain numbers only', None, 400)
         
         # All roles: ID document (upload) is mandatory
         id_doc = request.files.get('id_document')
         if not id_doc or not (id_doc.filename or '').strip():
+            logger.warning("register_with_payment: missing id_document")
             return error_response('MISSING_FIELDS', 'ID document (upload) is required for all roles', None, 400)
         
         # Driver role: proof of residence and driver's license files are mandatory (ID document already required above)
@@ -371,6 +470,7 @@ def register_with_payment():
                 if not f or not f.filename or not f.filename.strip():
                     missing.append(label)
             if missing:
+                logger.warning("register_with_payment: driver missing documents: %s", missing)
                 return error_response(
                     'MISSING_DRIVER_DOCUMENTS',
                     f"For driver registration, the following are required: {', '.join(missing)}.",
@@ -381,6 +481,7 @@ def register_with_payment():
         if registration_data.get('role') in ('service-provider', 'professional'):
             f = request.files.get('proof_of_residence')
             if not f or not f.filename or not f.filename.strip():
+                logger.warning("register_with_payment: missing proof_of_residence for %s", registration_data.get('role'))
                 return error_response(
                     'MISSING_FIELDS',
                     'Proof of residence is required for service provider and professional registration.',
@@ -390,12 +491,15 @@ def register_with_payment():
         # Professional: Highest qualification, CV/Resume and qualification documents are mandatory
         if registration_data.get('role') == 'professional':
             if not (registration_data.get('highest_qualification') or '').strip():
+                logger.warning("register_with_payment: missing highest_qualification")
                 return error_response('MISSING_FIELDS', 'Highest qualification is required for professional registration.', None, 400)
             cv_file = request.files.get('cv_resume')
             if not cv_file or not (cv_file.filename or '').strip():
+                logger.warning("register_with_payment: missing cv_resume")
                 return error_response('MISSING_FIELDS', 'CV/Resume is required for professional registration.', None, 400)
             qual_files = request.files.getlist('qualification_documents')
             if not qual_files or not any(f and (f.filename or '').strip() for f in qual_files):
+                logger.warning("register_with_payment: missing qualification_documents")
                 return error_response('MISSING_FIELDS', 'At least one qualification document is required for professional registration.', None, 400)
         
         # Create user (not paid yet)
@@ -570,14 +674,15 @@ def register_with_payment():
         
         # Create checkout session
         REGISTRATION_FEE_AMOUNT = 10000  # R100.00 in cents
-        base_url = current_app.config.get('FRONTEND_URL', 'http://localhost:5000')
+        frontend_url = current_app.config.get('FRONTEND_URL', 'http://localhost:8080')
+        backend_url = current_app.config.get('BACKEND_URL', 'http://localhost:5006')
         checkout_result = PaymentService.create_checkout(
             amount=REGISTRATION_FEE_AMOUNT,
             currency='ZAR',
             external_id=external_id,
-            success_url=f"{base_url}/api/auth/registration-callback?callback_status=success&external_id={external_id}",
-            cancel_url=f"{base_url}/api/auth/registration-callback?callback_status=cancel&external_id={external_id}",
-            failure_url=f"{base_url}/api/auth/registration-callback?callback_status=failure&external_id={external_id}"
+            success_url=f"{backend_url}/api/auth/registration-callback?callback_status=success&external_id={external_id}",
+            cancel_url=f"{backend_url}/api/auth/registration-callback?callback_status=cancel&external_id={external_id}",
+            failure_url=f"{backend_url}/api/auth/registration-callback?callback_status=failure&external_id={external_id}"
         )
         
         logger.info("register_with_payment: success user_id=%s external_id=%s", user.id, external_id)
@@ -591,7 +696,7 @@ def register_with_payment():
         return error_response('INVALID_DATA', 'Invalid registration data format', None, 400)
     except Exception as e:
         db.session.rollback()
-        logger.info("register_with_payment: failed")
+        logger.exception("register_with_payment: failed")
         return error_response('INTERNAL_ERROR', 'Registration failed', None, 500)
 
 @bp.route('/complete-registration', methods=['POST'])
@@ -702,9 +807,11 @@ def registration_payment_callback():
         
         logger.info("registration_callback: status=%s external_id=%s", callback_status, external_id)
         
+        frontend_url = current_app.config.get('FRONTEND_URL', 'http://localhost:8080')
+        
         if not external_id:
             return current_app.make_response((
-                '<html><body><script>window.location.href="/?payment=error&external_id=";</script></body></html>',
+                f'<html><body><script>window.location.href="{frontend_url}/payment-status?payment=error&external_id=";</script></body></html>',
                 302
             ))
         
@@ -713,7 +820,7 @@ def registration_payment_callback():
         if not payment:
             logger.warning("registration_callback: payment not found external_id=%s", external_id)
             return current_app.make_response((
-                '<html><body><script>window.location.href="/?payment=error&external_id=' + external_id + '";</script></body></html>',
+                f'<html><body><script>window.location.href="{frontend_url}/payment-status?payment=error&external_id=' + external_id + '";</script></body></html>',
                 302
             ))
         
@@ -751,11 +858,13 @@ def registration_payment_callback():
                                         except Exception as e:
                                             logger.warning("registration_callback: error adding service: %s", e)
                                     
-                                # Remove pending services from user.data
                                 if user.data and 'pending_provider_services' in user.data:
                                     user_data = dict(user.data)
                                     del user_data['pending_provider_services']
                                     user.data = user_data
+                                
+                                # Award commission to agent if applicable
+                                AgentService.award_commission(user)
                                 
                                 db.session.commit()
                                 
@@ -766,9 +875,9 @@ def registration_payment_callback():
                                     logger.warning("registration_callback: failed to send payment confirmation email: %s", e)
                                 logger.info("registration_callback: payment successful user_id=%s", user.id)
                                 
-                                # Redirect to homepage with success
+                                # Redirect to payment-status with success
                                 return current_app.make_response((
-                                    '<html><body><script>window.location.href="/?payment=success&external_id=' + external_id + '";</script></body></html>',
+                                    f'<html><body><script>window.location.href="{base_url}/payment-status?payment=success&external_id=' + external_id + '";</script></body></html>',
                                     302
                                 ))
                             else:
@@ -778,7 +887,7 @@ def registration_payment_callback():
                                 payment.status = 'cancelled'
                                 db.session.commit()
                             return current_app.make_response((
-                                '<html><body><script>window.location.href="/?payment=cancel&external_id=' + external_id + '";</script></body></html>',
+                                f'<html><body><script>window.location.href="{base_url}/payment-status?payment=cancel&external_id=' + external_id + '";</script></body></html>',
                                 302
                             ))
         
@@ -788,7 +897,7 @@ def registration_payment_callback():
             db.session.commit()
         
         return current_app.make_response((
-            '<html><body><script>window.location.href="/?payment=error&external_id=' + external_id + '";</script></body></html>',
+            f'<html><body><script>window.location.href="{base_url}/payment-status?payment=error&external_id=' + external_id + '";</script></body></html>',
             302
         ))
         

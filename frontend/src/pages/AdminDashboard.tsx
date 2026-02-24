@@ -20,7 +20,10 @@ import {
     Search,
     Bell,
     ChevronDown,
-    ChevronUp
+    ChevronUp,
+    ShieldAlert,
+    MessageSquare,
+    Activity
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useToast } from "@/hooks/use-toast";
@@ -38,6 +41,10 @@ import { CategoriesManagement } from "@/components/admin/CategoriesManagement";
 import { ServicesManagement } from "@/components/admin/ServicesManagement";
 import { SalesFinance } from "@/components/admin/SalesFinance";
 import { CarouselManagement } from "@/components/admin/CarouselManagement";
+import { ApiLogsManagement } from "@/components/admin/ApiLogsManagement";
+import { ReportsManagement } from "@/components/admin/ReportsManagement";
+import { GlobalChatsManagement } from "@/components/admin/GlobalChatsManagement";
+import { AffiliatesManagement } from "@/components/admin/AffiliatesManagement";
 import LandingPageManagement from "@/components/admin/LandingPageManagement";
 
 type TabKey =
@@ -57,6 +64,10 @@ type TabKey =
     | "agents"
     | "pending-updates"
     | "pendingUpdates"
+    | "api-logs"
+    | "user-reports"
+    | "global-chats"
+    | "affiliates"
     | "landing";
 
 const NAV_STRUCTURE = [
@@ -71,6 +82,22 @@ const NAV_STRUCTURE = [
         id: "users",
         label: "Users Management",
         icon: Users
+    },
+    {
+        type: "item",
+        id: "affiliates",
+        label: "Affiliates & Agents",
+        icon: UserSquare2
+    },
+    {
+        type: "group",
+        label: "Monitoring",
+        icon: Shield,
+        children: [
+            { id: "api-logs", label: "API Logs", icon: Settings },
+            { id: "user-reports", label: "User Reports", icon: ShieldAlert },
+            { id: "global-chats", label: "Global Chats", icon: MessageSquare },
+        ]
     },
     {
         type: "group",
@@ -132,7 +159,9 @@ const AdminDashboard = () => {
             try {
                 const user = JSON.parse(userStr);
                 setAdminName(user.first_name || user.username || "Admin");
-            } catch (e) { }
+            } catch (e) {
+                console.error("Failed to parse admin data:", e);
+            }
         }
     }, [navigate]);
 
@@ -143,7 +172,7 @@ const AdminDashboard = () => {
                 try {
                     const adminHeaders = { Authorization: `Bearer ${localStorage.getItem("adminToken")}` };
 
-                    const statsRes = await apiFetch("/api/admin/stats", { headers: adminHeaders });
+                    const statsRes = await apiFetch("/api/admin/global-stats", { headers: adminHeaders });
                     if (statsRes?.success) setStats(statsRes.data);
 
                     const ordersRes = await apiFetch("/api/admin/orders?limit=6", { headers: adminHeaders });
@@ -283,7 +312,7 @@ const AdminDashboard = () => {
                                             <Users className="h-6 w-6 text-white" />
                                         </div>
                                     </div>
-                                    <h3 className="text-3xl font-bold">{loadingStats ? "..." : (stats?.total_users || 0)}</h3>
+                                    <h3 className="text-3xl font-bold">{loadingStats ? "..." : (stats?.users?.total || 0)}</h3>
                                     <p className="mt-1 text-sm font-medium text-purple-100">Total Users</p>
                                 </div>
                             </div>
@@ -298,7 +327,7 @@ const AdminDashboard = () => {
                                             <ClipboardList className="h-6 w-6 text-white" />
                                         </div>
                                     </div>
-                                    <h3 className="text-3xl font-bold">{loadingStats ? "..." : (stats?.total_requests || 0)}</h3>
+                                    <h3 className="text-3xl font-bold">{loadingStats ? "..." : (stats?.requests?.total || 0)}</h3>
                                     <p className="mt-1 text-sm font-medium text-blue-100">Total Requests</p>
                                 </div>
                             </div>
@@ -307,22 +336,22 @@ const AdminDashboard = () => {
                             <div className="relative overflow-hidden  bg-white p-6 shadow-sm border border-gray-100 transition-transform hover:-translate-y-1">
                                 <div className="mb-4 flex items-center justify-between">
                                     <div className=" bg-orange-50 p-2">
-                                        <Clock className="h-6 w-6 text-orange-500" />
+                                        <ShieldAlert className="h-6 w-6 text-orange-500" />
                                     </div>
                                 </div>
-                                <h3 className="text-3xl font-bold text-[#121926]">{loadingStats ? "..." : (stats?.pending_requests || 0)}</h3>
-                                <p className="mt-1 text-sm font-medium text-[#697586]">Pending Requests</p>
+                                <h3 className="text-3xl font-bold text-[#121926]">{loadingStats ? "..." : (stats?.feedback?.pending_reports || 0)}</h3>
+                                <p className="mt-1 text-sm font-medium text-[#697586]">Pending Reports</p>
                             </div>
 
                             {/* Success/Light Card for Revenue */}
                             <div className="relative overflow-hidden  bg-white p-6 shadow-sm border border-gray-100 transition-transform hover:-translate-y-1">
                                 <div className="mb-4 flex items-center justify-between">
                                     <div className=" bg-green-50 p-2">
-                                        <Briefcase className="h-6 w-6 text-green-500" />
+                                        <MessageSquare className="h-6 w-6 text-green-500" />
                                     </div>
                                 </div>
-                                <h3 className="text-3xl font-bold text-[#121926]">{loadingStats ? "..." : (stats?.completed_requests || 0)}</h3>
-                                <p className="mt-1 text-sm font-medium text-[#697586]">Completed Requests</p>
+                                <h3 className="text-3xl font-bold text-[#121926]">{loadingStats ? "..." : (stats?.activity?.total_chats || 0)}</h3>
+                                <p className="mt-1 text-sm font-medium text-[#697586]">Total Chats</p>
                             </div>
                         </div>
 
@@ -431,6 +460,14 @@ const AdminDashboard = () => {
                 return <AgentsManagement />;
             case "pending-updates":
                 return <PendingUpdatesManagement />;
+            case "affiliates":
+                return <AffiliatesManagement />;
+            case "api-logs":
+                return <ApiLogsManagement />;
+            case "user-reports":
+                return <ReportsManagement />;
+            case "global-chats":
+                return <GlobalChatsManagement />;
             default:
                 return (
                     <div className="space-y-6 animate-in fade-in duration-500">

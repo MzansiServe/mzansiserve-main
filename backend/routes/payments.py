@@ -14,9 +14,77 @@ from backend.extensions import db
 
 bp = Blueprint('payments', __name__)
 
+class CreateOrderSchema(Schema):
+    items = fields.List(fields.Dict(), required=True)
+    shipping_address = fields.Str(required=True)
+    total = fields.Float(required=True)
+
+@bp.route('/create-order', methods=['POST'])
+@require_auth
+def create_order():
+    """Create a new shop order and initialize Yoco checkout"""
+    try:
+        from backend.models.shop import Order
+        schema = CreateOrderSchema()
+        data = schema.load(request.json)
+        
+        user_id = get_jwt_identity()
+        user = User.query.get(user_id)
+        
+        if not user:
+            return error_response('USER_NOT_FOUND', 'User not found', None, 404)
+
+        # 1. Create the Order in the database first
+        order_id = f"ORD-{uuid.uuid4().hex[:8].upper()}"
+        
+        # Calculate amount in cents for Yoco
+        amount_in_cents = int(data['total'] * 100)
+        
+        # 2. Initialize Yoco payment checkout
+        backend_url = request.host_url.rstrip('/')
+        success_url = f"{backend_url}/api/payments/order-callback?callback_status=success&external_id={order_id}&order_id={order_id}"
+        cancel_url = f"{backend_url}/api/payments/order-callback?callback_status=cancel&external_id={order_id}&order_id={order_id}"
+        failure_url = f"{backend_url}/api/payments/order-callback?callback_status=failure&external_id={order_id}&order_id={order_id}"
+        
+        checkout_result = PaymentService.create_checkout(
+            amount=amount_in_cents,
+            currency='ZAR',
+            external_id=order_id,
+            success_url=success_url,
+            cancel_url=cancel_url,
+            failure_url=failure_url
+        )
+        
+        # 3. Save Order (Pending status)
+        new_order = Order(
+            id=order_id,
+            customer_id=user.id,
+            customer_email=user.email,
+            status='pending',
+            total=data['total'],
+            items=data['items'],
+            shipping={"address": data['shipping_address']},
+            payment_id=checkout_result['payment_id']
+        )
+        db.session.add(new_order)
+        db.session.commit()
+        
+        return success_response({
+            'order_id': order_id,
+            'checkout_id': checkout_result['checkout_id'],
+            'redirect_url': checkout_result['redirect_url']
+        })
+        
+    except ValidationError as e:
+        return error_response('VALIDATION_ERROR', 'Invalid input data', e.messages, 400)
+    except Exception as e:
+        current_app.logger.error(f"Create order error: {str(e)}")
+        db.session.rollback()
+        return error_response('INTERNAL_ERROR', 'Failed to create order', None, 500)
+
 class CreateCheckoutSchema(Schema):
     amount = fields.Int(required=True, validate=lambda x: x > 0)
-    currency = fields.Str(required=True, default='ZAR')
+    currency = fields.Str(required=True)
     external_id = fields.Str(required=True)
     success_url = fields.Str()
     cancel_url = fields.Str()
@@ -97,8 +165,9 @@ def order_payment_callback():
         current_app.logger.info(f"Order payment callback received: status={callback_status}, external_id={external_id}, order_id={order_id}")
         
         if not external_id or not order_id:
+            frontend_url = current_app.config.get('FRONTEND_URL', 'http://localhost:8080')
             return current_app.make_response((
-                '<html><body><script>window.location.href="/shopping-history?payment=error";</script></body></html>',
+                f'<html><body><script>window.location.href="{frontend_url}/shopping-history?payment=error";</script></body></html>',
                 302
             ))
         
@@ -107,9 +176,10 @@ def order_payment_callback():
         payment = Payment.query.filter_by(external_id=external_id).first()
         
         if not order:
+            frontend_url = current_app.config.get('FRONTEND_URL', 'http://localhost:8080')
             current_app.logger.error(f"Order not found: {order_id}")
             return current_app.make_response((
-                '<html><body><script>window.location.href="/shopping-history?payment=error";</script></body></html>',
+                f'<html><body><script>window.location.href="{frontend_url}/shopping-history?payment=error";</script></body></html>',
                 302
             ))
         
@@ -144,7 +214,7 @@ def order_payment_callback():
                     current_app.logger.error(f"Failed to send shop purchase email: {str(e)}")
                 
                 return current_app.make_response((
-                    '<html><body><script>window.location.href="/shopping-history?payment=success";</script></body></html>',
+                    f'<html><body><script>window.location.href="{frontend_url}/shopping-history?payment=success";</script></body></html>',
                     302
                 ))
             else:
@@ -157,7 +227,7 @@ def order_payment_callback():
                 # Order status remains 'pending' so user can retry payment
                 db.session.commit()
             return current_app.make_response((
-                '<html><body><script>window.location.href="/shopping-history?payment=cancelled";</script></body></html>',
+                f'<html><body><script>window.location.href="{frontend_url}/shopping-history?payment=cancelled";</script></body></html>',
                 302
             ))
         
@@ -168,14 +238,15 @@ def order_payment_callback():
             db.session.commit()
         
         return current_app.make_response((
-            '<html><body><script>window.location.href="/shopping-history?payment=error";</script></body></html>',
+            f'<html><body><script>window.location.href="{frontend_url}/shopping-history?payment=error";</script></body></html>',
             302
         ))
         
     except Exception as e:
+        frontend_url = current_app.config.get('FRONTEND_URL', 'http://localhost:8080')
         current_app.logger.error(f"Order payment callback error: {str(e)}")
         return current_app.make_response((
-            '<html><body><script>window.location.href="/shopping-history?payment=error";</script></body></html>',
+            f'<html><body><script>window.location.href="{frontend_url}/shopping-history?payment=error";</script></body></html>',
             302
         ))
 
@@ -190,23 +261,26 @@ def wallet_topup_callback():
         
         # Only process success callbacks
         if callback_status != 'success':
+            frontend_url = current_app.config.get('FRONTEND_URL', 'http://localhost:8080')
             return current_app.make_response((
-                f'<html><body><script>window.location.href="/wallet?payment=error";</script></body></html>',
+                f'<html><body><script>window.location.href="{frontend_url}/wallet?payment=error";</script></body></html>',
                 302
             ))
         
         if not external_id:
+            frontend_url = current_app.config.get('FRONTEND_URL', 'http://localhost:8080')
             return current_app.make_response((
-                f'<html><body><script>window.location.href="/wallet?payment=error";</script></body></html>',
+                f'<html><body><script>window.location.href="{frontend_url}/wallet?payment=error";</script></body></html>',
                 302
             ))
         
         # Find payment by external_id
         payment = Payment.query.filter_by(external_id=external_id).first()
         if not payment:
+            frontend_url = current_app.config.get('FRONTEND_URL', 'http://localhost:8080')
             current_app.logger.error(f"Payment not found for external_id: {external_id}")
             return current_app.make_response((
-                f'<html><body><script>window.location.href="/wallet?payment=error";</script></body></html>',
+                f'<html><body><script>window.location.href="{frontend_url}/wallet?payment=error";</script></body></html>',
                 302
             ))
         
@@ -254,7 +328,7 @@ def wallet_topup_callback():
                                 
                                 # Redirect to wallet with success message
                                 return current_app.make_response((
-                                    f'<html><body><script>window.location.href="/wallet?payment=success";</script></body></html>',
+                                    f'<html><body><script>window.location.href="{frontend_url}/wallet?payment=success";</script></body></html>',
                                     302
                                 ))
                             else:
@@ -263,15 +337,17 @@ def wallet_topup_callback():
                     current_app.logger.error(f"Error parsing user_id from external_id: {e}")
         
         # Redirect to wallet with error message
+        frontend_url = current_app.config.get('FRONTEND_URL', 'http://localhost:8080')
         return current_app.make_response((
-            f'<html><body><script>window.location.href="/wallet?payment=error";</script></body></html>',
+            f'<html><body><script>window.location.href="{frontend_url}/wallet?payment=error";</script></body></html>',
             302
         ))
         
     except Exception as e:
+        frontend_url = current_app.config.get('FRONTEND_URL', 'http://localhost:8080')
         current_app.logger.error(f"Wallet top-up callback error: {str(e)}")
         return current_app.make_response((
-            f'<html><body><script>window.location.href="/wallet?payment=error";</script></body></html>',
+            f'<html><body><script>window.location.href="{frontend_url}/wallet?payment=error";</script></body></html>',
             302
         ))
 
@@ -295,9 +371,10 @@ def request_payment_callback():
         )
 
         if not external_id or not request_id:
+            frontend_url = current_app.config.get('FRONTEND_URL', 'http://localhost:8080')
             # Missing data – redirect to requested-services with error
             return current_app.make_response((
-                '<html><body><script>window.location.href="/requested-services?payment=error";</script></body></html>',
+                f'<html><body><script>window.location.href="{frontend_url}/requested-services?payment=error";</script></body></html>',
                 302
             ))
 
@@ -305,11 +382,12 @@ def request_payment_callback():
         payment = Payment.query.filter_by(external_id=external_id).first()
 
         if not service_request or not payment:
+            frontend_url = current_app.config.get('FRONTEND_URL', 'http://localhost:8080')
             current_app.logger.error(
                 f"Request or payment not found for request_id={request_id}, external_id={external_id}"
             )
             return current_app.make_response((
-                '<html><body><script>window.location.href="/requested-services?payment=error";</script></body></html>',
+                f'<html><body><script>window.location.href="{frontend_url}/requested-services?payment=error";</script></body></html>',
                 302
             ))
 
@@ -367,7 +445,8 @@ def request_payment_callback():
                     </style>
                     <script>
                       setTimeout(function () {
-                        window.location.href = "/requested-services";
+                        var frontend_url = "%s";
+                        window.location.href = frontend_url + "/requested-services";
                       }, 3000);
                     </script>
                   </head>
@@ -382,18 +461,21 @@ def request_payment_callback():
                   </body>
                 </html>
             """
-            return current_app.make_response((html, 200))
+            frontend_url = current_app.config.get('FRONTEND_URL', 'http://localhost:8080')
+            return current_app.make_response((html % frontend_url, 200))
 
         # Cancel or failure - just redirect back with an error flag
+        frontend_url = current_app.config.get('FRONTEND_URL', 'http://localhost:8080')
         return current_app.make_response((
-            '<html><body><script>window.location.href="/requested-services?payment=error";</script></body></html>',
+            f'<html><body><script>window.location.href="{frontend_url}/requested-services?payment=error";</script></body></html>',
             302
         ))
 
     except Exception as e:
+        frontend_url = current_app.config.get('FRONTEND_URL', 'http://localhost:8080')
         current_app.logger.error(f"Request payment callback error: {str(e)}")
         return current_app.make_response((
-            '<html><body><script>window.location.href="/requested-services?payment=error";</script></body></html>',
+            f'<html><body><script>window.location.href="{frontend_url}/requested-services?payment=error";</script></body></html>',
             302
         ))
 

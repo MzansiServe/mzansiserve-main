@@ -1,0 +1,33 @@
+  --non-interactive is not supported, use $CI=1 instead
+Starting project at /Users/gaudencio/Desktop/Projects/mzansiserve/apps/client-app
+Metro is running in CI mode, reloads are disabled. Remove CI=true to enable watch mode.
+Starting Metro Bundler
+The following packages should be updated for best compatibility with the installed expo version:
+  react-native-screens@4.23.0 - expected version: ~4.16.0
+Your project may not work correctly until you install the expected versions of the packages.
+Waiting on http://localhost:8081
+Logs for your project will appear below.
+Web ./index.ts ░░░░░░░░░░░░░░░░  0.0% (0/1)
+Web ./index.ts ▓▓▓▓▓▓▓▓▓▓▓▓░░░░ 81.0% (438/525)
+Web Bundled 5704ms index.ts (673 modules)
+ LOG  [web] Logs will appear in the browser console
+Web Bundled 128ms index.ts (1 module)
+ LOG  [web] Logs will appear in the browser console
+Web ./index.ts ░░░░░░░░░░░░░░░░  0.0% (0/1)
+Web Bundled 192ms index.ts (1 module)
+ LOG  [web] Logs will appear in the browser console
+Web ./index.ts ░░░░░░░░░░░░░░░░  0.0% (0/1)
+Web Bundled 51ms index.ts (1 module)
+ LOG  [web] Logs will appear in the browser console
+Web ./index.ts ░░░░░░░░░░░░░░░░  0.0% (0/1)
+Web Bundled 119ms index.ts (1 module)
+ LOG  [web] Logs will appear in the browser console
+Web ./index.ts ░░░░░░░░░░░░░░░░  0.0% (0/1)
+Web Bundled 71ms index.ts (1 module)
+ LOG  [web] Logs will appear in the browser console
+Web ./index.ts ░░░░░░░░░░░░░░░░  0.0% (0/1)
+Web Bundled 246ms index.ts (1 module)
+ LOG  [web] Logs will appear in the browser console
+Web ./index.ts ░░░░░░░░░░░░░░░░  0.0% (0/1)
+Web Bundled 111ms index.ts (1 module)
+ LOG  [web] Logs will appear in the browser console

@@ -193,7 +193,7 @@ const BookService = () => {
       <Navbar />
       <div className="container mx-auto px-4 pt-24 pb-12 lg:px-8 max-w-5xl">
         <div className="text-center mb-10">
-          <h2 className="text-3xl font-extrabold text-gray-900 sm:text-4xl">
+          <h2 className="text-3xl font-semibold text-gray-900 sm:text-4xl">
             Request {category === 'professionals' ? 'a Professional' : 'a Service Provider'}
           </h2>
           <p className="mt-3 max-w-2xl mx-auto text-xl text-gray-500 sm:mt-4">

@@ -9,6 +9,7 @@ from flask import current_app
 
 from backend.models import Payment
 from backend.extensions import db
+from backend.utils.logging import log_external_api
 
 logger = logging.getLogger(__name__)
 
@@ -73,6 +74,22 @@ class PaymentService:
                     headers=headers,
                     timeout=30
                 )
+                
+                # Log the API call
+                try:
+                    resp_json = response.json()
+                except:
+                    resp_json = {'text': response.text}
+                    
+                log_external_api(
+                    provider='yoco',
+                    endpoint='/api/checkouts',
+                    method='POST',
+                    request_payload=checkout_data,
+                    response_payload=resp_json,
+                    status_code=response.status_code
+                )
+
                 if response.ok:
                     try:
                         response_data = response.json()
@@ -89,11 +106,11 @@ class PaymentService:
                     continue
                 try:
                     err_body = response.json()
-                    msg = err_body.get('message', response.text or 'Unknown error')
+                    msg = f"Yoco error ({response.status_code}): {err_body.get('message', 'No message')} | {err_body}"
                 except Exception:
-                    msg = response.text or 'Unknown error'
-                last_error = f"Yoco API error: {msg}"
-                logger.warning("create_checkout: attempt %s response not ok status=%s: %s", attempt + 1, response.status_code, msg)
+                    msg = f"Yoco error ({response.status_code}): {response.text or 'Unknown error'}"
+                last_error = msg
+                logger.warning("create_checkout: attempt %s response not ok: %s", attempt + 1, msg)
 
             if last_error:
                 logger.warning("create_checkout: failed after 3 attempts: %s", last_error)
