@@ -106,8 +106,8 @@ class EmailService:
     @staticmethod
     def send_verification_email(user, token):
         """Send email verification email"""
-        verification_url = current_app.config.get('FRONTEND_URL', 'http://localhost:5000') + \
-                          f"/verify-email?token={token}"
+        frontend_url = current_app.config.get('FRONTEND_URL', 'http://localhost').rstrip('/')
+        verification_url = f"{frontend_url}/verify-email?token={token}"
         first_name = _first_name(user)
         subject = "Verify Your Email Address - Welcome to MzansiServe"
         body = f"""Hi {first_name},
@@ -147,8 +147,8 @@ www.mzansiserve.co.za"""
     @staticmethod
     def send_password_reset_email(user, token):
         """Send password reset email"""
-        reset_url = current_app.config.get('FRONTEND_URL', 'http://localhost:5000') + \
-                   f"/reset-password?token={token}"
+        frontend_url = current_app.config.get('FRONTEND_URL', 'http://localhost').rstrip('/')
+        reset_url = f"{frontend_url}/reset-password?token={token}"
         
         body = f"Reset your password by clicking the link: {reset_url}"
         body_html = render_template('emails/reset_password.html', user=user, reset_url=reset_url)
@@ -167,7 +167,8 @@ www.mzansiserve.co.za"""
     def send_registration_confirmation(user):
         """Send email informing user they have successfully registered (payment may still be pending)."""
         first_name = _first_name(user)
-        login_url = current_app.config.get('FRONTEND_URL', 'http://localhost:5000') + '/login'
+        frontend_url = current_app.config.get('FRONTEND_URL', 'http://localhost').rstrip('/')
+        login_url = f"{frontend_url}/login"
         subject = "Registration Successful - Welcome to MzansiServe!"
         body = f"""Hi {first_name},
 
@@ -179,7 +180,7 @@ Your account is now active, and you can start exploring:
 - Online shopping
 - Secure payments
 
-Login anytime here: {login_url} or directly from the mzansiserve mobile app, www.MzansiServe.com or www.mzansiserve.co.za
+Login anytime here: {login_url} or directly from the mzansiserve mobile app, www.mzansiServe.com or www.mzansiserve.co.za
 
 Thank you for choosing MzansiServe - made for Mzansi, built for you
 
@@ -190,7 +191,7 @@ MzansiServe Team"""
 <p>Great news! Your registration on MzansiServe was successful</p>
 <p>Your account is now active, and you can start exploring:</p>
 <ul><li>Local professionals &amp; service providers</li><li>Driver bookings</li><li>Online shopping</li><li>Secure payments</li></ul>
-<p>Login anytime here: <a href="{login_url}">{login_url}</a> or directly from the mzansiserve mobile app, <a href="https://www.mzansiserve.co.za">www.MzansiServe.com</a> or <a href="https://www.mzansiserve.co.za">www.mzansiserve.co.za</a></p>
+<p>Login anytime here: <a href="{login_url}">{login_url}</a> or directly from the mzansiserve mobile app, <a href="https://www.mzansiserve.co.za">www.mzansiserve.co.za</a> or <a href="https://www.mzansiserve.co.za">www.mzansiserve.co.za</a></p>
 <p>Thank you for choosing MzansiServe - made for Mzansi, built for you</p>
 <p>Kind regards,<br>MzansiServe Team</p>
 </body></html>"""
@@ -403,7 +404,8 @@ MzansiServe Team
     def send_user_approval_notification(user):
         """Send user approval notification email"""
         first_name = _first_name(user)
-        dashboard_url = current_app.config.get('FRONTEND_URL', 'http://localhost:5000') + '/dashboard'
+        frontend_url = current_app.config.get('FRONTEND_URL', 'http://localhost').rstrip('/')
+        dashboard_url = f"{frontend_url}/dashboard"
         account_type = (user.role or 'member').replace('-', ' ').title()
         subject = "Account Approved - Welcome to MzansiServe!"
         body = f"""Hi {first_name},

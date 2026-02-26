@@ -12,6 +12,7 @@ export interface User {
 interface AuthContextType {
   user: User | null;
   login: (email: string, password: string, role: string) => Promise<{ success: boolean; error?: string }>;
+  adminLogin: (email: string, password: string) => Promise<{ success: boolean; error?: string }>;
   register: (data: FormData | Record<string, any>) => Promise<{ success: boolean; error?: string }>;
   logout: () => void;
   setUser: (user: User | null) => void;
@@ -28,18 +29,25 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   // Check connection on mount
   useEffect(() => {
     const initAuth = async () => {
-      const token = localStorage.getItem("token");
+      const token = localStorage.getItem("token") || localStorage.getItem("adminToken");
       if (token) {
         try {
-          const result = await apiFetch("/api/profile");
+          const result = await apiFetch("/api/profile", {
+            headers: { Authorization: `Bearer ${token}` }
+          });
           if (result.success && result.data) {
             setUser(result.data.user);
           } else {
-            localStorage.removeItem("token");
+            if (localStorage.getItem("token")) localStorage.removeItem("token");
+            if (localStorage.getItem("adminToken")) {
+              // Verify if we should really remove it or if it was just a temporary failure
+              // For now, if the API explicitly says fail, we clear.
+              localStorage.removeItem("adminToken");
+            }
           }
         } catch (error) {
           console.error("Auth check failed:", error);
-          localStorage.removeItem("token");
+          // Don't immediately clear on network errors, but clear on 401/403 (handled in apiFetch)
         }
       }
       setIsLoading(false);
@@ -62,6 +70,24 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       return { success: false, error: result.message || "Login failed" };
     } catch (error: any) {
       return { success: false, error: error.message || "An error occurred during login" };
+    }
+  }, []);
+
+  const adminLogin = useCallback(async (email: string, password: string) => {
+    try {
+      const result = await apiFetch("/api/auth/admin-login", {
+        data: { email, password }
+      });
+
+      if (result.success) {
+        localStorage.setItem("adminToken", result.data.token);
+        localStorage.setItem("adminUser", JSON.stringify(result.data.user));
+        setUser(result.data.user);
+        return { success: true };
+      }
+      return { success: false, error: result.message || "Login failed" };
+    } catch (error: any) {
+      return { success: false, error: error.message || "An error occurred during admin login" };
     }
   }, []);
 
@@ -95,11 +121,13 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
   const logout = useCallback(() => {
     localStorage.removeItem("token");
+    localStorage.removeItem("adminToken");
+    localStorage.removeItem("adminUser");
     setUser(null);
   }, []);
 
   return (
-    <AuthContext.Provider value={{ user, login, register, logout, setUser, isAuthenticated: !!user, isLoading }}>
+    <AuthContext.Provider value={{ user, login, adminLogin, register, logout, setUser, isAuthenticated: !!user, isLoading }}>
       {children}
     </AuthContext.Provider>
   );

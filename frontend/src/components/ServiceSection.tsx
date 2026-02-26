@@ -96,21 +96,21 @@ const SectionBlock = ({ section, index }: { section: ServiceSectionProps; index:
           </Button>
         </motion.div>
 
-        <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
+        <div className="grid gap-8 sm:grid-cols-2 lg:grid-cols-4">
           {section.cards.map((card, i) => (
             <motion.div
               key={card.title}
               initial={{ opacity: 0, y: 30 }}
               animate={isInView ? { opacity: 1, y: 0 } : {}}
               transition={{ duration: 0.5, delay: i * 0.1 }}
-              className="group relative cursor-pointer overflow-hidden rounded-2xl border border-border bg-card p-6 shadow-sm transition-all duration-300 hover:shadow-lg hover:-translate-y-1"
+              className="group relative cursor-pointer overflow-hidden rounded-[2rem] border border-slate-50 bg-white p-8 shadow-sm shadow-slate-200/50 transition-all duration-500 hover:shadow-2xl hover:shadow-slate-200/80 hover:-translate-y-2"
               onClick={() => navigate(section.link)}
             >
-              <div className={`mb-4 flex h-12 w-12 items-center justify-center rounded-xl bg-muted transition-colors duration-300 ${section.accentClass}`}>
-                <card.icon className="h-6 w-6 text-muted-foreground transition-colors duration-300 group-hover:text-inherit" />
+              <div className={`mb-6 flex h-16 w-16 items-center justify-center rounded-2xl bg-slate-50 transition-colors duration-500 group-hover:bg-white ${section.accentClass}`}>
+                <card.icon className="h-8 w-8 text-slate-400 transition-colors duration-500 group-hover:text-inherit" />
               </div>
-              <h3 className="mb-2 text-lg font-semibold">{card.title}</h3>
-              <p className="text-sm text-muted-foreground leading-relaxed">{card.description}</p>
+              <h3 className="mb-3 text-xl font-bold text-[#222222]">{card.title}</h3>
+              <p className="text-base text-slate-500 font-normal leading-relaxed">{card.description}</p>
             </motion.div>
           ))}
         </div>

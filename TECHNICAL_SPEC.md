@@ -1382,7 +1382,7 @@ services:
       PAYPAL_SECRET: ${PAYPAL_SECRET}
       PAYPAL_BASE_URL: ${PAYPAL_BASE_URL:-https://api-m.sandbox.paypal.com}
       YOCO_SECRET_KEY: ${YOCO_SECRET_KEY}
-      DEFAULT_FROM_EMAIL: ${DEFAULT_FROM_EMAIL:-noreply@mzansiserve.com}
+      DEFAULT_FROM_EMAIL: ${DEFAULT_FROM_EMAIL:-noreply@mzansiserve.co.za}
     depends_on:
       db:
         condition: service_healthy
@@ -1480,7 +1480,7 @@ SMTP_HOST=smtp.gmail.com
 SMTP_PORT=587
 SMTP_USER=your-email@gmail.com
 SMTP_PASSWORD=your-app-password
-DEFAULT_FROM_EMAIL=noreply@mzansiserve.com
+DEFAULT_FROM_EMAIL=noreply@mzansiserve.co.za
 
 # Payments
 PAYPAL_CLIENT_ID=your-paypal-client-id

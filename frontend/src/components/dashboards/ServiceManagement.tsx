@@ -1,14 +1,30 @@
 import { useState } from "react";
 import {
-    Plus,
-    Trash2,
-    Save,
-    Info,
-    DollarSign,
-    Briefcase
-} from "lucide-react";
-import { Button } from "@/components/ui/button";
-import { cn } from "@/lib/utils";
+    Box,
+    Typography,
+    Paper,
+    Button,
+    Grid,
+    TextField,
+    IconButton,
+    InputAdornment,
+    Divider,
+    alpha,
+    useTheme,
+    Card,
+    CardContent,
+    Stack,
+    Alert,
+    CircularProgress,
+    Avatar
+} from "@mui/material";
+import {
+    Add as PlusIcon,
+    DeleteOutline as TrashIcon,
+    Save as SaveIcon,
+    InfoOutlined as InfoIcon,
+    BusinessCenter as BriefcaseIcon
+} from "@mui/icons-material";
 import { apiFetch } from "@/lib/api";
 import { useToast } from "@/hooks/use-toast";
 
@@ -25,6 +41,7 @@ interface ServiceManagementProps {
 
 export const ServiceManagement = ({ initialServices, role }: ServiceManagementProps) => {
     const { toast } = useToast();
+    const theme = useTheme();
     const [services, setServices] = useState<Service[]>(initialServices || []);
     const [saving, setSaving] = useState(false);
 
@@ -73,110 +90,141 @@ export const ServiceManagement = ({ initialServices, role }: ServiceManagementPr
     };
 
     return (
-        <div className="bg-white border border-gray-100 rounded-2xl shadow-sm overflow-hidden">
-            <div className="border-b border-gray-100 px-6 py-5 flex justify-between items-center bg-slate-50/50">
-                <div className="flex items-center gap-3">
-                    <div className="p-2 rounded-lg bg-[#ede7f6] text-[#5e35b1]">
-                        <Briefcase className="h-5 w-5" />
-                    </div>
-                    <div>
-                        <h2 className="text-lg font-bold text-[#121926]">My Services</h2>
-                        <p className="text-xs text-[#697586] font-medium mt-0.5">Manage the services you offer to clients.</p>
-                    </div>
-                </div>
+        <Paper variant="outlined" sx={{ borderRadius: 3, overflow: 'hidden', borderColor: alpha(theme.palette.divider, 0.08) }}>
+            <Box sx={{ p: 3, bgcolor: alpha(theme.palette.background.default, 0.5), borderBottom: '1px solid', borderColor: alpha(theme.palette.divider, 0.08), display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <Stack direction="row" spacing={2} alignItems="center">
+                    <Avatar sx={{ bgcolor: alpha(theme.palette.primary.main, 0.1), color: 'primary.main', width: 40, height: 40, borderRadius: 2 }}>
+                        <BriefcaseIcon fontSize="small" />
+                    </Avatar>
+                    <Box>
+                        <Typography variant="subtitle1" sx={{ fontWeight: 800 }}>My Services</Typography>
+                        <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 600 }}>Manage the offerings you provide to clients.</Typography>
+                    </Box>
+                </Stack>
                 <Button
+                    variant="outlined"
+                    startIcon={<PlusIcon />}
                     onClick={addService}
-                    variant="outline"
-                    size="sm"
-                    className="rounded-xl font-bold gap-2"
+                    sx={{ fontWeight: 700, borderRadius: 2 }}
                 >
-                    <Plus className="h-4 w-4" /> Add New
+                    Add Service
                 </Button>
-            </div>
+            </Box>
 
-            <div className="p-6 space-y-6">
+            <Box sx={{ p: 3 }}>
                 {services.length > 0 ? (
-                    <div className="space-y-4">
+                    <Stack spacing={3}>
                         {services.map((service, index) => (
-                            <div key={index} className="p-5 border border-gray-100 rounded-xl bg-slate-50/30 hover:border-blue-100 transition-colors group">
-                                <div className="flex justify-between items-start gap-4 mb-4">
-                                    <div className="flex-1 space-y-4">
-                                        <div className="grid gap-4 md:grid-cols-2">
-                                            <div className="space-y-1.5">
-                                                <label className="text-[10px] font-black uppercase tracking-widest text-[#697586]">Service Name</label>
-                                                <input
-                                                    type="text"
-                                                    value={service.name}
-                                                    onChange={(e) => updateService(index, 'name', e.target.value)}
-                                                    placeholder="e.g., Plumbing Repair"
-                                                    className="w-full bg-white border border-gray-100 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500/20 outline-none transition-all"
+                            <Card key={index} variant="outlined" sx={{ borderRadius: 2, position: 'relative', overflow: 'visible' }}>
+                                <CardContent sx={{ p: 3, '&:last-child': { pb: 3 } }}>
+                                    <Box sx={{ position: 'absolute', right: -12, top: -12 }}>
+                                        <IconButton
+                                            size="small"
+                                            onClick={() => removeService(index)}
+                                            sx={{
+                                                bgcolor: 'background.paper',
+                                                border: '1px solid',
+                                                borderColor: 'divider',
+                                                color: 'error.main',
+                                                '&:hover': { bgcolor: 'error.main', color: 'white' },
+                                                zIndex: 1
+                                            }}
+                                        >
+                                            <TrashIcon fontSize="small" />
+                                        </IconButton>
+                                    </Box>
+
+                                    <Grid container spacing={2}>
+                                        <Grid size={{ xs: 12, md: role === 'professional' ? 8 : 12 }}>
+                                            <TextField
+                                                fullWidth
+                                                label="Service Name"
+                                                placeholder="e.g. Electrical Maintenance"
+                                                variant="outlined"
+                                                size="small"
+                                                value={service.name}
+                                                onChange={(e) => updateService(index, 'name', e.target.value)}
+                                                sx={{ '& .MuiInputBase-input': { fontWeight: 700 } }}
+                                            />
+                                        </Grid>
+                                        {role === 'professional' && (
+                                            <Grid size={{ xs: 12, md: 4 }}>
+                                                <TextField
+                                                    fullWidth
+                                                    label="Hourly Rate"
+                                                    type="number"
+                                                    variant="outlined"
+                                                    size="small"
+                                                    value={typeof service.hourly_rate === 'number' && !isNaN(service.hourly_rate) ? service.hourly_rate : ''}
+                                                    onChange={(e) => {
+                                                        const val = parseFloat(e.target.value);
+                                                        updateService(index, 'hourly_rate', isNaN(val) ? '' : val);
+                                                    }}
+                                                    slotProps={{
+                                                        input: {
+                                                            startAdornment: <InputAdornment position="start"><Typography sx={{ fontWeight: 700, fontSize: '0.8rem' }}>R</Typography></InputAdornment>,
+                                                            sx: { fontWeight: 800 }
+                                                        }
+                                                    }}
                                                 />
-                                            </div>
-                                            {role === 'professional' && (
-                                                <div className="space-y-1.5">
-                                                    <label className="text-[10px] font-black uppercase tracking-widest text-[#697586]">Hourly Rate (R)</label>
-                                                    <div className="relative">
-                                                        <DollarSign className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-[#697586]" />
-                                                        <input
-                                                            type="number"
-                                                            value={service.hourly_rate}
-                                                            onChange={(e) => updateService(index, 'hourly_rate', parseFloat(e.target.value))}
-                                                            className="w-full bg-white border border-gray-100 rounded-lg pl-8 pr-3 py-2 text-sm focus:ring-2 focus:ring-blue-500/20 outline-none transition-all"
-                                                        />
-                                                    </div>
-                                                </div>
-                                            )}
-                                        </div>
-                                        <div className="space-y-1.5">
-                                            <label className="text-[10px] font-black uppercase tracking-widest text-[#697586]">Description</label>
-                                            <textarea
+                                            </Grid>
+                                        )}
+                                        <Grid size={12}>
+                                            <TextField
+                                                fullWidth
+                                                label="Description"
+                                                multiline
+                                                rows={2}
+                                                placeholder="Describe what this service includes..."
+                                                variant="outlined"
+                                                size="small"
                                                 value={service.description}
                                                 onChange={(e) => updateService(index, 'description', e.target.value)}
-                                                placeholder="Briefly describe what this service entails..."
-                                                className="w-full bg-white border border-gray-100 rounded-lg px-3 py-2 text-sm min-h-[80px] focus:ring-2 focus:ring-blue-500/20 outline-none transition-all"
                                             />
-                                        </div>
-                                    </div>
-                                    <Button
-                                        variant="ghost"
-                                        size="icon"
-                                        onClick={() => removeService(index)}
-                                        className="text-[#697586] hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors"
-                                    >
-                                        <Trash2 className="h-4 w-4" />
-                                    </Button>
-                                </div>
-                            </div>
+                                        </Grid>
+                                    </Grid>
+                                </CardContent>
+                            </Card>
                         ))}
-                    </div>
+                    </Stack>
                 ) : (
-                    <div className="py-12 text-center">
-                        <div className="h-16 w-16 bg-slate-50 rounded-full flex items-center justify-center mx-auto mb-4">
-                            <Briefcase className="h-8 w-8 text-slate-300" />
-                        </div>
-                        <h3 className="text-base font-bold text-[#121926]">No services listed</h3>
-                        <p className="text-sm text-[#697586] mt-1 italic">Click "Add New" to list your first service.</p>
-                    </div>
+                    <Box sx={{ py: 8, textAlign: 'center' }}>
+                        <BriefcaseIcon sx={{ fontSize: 48, color: 'text.disabled', opacity: 0.2, mb: 2 }} />
+                        <Typography variant="subtitle2" color="text.secondary" sx={{ fontWeight: 700 }}>No services listed yet.</Typography>
+                        <Typography variant="caption" color="text.disabled">Click "Add Service" to start building your profile.</Typography>
+                    </Box>
                 )}
 
-                <div className="mt-8 p-4 bg-amber-50 rounded-xl border border-amber-100 flex gap-3">
-                    <Info className="h-5 w-5 text-amber-600 shrink-0 mt-0.5" />
-                    <p className="text-xs text-amber-800 leading-relaxed">
-                        <strong>Note:</strong> Any changes or additions to your services will require review and approval by an administrator before they become visible to clients.
-                    </p>
-                </div>
-            </div>
-
-            <div className="p-6 bg-slate-50/50 border-t border-gray-100 flex justify-end">
-                <Button
-                    onClick={handleSave}
-                    disabled={saving}
-                    className="bg-[#5e35b1] hover:bg-[#4527a0] rounded-xl px-10 font-bold shadow-lg shadow-purple-100 gap-2"
+                <Alert
+                    severity="info"
+                    icon={<InfoIcon fontSize="small" />}
+                    sx={{ mt: 4, borderRadius: 2, bgcolor: alpha(theme.palette.info.main, 0.05), border: '1px solid', borderColor: alpha(theme.palette.info.main, 0.1) }}
                 >
-                    {saving ? "Processing..." : "Submit for Approval"}
-                    {!saving && <Save className="h-4 w-4" />}
+                    <Typography variant="caption" sx={{ fontWeight: 600, color: 'info.dark' }}>
+                        All profile changes require administrative verification before becoming public.
+                    </Typography>
+                </Alert>
+            </Box>
+
+            <Box sx={{ p: 3, borderTop: '1px solid', borderColor: alpha(theme.palette.divider, 0.08), display: 'flex', justifyContent: 'flex-end', bgcolor: alpha(theme.palette.background.default, 0.3) }}>
+                <Button
+                    variant="contained"
+                    size="large"
+                    disabled={saving}
+                    onClick={handleSave}
+                    startIcon={saving ? <CircularProgress size={20} color="inherit" /> : <SaveIcon />}
+                    sx={{
+                        fontWeight: 800,
+                        borderRadius: 2,
+                        px: 4,
+                        boxShadow: `0 8px 16px ${alpha(theme.palette.primary.main, 0.2)}`
+                    }}
+                >
+                    {saving ? "Saving Changes..." : "Submit for Approval"}
                 </Button>
-            </div>
-        </div>
+            </Box>
+        </Paper>
     );
 };
+
+export default ServiceManagement;

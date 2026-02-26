@@ -3,7 +3,7 @@ CLI Commands for User Management and Shop Management
 """
 import click
 from flask.cli import with_appcontext
-from backend.models import User, ShopCategory, ShopSubcategory, ShopProduct, Order, Country, ServiceType, Agent
+from backend.models import User, ShopCategory, ShopSubcategory, ShopProduct, Order, Country, ServiceType, Agent, DriverRating
 from backend.extensions import db
 from backend.services.wallet_service import WalletService
 from backend.utils.auth import generate_tracking_number
@@ -270,6 +270,81 @@ def seed_users(count, email_prefix, domain, password, paid, approved):
     click.echo(f'  Password for all users: {password}')
     click.echo(f'  Registration Fee Paid: {"Yes" if paid else "No"}')
     click.echo(f'  Approved: {"Yes" if approved else "No"}')
+
+
+@cli.command('seed-nearby-drivers')
+@with_appcontext
+def seed_nearby_drivers():
+    """Seed drivers within 10km of Johannesburg center for testing."""
+    # Jo'burg Center
+    JB_LAT = -26.2041
+    JB_LNG = 28.0473
+    
+    drivers_data = [
+        {
+            'email': 'driver_near1@example.com',
+            'full_name': 'Thabo Near-Map',
+            'offset_lat': 0.01, # ~1.1km
+            'offset_lng': 0.01,
+            'car_type': 'sedan'
+        },
+        {
+            'email': 'driver_near2@example.com',
+            'full_name': 'Lerato Close',
+            'offset_lat': -0.02, # ~2.2km
+            'offset_lng': 0.02,
+            'car_type': 'hatchback'
+        },
+        {
+            'email': 'driver_near3@example.com',
+            'full_name': 'Sipho SUV',
+            'offset_lat': 0.05, # ~5.5km
+            'offset_lng': -0.05,
+            'car_type': 'suv'
+        },
+        {
+            'email': 'driver_far@example.com',
+            'full_name': 'Far Away Driver',
+            'offset_lat': 0.2, # ~22km (Should be outside 10km radius)
+            'offset_lng': 0.2,
+            'car_type': 'luxury'
+        }
+    ]
+    
+    created = 0
+    for data in drivers_data:
+        if User.query.filter_by(email=data['email']).first():
+            continue
+            
+        user = User(
+            email=data['email'],
+            role='driver',
+            is_approved=True,
+            is_active=True,
+            is_paid=True,
+            email_verified=True,
+            tracking_number=generate_tracking_number(),
+            data={
+                'full_name': data['full_name'],
+                'current_location': {
+                    'lat': JB_LAT + data['offset_lat'],
+                    'lng': JB_LNG + data['offset_lng']
+                },
+                'driver_services': [
+                    {
+                        'car_make': 'Test',
+                        'car_model': 'Model',
+                        'car_type': data['car_type']
+                    }
+                ]
+            }
+        )
+        user.set_password('password123')
+        db.session.add(user)
+        created += 1
+        
+    db.session.commit()
+    click.echo(f"Seeded {created} nearby drivers.")
 
 @cli.command('add-category')
 @click.option('--id', help='Category ID (auto-generated if not provided)')
@@ -606,39 +681,39 @@ def seed_products(clear, count):
     # Default seed data - common products with categories
     default_products = [
         # Electronics
-        {'name': 'Smartphone', 'description': 'Latest smartphone with advanced features', 'price': 8999.99, 'category': 'electronics'},
-        {'name': 'Laptop', 'description': 'High-performance laptop for work and gaming', 'price': 12999.99, 'category': 'electronics'},
-        {'name': 'Headphones', 'description': 'Wireless noise-cancelling headphones', 'price': 2499.99, 'category': 'electronics'},
-        {'name': 'Smartwatch', 'description': 'Fitness tracking smartwatch', 'price': 3499.99, 'category': 'electronics'},
-        {'name': 'Tablet', 'description': '10-inch tablet for entertainment', 'price': 5999.99, 'category': 'electronics'},
+        {'name': 'Smartphone', 'description': 'Latest smartphone with advanced features', 'price': 8999.99, 'category': 'electronics', 'image_url': 'https://images.unsplash.com/photo-1511707171634-5f897ff02aa9?q=80&w=800&auto=format&fit=crop'},
+        {'name': 'Laptop', 'description': 'High-performance laptop for work and gaming', 'price': 12999.99, 'category': 'electronics', 'image_url': 'https://images.unsplash.com/photo-1496181133206-80ce9b88a853?q=80&w=800&auto=format&fit=crop'},
+        {'name': 'Headphones', 'description': 'Wireless noise-cancelling headphones', 'price': 2499.99, 'category': 'electronics', 'image_url': 'https://images.unsplash.com/photo-1505740420928-5e560c06d30e?q=80&w=800&auto=format&fit=crop'},
+        {'name': 'Smartwatch', 'description': 'Fitness tracking smartwatch', 'price': 3499.99, 'category': 'electronics', 'image_url': 'https://images.unsplash.com/photo-1523275335684-37898b6baf30?q=80&w=800&auto=format&fit=crop'},
+        {'name': 'Tablet', 'description': '10-inch tablet for entertainment', 'price': 5999.99, 'category': 'electronics', 'image_url': 'https://images.unsplash.com/photo-1544244015-0df4b3ffc6b0?q=80&w=800&auto=format&fit=crop'},
         
         # Clothing
-        {'name': 'T-Shirt', 'description': 'Cotton t-shirt in various colors', 'price': 199.99, 'category': 'clothing'},
-        {'name': 'Jeans', 'description': 'Classic denim jeans', 'price': 799.99, 'category': 'clothing'},
-        {'name': 'Sneakers', 'description': 'Comfortable running sneakers', 'price': 1299.99, 'category': 'clothing'},
-        {'name': 'Jacket', 'description': 'Winter jacket with warm lining', 'price': 1499.99, 'category': 'clothing'},
-        {'name': 'Dress', 'description': 'Elegant evening dress', 'price': 999.99, 'category': 'clothing'},
+        {'name': 'T-Shirt', 'description': 'Cotton t-shirt in various colors', 'price': 199.99, 'category': 'clothing', 'image_url': 'https://images.unsplash.com/photo-1521572163474-6864f9cf17ab?q=80&w=800&auto=format&fit=crop'},
+        {'name': 'Jeans', 'description': 'Classic denim jeans', 'price': 799.99, 'category': 'clothing', 'image_url': 'https://images.unsplash.com/photo-1542272604-787c3835535d?q=80&w=800&auto=format&fit=crop'},
+        {'name': 'Sneakers', 'description': 'Comfortable running sneakers', 'price': 1299.99, 'category': 'clothing', 'image_url': 'https://images.unsplash.com/photo-1542291026-7eec264c27ff?q=80&w=800&auto=format&fit=crop'},
+        {'name': 'Jacket', 'description': 'Winter jacket with warm lining', 'price': 1499.99, 'category': 'clothing', 'image_url': 'https://images.unsplash.com/photo-1551028719-00167b16eac5?q=80&w=800&auto=format&fit=crop'},
+        {'name': 'Dress', 'description': 'Elegant evening dress', 'price': 999.99, 'category': 'clothing', 'image_url': 'https://images.unsplash.com/photo-1539008835272-35319520e541?q=80&w=800&auto=format&fit=crop'},
         
         # Home & Kitchen
-        {'name': 'Coffee Maker', 'description': 'Automatic drip coffee maker', 'price': 899.99, 'category': 'home-kitchen'},
-        {'name': 'Blender', 'description': 'High-speed kitchen blender', 'price': 599.99, 'category': 'home-kitchen'},
-        {'name': 'Toaster', 'description': '4-slice stainless steel toaster', 'price': 399.99, 'category': 'home-kitchen'},
-        {'name': 'Dining Set', 'description': '6-piece dinnerware set', 'price': 499.99, 'category': 'home-kitchen'},
-        {'name': 'Bedding Set', 'description': 'Queen size bedding set', 'price': 699.99, 'category': 'home-kitchen'},
+        {'name': 'Coffee Maker', 'description': 'Automatic drip coffee maker', 'price': 899.99, 'category': 'home-kitchen', 'image_url': 'https://images.unsplash.com/photo-1520970014086-2208d157c9e2?q=80&w=800&auto=format&fit=crop'},
+        {'name': 'Blender', 'description': 'High-speed kitchen blender', 'price': 599.99, 'category': 'home-kitchen', 'image_url': 'https://images.unsplash.com/photo-1585238341267-1cfec2046a55?q=80&w=800&auto=format&fit=crop'},
+        {'name': 'Toaster', 'description': '4-slice stainless steel toaster', 'price': 399.99, 'category': 'home-kitchen', 'image_url': 'https://images.unsplash.com/photo-1584622650111-993a426fbf0a?q=80&w=800&auto=format&fit=crop'},
+        {'name': 'Dining Set', 'description': '6-piece dinnerware set', 'price': 499.99, 'category': 'home-kitchen', 'image_url': 'https://images.unsplash.com/photo-1516738901171-8eb4fc13bd20?q=80&w=800&auto=format&fit=crop'},
+        {'name': 'Bedding Set', 'description': 'Queen size bedding set', 'price': 699.99, 'category': 'home-kitchen', 'image_url': 'https://images.unsplash.com/photo-1522771739844-6a9f6d5f14af?q=80&w=800&auto=format&fit=crop'},
         
         # Sports & Outdoors
-        {'name': 'Bicycle', 'description': 'Mountain bike for trails', 'price': 3999.99, 'category': 'sports-outdoors'},
-        {'name': 'Yoga Mat', 'description': 'Non-slip exercise yoga mat', 'price': 299.99, 'category': 'sports-outdoors'},
-        {'name': 'Dumbbells Set', 'description': 'Adjustable dumbbells set', 'price': 1799.99, 'category': 'sports-outdoors'},
-        {'name': 'Tennis Racket', 'description': 'Professional tennis racket', 'price': 1299.99, 'category': 'sports-outdoors'},
-        {'name': 'Camping Tent', 'description': '4-person camping tent', 'price': 2499.99, 'category': 'sports-outdoors'},
+        {'name': 'Bicycle', 'description': 'Mountain bike for trails', 'price': 3999.99, 'category': 'sports-outdoors', 'image_url': 'https://images.unsplash.com/photo-1485965120184-e220f721d03e?q=80&w=800&auto=format&fit=crop'},
+        {'name': 'Yoga Mat', 'description': 'Non-slip exercise yoga mat', 'price': 299.99, 'category': 'sports-outdoors', 'image_url': 'https://images.unsplash.com/photo-1592432678016-e910b452f9a2?q=80&w=800&auto=format&fit=crop'},
+        {'name': 'Dumbbells Set', 'description': 'Adjustable dumbbells set', 'price': 1799.99, 'category': 'sports-outdoors', 'image_url': 'https://images.unsplash.com/photo-1586401100295-7a8096fd231a?q=80&w=800&auto=format&fit=crop'},
+        {'name': 'Tennis Racket', 'description': 'Professional tennis racket', 'price': 1299.99, 'category': 'sports-outdoors', 'image_url': 'https://images.unsplash.com/photo-1595435064212-362bd3d466bc?q=80&w=800&auto=format&fit=crop'},
+        {'name': 'Camping Tent', 'description': '4-person camping tent', 'price': 2499.99, 'category': 'sports-outdoors', 'image_url': 'https://images.unsplash.com/photo-1504280390367-361c6d9f38f4?q=80&w=800&auto=format&fit=crop'},
         
         # Books & Media
-        {'name': 'Novel', 'description': 'Bestselling fiction novel', 'price': 149.99, 'category': 'books-media'},
-        {'name': 'Cookbook', 'description': 'Gourmet recipes cookbook', 'price': 249.99, 'category': 'books-media'},
-        {'name': 'DVD Collection', 'description': 'Classic movie DVD collection', 'price': 399.99, 'category': 'books-media'},
-        {'name': 'Music Album', 'description': 'Latest music album CD', 'price': 179.99, 'category': 'books-media'},
-        {'name': 'Educational Book', 'description': 'Learning and development book', 'price': 299.99, 'category': 'books-media'},
+        {'name': 'Novel', 'description': 'Bestselling fiction novel', 'price': 149.99, 'category': 'books-media', 'image_url': 'https://images.unsplash.com/photo-1544947950-fa07a98d237f?q=80&w=800&auto=format&fit=crop'},
+        {'name': 'Cookbook', 'description': 'Gourmet recipes cookbook', 'price': 249.99, 'category': 'books-media', 'image_url': 'https://images.unsplash.com/photo-1589998059171-988d887df646?q=80&w=800&auto=format&fit=crop'},
+        {'name': 'DVD Collection', 'description': 'Classic movie DVD collection', 'price': 399.99, 'category': 'books-media', 'image_url': 'https://images.unsplash.com/photo-1594909122845-11baa439b7bf?q=80&w=800&auto=format&fit=crop'},
+        {'name': 'Music Album', 'description': 'Latest music album CD', 'price': 179.99, 'category': 'books-media', 'image_url': 'https://images.unsplash.com/photo-1614613535308-eb5fbd3d2c17?q=80&w=800&auto=format&fit=crop'},
+        {'name': 'Educational Book', 'description': 'Learning and development book', 'price': 299.99, 'category': 'books-media', 'image_url': 'https://images.unsplash.com/photo-1497633762265-9d179a990aa6?q=80&w=800&auto=format&fit=crop'},
     ]
     
     # Clear existing products if requested
@@ -689,7 +764,7 @@ def seed_products(clear, count):
             price=product_data['price'],
             category_id=product_data['category'],
             in_stock=True,
-            image_url=None
+            image_url=product_data.get('image_url')
         )
         
         db.session.add(product)
@@ -1265,15 +1340,131 @@ def seed_settings(clear):
     click.echo(f'Settings: {created} created, {skipped} skipped.')
 
 
-@cli.command('execute-sql')
-@click.argument('sql')
+@cli.command('seed-demo-data')
 @with_appcontext
-def execute_sql(sql):
-    """Execute raw SQL against the database"""
-    try:
-        db.session.execute(db.text(sql))
-        db.session.commit()
-        click.echo("SQL executed successfully.")
-    except Exception as e:
-        db.session.rollback()
-        click.echo(f"Error executing SQL: {str(e)}")
+def seed_demo_data():
+    """Seed the database with varied demo data for service providers and professionals."""
+    # ── Professionals ──
+    profs_data = [
+        {
+            'email': 'prof_lawyer@mzansiserve.co.za',
+            'full_name': 'Advocate Sipho Mdluli',
+            'profession': 'Legal Consultant',
+            'services': [
+                {'name': 'Legal Advice', 'description': 'Contract law and civil litigation advice.', 'hourly_rate': 1200.0},
+                {'name': 'Document Drafting', 'description': 'Drafting of wills, contracts, and legal letters.', 'hourly_rate': 850.0}
+            ],
+            'qualification': 'LLB, LLM (Wits)',
+            'body': 'Legal Practice Council (LPC)'
+        },
+        {
+            'email': 'prof_accountant@mzansiserve.co.za',
+            'full_name': 'Zanele Khumalo CA(SA)',
+            'profession': 'Chartered Accountant',
+            'services': [
+                {'name': 'Tax Consultation', 'description': 'SARS personal and business tax filing.', 'hourly_rate': 950.0},
+                {'name': 'Bookkeeping', 'description': 'Monthly management accounts and VAT returns.', 'hourly_rate': 650.0}
+            ],
+            'qualification': 'BAcc, CTA (UJ)',
+            'body': 'SAICA'
+        },
+        {
+            'email': 'prof_doctor@mzansiserve.co.za',
+            'full_name': 'Dr. Thabo Sithole',
+            'profession': 'General Practitioner',
+            'services': [
+                {'name': 'Virtual Consultation', 'description': '15-minute medical consultation via video call.', 'hourly_rate': 550.0},
+                {'name': 'Medical Report', 'description': 'Drafting of medical certificates and reports.', 'hourly_rate': 400.0}
+            ],
+            'qualification': 'MBChB (UCT)',
+            'body': 'HPCSA'
+        }
+    ]
+
+    # ── Service Providers ──
+    providers_data = [
+        {
+            'email': 'prov_cleaning@mzansiserve.co.za',
+            'full_name': 'Sarah Moremi',
+            'business': 'Sparkle Home Services',
+            'services': [
+                {'name': 'Standard Cleaning', 'description': 'Full house cleaning including dusting and mopping.', 'hourly_rate': 180.0},
+                {'name': 'Deep Cleaning', 'description': 'Intensive cleaning including carpets and windows.', 'hourly_rate': 350.0}
+            ]
+        },
+        {
+            'email': 'prov_plumbing@mzansiserve.co.za',
+            'full_name': 'Johannes van der Merwe',
+            'business': 'Jozi Plumbing Pros',
+            'services': [
+                {'name': 'Emergency Repairs', 'description': 'Fixing burst pipes and major leaks.', 'hourly_rate': 450.0},
+                {'name': 'Geyser Service', 'description': 'Annual maintenance and anode replacement.', 'hourly_rate': 600.0}
+            ]
+        },
+        {
+            'email': 'prov_electrical@mzansiserve.co.za',
+            'full_name': 'Lerato Nkosi',
+            'business': 'Nkosi Electrical Solutions',
+            'services': [
+                {'name': 'DB Board Audit', 'description': 'Checking and certifying electrical distribution boards.', 'hourly_rate': 750.0},
+                {'name': 'General Wiring', 'description': 'Installation of lights, plugs and switches.', 'hourly_rate': 300.0}
+            ]
+        }
+    ]
+
+    click.echo("Seeding demo professionals...")
+    for p in profs_data:
+        if User.query.filter_by(email=p['email']).first():
+            click.echo(f"  Skipped: {p['email']} (already exists)")
+            continue
+        
+        user = User(
+            email=p['email'],
+            role='professional',
+            is_approved=True,
+            is_active=True,
+            is_paid=True,
+            email_verified=True,
+            tracking_number=generate_tracking_number(),
+            data={
+                'full_name': p['full_name'],
+                'profession': p['profession'],
+                'professional_services': p['services'],
+                'highest_qualification': p['qualification'],
+                'professional_body': p['body']
+            }
+        )
+        user.set_password('password123')
+        db.session.add(user)
+        db.session.flush()
+        WalletService.get_or_create_wallet(user.id)
+        click.echo(f"  Created professional: {p['full_name']} ({p['profession']})")
+
+    click.echo("\nSeeding demo service providers...")
+    for p in providers_data:
+        if User.query.filter_by(email=p['email']).first():
+            click.echo(f"  Skipped: {p['email']} (already exists)")
+            continue
+        
+        user = User(
+            email=p['email'],
+            role='service-provider',
+            is_approved=True,
+            is_active=True,
+            is_paid=True,
+            email_verified=True,
+            tracking_number=generate_tracking_number(),
+            data={
+                'full_name': p['full_name'],
+                'business_name': p['business'],
+                'provider_services': p['services']
+            }
+        )
+        user.set_password('password123')
+        db.session.add(user)
+        db.session.flush()
+        WalletService.get_or_create_wallet(user.id)
+        click.echo(f"  Created service provider: {p['business']} ({p['full_name']})")
+
+    db.session.commit()
+    click.echo("\nDemo data seeding complete.")

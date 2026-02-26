@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
-import { 
-  UserSquare2, DollarSign, TrendingUp, Users, 
-  Settings, RefreshCw, CheckCircle2, AlertCircle 
+import {
+  UserSquare2, DollarSign, TrendingUp, Users,
+  Settings, RefreshCw, CheckCircle2, AlertCircle
 } from "lucide-react";
 import { apiFetch } from "@/lib/api";
 import { cn } from "@/lib/utils";
@@ -21,6 +21,11 @@ export const AffiliatesManagement = () => {
     agent_commission_professional: "30",
     agent_commission_service_provider: "25",
     agent_commission_client: "10"
+  });
+  const [stats, setStats] = useState({
+    total_paid_out: 0,
+    active_agents_count: 0,
+    total_commissions: 0
   });
 
   const fetchData = async () => {
@@ -43,6 +48,12 @@ export const AffiliatesManagement = () => {
       if (commRes.success) {
         setRecentCommissions(commRes.data.commissions);
       }
+
+      // Fetch affiliate stats
+      const statsRes = await apiFetch('/api/admin/affiliate-stats');
+      if (statsRes.success) {
+        setStats(statsRes.data);
+      }
     } catch (err) {
       console.error("Failed to fetch affiliate data:", err);
     } finally {
@@ -60,13 +71,13 @@ export const AffiliatesManagement = () => {
     try {
       // In a real implementation, we might have a bulk settings update or individual calls
       // For now, let's simulate updating the key ones
-      const promises = Object.entries(settings).map(([key, value]) => 
+      const promises = Object.entries(settings).map(([key, value]) =>
         apiFetch('/api/admin/settings/update-key', {
           method: 'PATCH',
           data: { key: key.replace(/_/g, '-'), value }
         })
       );
-      
+
       await Promise.all(promises);
       toast({ title: "Settings Saved", description: "Agent commission rates have been updated." });
     } catch (err) {
@@ -92,42 +103,42 @@ export const AffiliatesManagement = () => {
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">Default Rate</Label>
-                <Input 
-                  type="number" 
+                <Input
+                  type="number"
                   value={settings.agent_commission_default}
-                  onChange={e => setSettings({...settings, agent_commission_default: e.target.value})}
-                  className="font-bold" 
+                  onChange={e => setSettings({ ...settings, agent_commission_default: e.target.value })}
+                  className="font-bold"
                 />
               </div>
               <div className="space-y-2">
                 <Label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">Client Recruit</Label>
-                <Input 
-                  type="number" 
+                <Input
+                  type="number"
                   value={settings.agent_commission_client}
-                  onChange={e => setSettings({...settings, agent_commission_client: e.target.value})}
-                  className="font-bold" 
+                  onChange={e => setSettings({ ...settings, agent_commission_client: e.target.value })}
+                  className="font-bold"
                 />
               </div>
               <div className="space-y-2">
                 <Label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">Driver Recruit</Label>
-                <Input 
-                  type="number" 
+                <Input
+                  type="number"
                   value={settings.agent_commission_driver}
-                  onChange={e => setSettings({...settings, agent_commission_driver: e.target.value})}
-                  className="font-bold" 
+                  onChange={e => setSettings({ ...settings, agent_commission_driver: e.target.value })}
+                  className="font-bold"
                 />
               </div>
               <div className="space-y-2">
                 <Label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">Professional</Label>
-                <Input 
-                  type="number" 
+                <Input
+                  type="number"
                   value={settings.agent_commission_professional}
-                  onChange={e => setSettings({...settings, agent_commission_professional: e.target.value})}
-                  className="font-bold" 
+                  onChange={e => setSettings({ ...settings, agent_commission_professional: e.target.value })}
+                  className="font-bold"
                 />
               </div>
             </div>
-            
+
             <Button type="submit" className="w-full h-12 rounded-xl font-bold shadow-lg shadow-purple-100" disabled={saving}>
               {saving ? "Saving..." : "Update All Rates"}
             </Button>
@@ -137,7 +148,7 @@ export const AffiliatesManagement = () => {
         {/* Global Stats */}
         <div className="bg-[#121926] border border-slate-800 rounded-3xl p-8 text-white relative overflow-hidden">
           <div className="absolute -right-10 -bottom-10 h-40 w-40 bg-purple-500/10 rounded-full blur-3xl" />
-          
+
           <div className="relative z-10 h-full flex flex-col">
             <div className="flex items-center gap-3 mb-8">
               <div className="h-10 w-10 rounded-xl bg-white/10 flex items-center justify-center">
@@ -149,11 +160,15 @@ export const AffiliatesManagement = () => {
             <div className="grid grid-cols-2 gap-8 flex-1 content-center">
               <div>
                 <p className="text-[10px] font-bold text-slate-400 uppercase tracking-[0.2em] mb-1">Total Paid Out</p>
-                <h2 className="text-4xl font-bold text-white tracking-tight">R 12,450</h2>
+                <h2 className="text-4xl font-bold text-white tracking-tight">
+                  R {stats.total_paid_out.toLocaleString()}
+                </h2>
               </div>
               <div>
                 <p className="text-[10px] font-bold text-slate-400 uppercase tracking-[0.2em] mb-1">Active Agents</p>
-                <h2 className="text-4xl font-bold text-white tracking-tight">48</h2>
+                <h2 className="text-4xl font-bold text-white tracking-tight">
+                  {stats.active_agents_count}
+                </h2>
               </div>
             </div>
 

@@ -141,8 +141,10 @@ def approve_user(user_id):
         user = User.query.get(user_id)
         if not user:
             return error_response('NOT_FOUND', 'User not found', None, 404)
-        
         user.is_approved = True
+        if user.role in ('professional', 'service-provider'):
+            user.is_active = True
+            
         db.session.commit()
         
         # Send user approval notification email
@@ -1919,13 +1921,26 @@ def create_agent():
         surname = (data.get('surname') or '').strip()
         id_number = (data.get('id_number') or '').strip() or None
         agent_id = (data.get('agent_id') or '').strip()
+        phone = (data.get('phone') or '').strip() or None
+        municipality = (data.get('municipality') or '').strip() or None
+        ward = (data.get('ward') or '').strip() or None
+        
         if not name or not surname:
             return error_response('MISSING_FIELDS', 'Name and surname are required', None, 400)
         if not agent_id:
             agent_id = _generate_agent_id()
         if Agent.query.filter_by(agent_id=agent_id).first():
             return error_response('DUPLICATE', 'An agent with this agent_id already exists', None, 400)
-        agent = Agent(name=name, surname=surname, id_number=id_number, agent_id=agent_id)
+        
+        agent = Agent(
+            name=name, 
+            surname=surname, 
+            id_number=id_number, 
+            agent_id=agent_id,
+            phone=phone,
+            municipality=municipality,
+            ward=ward
+        )
         db.session.add(agent)
         db.session.commit()
         return success_response(agent.to_dict(), 'Agent created')
@@ -1950,6 +1965,12 @@ def update_agent(agent_uuid):
             agent.surname = (data.get('surname') or '').strip() or agent.surname
         if 'id_number' in data:
             agent.id_number = (data.get('id_number') or '').strip() or None
+        if 'phone' in data:
+            agent.phone = (data.get('phone') or '').strip() or None
+        if 'municipality' in data:
+            agent.municipality = (data.get('municipality') or '').strip() or None
+        if 'ward' in data:
+            agent.ward = (data.get('ward') or '').strip() or None
         if 'agent_id' in data:
             new_agent_id = (data.get('agent_id') or '').strip()
             if not new_agent_id:
@@ -2357,18 +2378,47 @@ def get_global_stats():
         from backend.models.professional_rating import ProfessionalRating
         from backend.models.provider_rating import ProviderRating
         
+        from backend.models.shop import Order
+        from sqlalchemy import func
+        from datetime import timedelta
+        
+        # Calculate total revenue from all sources
+        # 1. Orders (Shop)
+        shop_revenue = db.session.query(func.sum(Order.total)).filter(Order.status == 'paid').scalar() or 0
+        # 2. Service Requests (Payments)
+        # Assuming payment_amount on requests with status 'completed' is finalized
+        service_revenue = db.session.query(func.sum(ServiceRequest.payment_amount)).filter(ServiceRequest.status == 'completed').scalar() or 0
+        
+        total_revenue = float(shop_revenue) + float(service_revenue)
+        
+        # Growth data (last 7 days)
+        seven_days_ago = datetime.utcnow() - timedelta(days=7)
+        user_growth = []
+        for i in range(7):
+            day = seven_days_ago + timedelta(days=i+1)
+            start_of_day = datetime(day.year, day.month, day.day)
+            end_of_day = start_of_day + timedelta(days=1)
+            count = User.query.filter(User.created_at >= start_of_day, User.created_at < end_of_day).count()
+            user_growth.append({'date': start_of_day.strftime('%b %d'), 'count': count})
+
         return success_response({
             'users': {
                 'total': User.query.count(),
                 'drivers': User.query.filter_by(role='driver').count(),
                 'professionals': User.query.filter_by(role='professional').count(),
                 'providers': User.query.filter_by(role='service-provider').count(),
-                'clients': User.query.filter_by(role='client').count()
+                'clients': User.query.filter_by(role='client').count(),
+                'growth': user_growth
             },
             'requests': {
                 'total': ServiceRequest.query.count(),
                 'pending': ServiceRequest.query.filter_by(status='pending').count(),
                 'completed': ServiceRequest.query.filter_by(status='completed').count()
+            },
+            'revenue': {
+                'total': total_revenue,
+                'shop': float(shop_revenue),
+                'service': float(service_revenue)
             },
             'feedback': {
                 'total_ratings': DriverRating.query.count() + ProfessionalRating.query.count() + ProviderRating.query.count(),
@@ -2418,6 +2468,36 @@ def list_global_commissions():
     except Exception as e:
         current_app.logger.error(f"List global commissions error: {str(e)}")
         return error_response('INTERNAL_ERROR', 'Failed to list commissions', None, 500)
+
+
+@bp.route('/affiliate-stats', methods=['GET'])
+@require_admin
+def get_affiliate_stats():
+    """Get summarized affiliate/agent performance metrics"""
+    try:
+        from backend.models.agent_commission import AgentCommission
+        from sqlalchemy import func
+        
+        # 1. Total Paid Out
+        # Sum of commissions with status 'paid_out'
+        total_payout = db.session.query(func.sum(AgentCommission.amount)).filter(AgentCommission.status == 'paid_out').scalar() or 0.0
+        
+        # 2. Active Agents Count
+        # Agents who have a user account (role='agent') OR have recruited at least one person
+        # For simplicity, count unique agent_ids from commissions table
+        active_agents_count = db.session.query(func.count(func.distinct(AgentCommission.agent_id))).scalar() or 0
+        
+        # 3. Total Commissions
+        total_commissions = db.session.query(func.count(AgentCommission.id)).scalar() or 0
+
+        return success_response({
+            'total_paid_out': float(total_payout),
+            'active_agents_count': active_agents_count,
+            'total_commissions': total_commissions
+        })
+    except Exception as e:
+        current_app.logger.error(f"Affiliate stats error: {str(e)}")
+        return error_response('INTERNAL_ERROR', 'Failed to get affiliate stats', None, 500)
 
 
 

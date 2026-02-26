@@ -28,7 +28,7 @@ Your account is now active, and you can start exploring:
 - Online shopping
 - Secure payments
 
-Login anytime here: {{login_link}} or directly from the mzanserve mobile app, www.MzansiServe.com or www.MzansiServe .co.za
+Login anytime here: {{login_link}} or directly from the mzanserve mobile app, www.MzansiServe.co.za or www.MzansiServe .co.za
 
 Thank you for choosing MzansiServe — made for Mzansi, built for you 🇿🇦
 

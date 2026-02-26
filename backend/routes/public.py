@@ -19,7 +19,7 @@ bp = Blueprint('public', __name__)
 def get_top_providers():
     """Returns top-rated verified professionals and drivers for the landing page."""
     try:
-        limit = request.args.get('limit', load_default=3, type=int)
+        limit = request.args.get('limit', default=3, type=int)
         
         # We need to aggregate across professional_ratings, driver_ratings, and provider_ratings
         # For simplicity in this implementation, let's fetch professionals with the highest professional_ratings
@@ -152,7 +152,7 @@ def calculate_fare():
     """Calculate trip fare based on distance and vehicle type."""
     try:
         distance = request.args.get('distance', type=float)
-        car_type = request.args.get('car_type', load_default='sedan')
+        car_type = request.args.get('car_type', default='sedan')
         
         if distance is None:
             return error_response('INVALID_INPUT', 'Distance is required', None, 400)
@@ -165,6 +165,74 @@ def calculate_fare():
     except Exception as e:
         current_app.logger.error(f"Calculate fare error: {str(e)}")
         return error_response('INTERNAL_ERROR', 'Failed to calculate fare', None, 500)
+
+
+@bp.route('/drivers-nearby', methods=['GET'])
+def get_drivers_nearby():
+    """
+    Find drivers within a certain radius of a location.
+    Params: lat, lng, radius (km, default 10)
+    """
+    try:
+        lat = request.args.get('lat', type=float)
+        lng = request.args.get('lng', type=float)
+        radius = request.args.get('radius', default=10, type=float)
+
+        if lat is None or lng is None:
+            return error_response('INVALID_INPUT', 'Coordinates are required', None, 400)
+
+        # Basic filtering for active, approved drivers
+        drivers = User.query.filter_by(role='driver', is_approved=True, is_active=True).all()
+        
+        nearby = []
+        for d in drivers:
+            d_data = d.data or {}
+            # We assume current_location = {lat, lng} is stored in data
+            loc = d_data.get('current_location')
+            if not loc or not isinstance(loc, dict):
+                continue
+            
+            d_lat = loc.get('lat')
+            d_lng = loc.get('lng')
+            if d_lat is None or d_lng is None:
+                continue
+            
+            # Simple Haversine for filtering
+            dist = _calculate_haversine(lat, lng, d_lat, d_lng)
+            if dist <= radius:
+                # Include driver details and car types
+                services = d_data.get('driver_services', [])
+                car_types = [s.get('car_type', '').lower() for s in services if s.get('car_type')]
+                
+                nearby.append({
+                    'id': str(d.id),
+                    'name': d_data.get('full_name', 'Driver'),
+                    'location': {'lat': d_lat, 'lng': d_lng},
+                    'distance_km': round(dist, 2),
+                    'car_types': list(set(car_types)),
+                    'profile_image_url': d.profile_image_url
+                })
+        
+        # Sort by distance
+        nearby = sorted(nearby, key=lambda x: x['distance_km'])
+        
+        return success_response({'drivers': nearby})
+    except Exception as e:
+        current_app.logger.error(f"Get drivers nearby error: {str(e)}")
+        return error_response('INTERNAL_ERROR', 'Failed to find nearby drivers', None, 500)
+
+
+def _calculate_haversine(lat1, lon1, lat2, lon2):
+    """Internal helper for distance calculation"""
+    import math
+    R = 6371  # Earth radius in KM
+    
+    d_lat = math.radians(lat2 - lat1)
+    d_lon = math.radians(lon2 - lon1)
+    a = math.sin(d_lat/2)**2 + math.cos(math.radians(lat1)) * \
+        math.cos(math.radians(lat2)) * math.sin(d_lon/2)**2
+    c = 2 * math.asin(math.sqrt(a))
+    return R * c
 
 
 @bp.route('/footer', methods=['GET'])

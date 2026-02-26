@@ -267,10 +267,10 @@ def initiate_order_payment(order_id):
         amount_in_cents = int(float(order.total) * 100)
         
         # Create callback URLs
-        base_url = current_app.config.get('FRONTEND_URL', 'http://localhost:5000')
+        base_url = request.host_url.rstrip('/')
         success_url = f"{base_url}/api/payments/order-callback?callback_status=success&external_id={external_id}&order_id={order_id}"
         cancel_url = f"{base_url}/api/payments/order-callback?callback_status=cancel&external_id={external_id}&order_id={order_id}"
-        failure_url = f"{base_url}/api/payments/order-callback?callback_status=failure&external_id={external_id}&order_id={order_id}"
+        failure_url = f"{base_url}/api/payments/order-callback?callback_status=failure&external_id={external_id}&request_id={order_id}"
         
         # Create Yoco checkout
         checkout_result = PaymentService.create_checkout(

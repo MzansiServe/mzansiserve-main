@@ -1,14 +1,18 @@
 import { useEffect, useState } from "react";
-import { useLocation, Link } from "react-router-dom";
-import { Package, ArrowLeft, CheckCircle2, Clock, XCircle } from "lucide-react";
+import { useLocation, Link, useNavigate } from "react-router-dom";
+import { Package, ArrowLeft, CheckCircle2, Clock, XCircle, ChevronRight, ShoppingBag, Receipt } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import Navbar from "@/components/Navbar";
+import Footer from "@/components/Footer";
 import { apiFetch } from "@/lib/api";
 import { useAuth } from "@/contexts/AuthContext";
+import { cn } from "@/lib/utils";
+import { motion } from "framer-motion";
 
 type OrderItem = {
     product_id: string;
     quantity: number;
+    product_name?: string;
 };
 
 type Order = {
@@ -24,10 +28,9 @@ const ShoppingHistory = () => {
     const [isLoading, setIsLoading] = useState(true);
     const { user } = useAuth();
     const location = useLocation();
+    const navigate = useNavigate();
 
     useEffect(() => {
-        // In a real scenario you would have a dedicated endpoint for fetching orders: /api/shop/orders
-        // For now, we will simulate the order history or rely on a future endpoint.
         const fetchOrders = async () => {
             try {
                 const response = await apiFetch("/api/shop/orders");
@@ -51,97 +54,170 @@ const ShoppingHistory = () => {
     const params = new URLSearchParams(location.search);
     const paymentStatus = params.get("payment");
 
+    const getStatusStyles = (status: string) => {
+        switch (status.toLowerCase()) {
+            case 'paid':
+            case 'delivered':
+            case 'success':
+                return "bg-emerald-50 text-emerald-600 border-emerald-100";
+            case 'cancelled':
+            case 'failed':
+                return "bg-rose-50 text-rose-500 border-rose-100";
+            default:
+                return "bg-amber-50 text-amber-600 border-amber-100";
+        }
+    };
+
     const getStatusIcon = (status: string) => {
         switch (status.toLowerCase()) {
             case 'paid':
             case 'delivered':
-                return <CheckCircle2 className="h-5 w-5 text-emerald-500" />;
+            case 'success':
+                return <CheckCircle2 className="h-4 w-4" />;
             case 'cancelled':
             case 'failed':
-                return <XCircle className="h-5 w-5 text-sa-red" />;
+                return <XCircle className="h-4 w-4" />;
             default:
-                return <Clock className="h-5 w-5 text-amber-500" />;
+                return <Clock className="h-4 w-4" />;
         }
     };
 
     return (
-        <main className="min-h-screen bg-slate-50">
+        <main className="min-h-screen bg-white flex flex-col">
             <Navbar />
-            <div className="container mx-auto px-4 pt-28 pb-16 max-w-4xl">
-                <Link to="/shop">
-                    <Button variant="ghost" className="mb-6 -ml-4 gap-2 text-slate-500 hover:text-slate-900">
-                        <ArrowLeft className="h-4 w-4" /> Back to Shop
+
+            {/* ── Page header ── */}
+            <section className="pt-32 pb-12 bg-white relative overflow-hidden border-b border-slate-50">
+                <div className="absolute inset-0 bg-[url('data:image/svg+xml,%3Csvg width=\'6\' height=\'6\' viewBox=\'0 0 6 6\' xmlns=\'http://www.w3.org/2000/svg\'%3E%3Cg fill=\'%23EEF2FF\' fill-opacity=\'1\'%3E%3Cpath d=\'M5 0h1L0 6V5zM6 5v1H5z\'/%3E%3C/g%3E%3C/svg%3E')] opacity-70" />
+                <div className="container mx-auto px-6 max-w-5xl relative z-10">
+                    <Button
+                        variant="ghost"
+                        onClick={() => navigate('/shop')}
+                        className="mb-8 -ml-4 gap-2 text-slate-400 hover:text-primary font-bold transition-colors"
+                    >
+                        <ArrowLeft className="h-5 w-5" /> Back to Shop
                     </Button>
-                </Link>
-
-                {paymentStatus === 'success' && (
-                    <div className="mb-8 rounded-xl bg-emerald-50 border border-emerald-100 p-6 flex flex-col items-center text-center">
-                        <div className="bg-emerald-100 p-3 rounded-full mb-4">
-                            <CheckCircle2 className="h-8 w-8 text-emerald-600" />
+                    <div className="flex flex-col md:flex-row md:items-end justify-between gap-6">
+                        <div>
+                            <span className="inline-block mb-4 text-[10px] font-bold uppercase tracking-[0.2em] text-primary">Orders</span>
+                            <h1 className="text-4xl md:text-5xl font-bold text-[#222222] tracking-tight">Shopping History</h1>
+                            <p className="text-xl text-slate-500 font-normal mt-3">Track your purchases and orders</p>
                         </div>
-                        <h2 className="text-2xl font-bold text-emerald-800 mb-2">Payment Successful!</h2>
-                        <p className="text-emerald-600">
-                            Your order has been placed and is now being processed. Thank you for shopping with MzansiServe.
-                        </p>
                     </div>
-                )}
-
-                <div className="flex items-center gap-3 mb-8">
-                    <Package className="h-8 w-8 text-primary" />
-                    <h1 className="text-3xl font-bold text-slate-900">Shopping History</h1>
                 </div>
+            </section>
 
-                {isLoading ? (
-                    <div className="text-center py-12 text-slate-500">Loading your orders...</div>
-                ) : orders.length > 0 ? (
-                    <div className="space-y-6">
-                        {orders.map((order) => (
-                            <div key={order.id} className="bg-white border text-sm border-slate-200 rounded-2xl p-6 shadow-sm overflow-hidden">
-                                <div className="flex flex-col sm:flex-row justify-between sm:items-center border-b pb-4 mb-4 gap-4">
-                                    <div>
-                                        <p className="text-slate-500 text-xs uppercase tracking-wider mb-1">Order ID</p>
-                                        <p className="font-semibold text-slate-900">{order.id}</p>
-                                    </div>
-                                    <div>
-                                        <p className="text-slate-500 text-xs uppercase tracking-wider mb-1">Date</p>
-                                        <p className="font-semibold text-slate-900">{new Date(order.placed_at).toLocaleDateString()}</p>
-                                    </div>
-                                    <div>
-                                        <p className="text-slate-500 text-xs uppercase tracking-wider mb-1">Total Amount</p>
-                                        <p className="font-bold text-primary">R{order.total.toFixed(2)}</p>
-                                    </div>
-                                    <div className="flex items-center gap-2 bg-slate-50 px-3 py-1.5 rounded-full font-medium">
-                                        {getStatusIcon(order.status)}
-                                        <span className="capitalize text-slate-700">{order.status}</span>
-                                    </div>
-                                </div>
+            <div className="flex-1 bg-white">
+                <div className="container mx-auto px-6 py-12 max-w-5xl">
 
-                                <div>
-                                    <h4 className="font-medium text-slate-700 mb-3">Items Ordered</h4>
-                                    <ul className="space-y-2">
-                                        {order.items.map((item, index) => (
-                                            <li key={index} className="flex justify-between text-slate-600">
-                                                <span>Product #{item.product_id} (x{item.quantity})</span>
-                                            </li>
-                                        ))}
-                                    </ul>
-                                </div>
+                    {paymentStatus === 'success' && (
+                        <motion.div
+                            initial={{ opacity: 0, scale: 0.95 }}
+                            animate={{ opacity: 1, scale: 1 }}
+                            className="mb-12 rounded-[2rem] bg-emerald-50 border border-emerald-100 p-10 flex flex-col items-center text-center shadow-sm"
+                        >
+                            <div className="bg-white p-4 rounded-2xl mb-6 shadow-sm shadow-emerald-200/50">
+                                <CheckCircle2 className="h-10 w-10 text-emerald-500" />
                             </div>
-                        ))}
-                    </div>
-                ) : (
-                    <div className="text-center py-16 bg-white rounded-2xl border border-slate-200 shadow-sm">
-                        <Package className="h-12 w-12 text-slate-300 mx-auto mb-4" />
-                        <h3 className="text-xl font-semibold text-slate-900 mb-2">No orders found</h3>
-                        <p className="text-slate-500 mb-6 max-w-xs mx-auto">
-                            You haven't placed any orders yet. Start shopping to see your history here.
-                        </p>
-                        <Link to="/shop">
-                            <Button className="bg-gradient-purple text-primary-foreground">Browse Shop</Button>
-                        </Link>
-                    </div>
-                )}
+                            <h2 className="text-3xl font-bold text-emerald-900 mb-3 tracking-tight">Payment Successful!</h2>
+                            <p className="text-emerald-700 text-lg max-w-md mx-auto font-medium leading-relaxed">
+                                Your order has been placed successfully. You'll receive a confirmation email shortly.
+                            </p>
+                        </motion.div>
+                    )}
+
+                    {isLoading ? (
+                        <div className="flex flex-col items-center justify-center py-24 text-slate-400">
+                            <Clock className="h-10 w-10 animate-spin text-primary mb-4" />
+                            <p className="font-bold">Syncing your history...</p>
+                        </div>
+                    ) : orders.length > 0 ? (
+                        <div className="space-y-8">
+                            {orders.map((order) => (
+                                <motion.div
+                                    key={order.id}
+                                    initial={{ opacity: 0, y: 20 }}
+                                    animate={{ opacity: 1, y: 0 }}
+                                    className="group bg-white rounded-[2.5rem] border border-slate-50 shadow-sm hover:shadow-2xl hover:shadow-slate-200/60 transition-all duration-500 overflow-hidden"
+                                >
+                                    <div className="p-8 sm:p-10">
+                                        <div className="flex flex-col md:flex-row justify-between gap-8 mb-8 pb-8 border-b border-slate-50">
+                                            <div className="grid grid-cols-2 sm:grid-cols-4 gap-8 flex-1">
+                                                <div className="space-y-2">
+                                                    <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Order ID</p>
+                                                    <p className="text-base font-bold text-[#222222]">#{order.id.slice(-8).toUpperCase()}</p>
+                                                </div>
+                                                <div className="space-y-2">
+                                                    <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Placed On</p>
+                                                    <p className="text-base font-bold text-[#222222]">{new Date(order.placed_at).toLocaleDateString()}</p>
+                                                </div>
+                                                <div className="space-y-2">
+                                                    <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Total Amount</p>
+                                                    <p className="text-xl font-black text-primary">R{order.total.toFixed(2)}</p>
+                                                </div>
+                                                <div className="flex flex-col justify-end">
+                                                    <div className={cn("inline-flex items-center self-start gap-2 px-4 py-2 rounded-full text-[10px] font-black uppercase tracking-widest border", getStatusStyles(order.status))}>
+                                                        {getStatusIcon(order.status)}
+                                                        {order.status}
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+
+                                        <div className="space-y-6">
+                                            <div className="flex items-center gap-3">
+                                                <div className="h-8 w-8 rounded-lg bg-slate-50 flex items-center justify-center text-slate-400">
+                                                    <Receipt className="h-4 w-4" />
+                                                </div>
+                                                <h4 className="text-sm font-bold text-[#222222] uppercase tracking-widest">Items ordered</h4>
+                                            </div>
+
+                                            <div className="space-y-4">
+                                                {order.items.map((item, index) => (
+                                                    <div key={index} className="flex justify-between items-center bg-slate-50/50 p-4 rounded-xl border border-transparent hover:border-slate-100 transition-colors">
+                                                        <div className="flex items-center gap-4">
+                                                            <div className="h-12 w-12 bg-white rounded-lg flex items-center justify-center text-slate-300 shadow-sm border border-slate-50">
+                                                                <ShoppingBag className="h-6 w-6" />
+                                                            </div>
+                                                            <div>
+                                                                <p className="text-base font-bold text-[#222222]">
+                                                                    {item.product_name || `Product #${item.product_id.slice(-6).toUpperCase()}`}
+                                                                </p>
+                                                                <p className="text-xs font-bold text-slate-400 uppercase tracking-widest">Quantity: {item.quantity}</p>
+                                                            </div>
+                                                        </div>
+                                                        <ChevronRight className="h-5 w-5 text-slate-200 group-hover:text-primary transition-colors" />
+                                                    </div>
+                                                ))}
+                                            </div>
+                                        </div>
+                                    </div>
+                                </motion.div>
+                            ))}
+                        </div>
+                    ) : (
+                        <div className="text-center py-20 bg-white rounded-[3rem] border border-slate-50 shadow-2xl shadow-slate-200/60 p-16">
+                            <div className="w-24 h-24 bg-slate-50 rounded-[2rem] flex items-center justify-center mx-auto mb-8 shadow-inner">
+                                <Package className="h-12 w-12 text-slate-200" />
+                            </div>
+                            <h3 className="text-2xl font-bold text-[#222222]">No orders yet</h3>
+                            <p className="text-slate-500 mt-4 text-lg max-w-sm mx-auto leading-relaxed font-normal">
+                                You haven't placed any orders yet. Start shopping to see your history here.
+                            </p>
+                            <div className="mt-10">
+                                <Button
+                                    className="h-14 px-10 rounded-2xl bg-primary text-white font-bold text-lg shadow-lg hover:shadow-primary/20 transition-all"
+                                    onClick={() => navigate('/shop')}
+                                >
+                                    Browse Shop
+                                </Button>
+                            </div>
+                        </div>
+                    )}
+                </div>
             </div>
+
+            <Footer />
         </main>
     );
 };

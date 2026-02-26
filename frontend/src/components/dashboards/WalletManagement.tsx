@@ -1,19 +1,34 @@
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import {
-    Wallet,
-    ArrowUpRight,
-    ArrowDownLeft,
-    History,
-    Download,
-    Clock,
-    CheckCircle2,
-    XCircle,
-    AlertCircle
-} from "lucide-react";
-import { cn } from "@/lib/utils";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
+    Box,
+    Typography,
+    Paper,
+    Button,
+    TextField,
+    InputAdornment,
+    Divider,
+    alpha,
+    useTheme,
+    Grid,
+    Avatar,
+    Stack,
+    Table,
+    TableBody,
+    TableCell,
+    TableContainer,
+    TableHead,
+    TableRow,
+    Chip,
+    CircularProgress
+} from "@mui/material";
+import {
+    AccountBalanceWallet as WalletIcon,
+    NorthEast as ArrowUpIcon,
+    SouthWest as ArrowDownIcon,
+    History as HistoryIcon,
+    FileDownload as DownloadIcon,
+    InfoOutlined as InfoIcon
+} from "@mui/icons-material";
 import { useToast } from "@/hooks/use-toast";
 import { apiFetch } from "@/lib/api";
 
@@ -35,6 +50,7 @@ interface WalletManagementProps {
 
 export const WalletManagement = ({ balance, transactions, role, onWithdrawalRequested }: WalletManagementProps) => {
     const { toast } = useToast();
+    const theme = useTheme();
     const [withdrawalAmount, setWithdrawalAmount] = useState("");
     const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -71,152 +87,181 @@ export const WalletManagement = ({ balance, transactions, role, onWithdrawalRequ
         }
     };
 
-    const themeColor = role === 'driver' ? 'text-[#1e88e5]' : 'text-[#5e35b1]';
-    const themeBg = role === 'driver' ? 'bg-[#e3f2fd]' : 'bg-[#ede7f6]';
-    const themeButton = role === 'driver' ? 'bg-[#1e88e5] hover:bg-[#1565c0]' : 'bg-[#5e35b1] hover:bg-[#4527a0]';
-
     return (
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+        <Grid container spacing={3}>
             {/* Wallet Summary & Withdrawal Form */}
-            <div className="lg:col-span-1 space-y-6">
-                <div className="bg-white border border-gray-100 rounded-2xl p-8 shadow-sm relative overflow-hidden">
-                    {/* Decorative background */}
-                    <div className={cn("absolute -right-10 -bottom-10 h-40 w-40 rounded-full opacity-10", role === 'driver' ? 'bg-[#1e88e5]' : 'bg-[#5e35b1]')} />
+            <Grid size={{ xs: 12, lg: 4 }}>
+                <Stack spacing={3}>
+                    <Paper
+                        variant="outlined"
+                        sx={{
+                            p: 4,
+                            borderRadius: 3,
+                            borderColor: alpha(theme.palette.divider, 0.08),
+                            background: `linear-gradient(135deg, ${alpha(theme.palette.primary.main, 0.05)} 0%, #ffffff 100%)`,
+                            position: 'relative',
+                            overflow: 'hidden'
+                        }}
+                    >
+                        <Box sx={{ position: 'absolute', right: -40, bottom: -40, width: 160, height: 160, bgcolor: alpha(theme.palette.primary.main, 0.05), borderRadius: '50%' }} />
 
-                    <div className="relative z-10">
-                        <div className={cn("h-12 w-12 rounded-xl flex items-center justify-center mb-6", themeBg, themeColor)}>
-                            <Wallet className="h-6 w-6" />
-                        </div>
-                        <p className="text-sm font-bold text-[#697586] uppercase tracking-[0.2em] mb-1">Available Balance</p>
-                        <h2 className="text-4xl font-black text-[#121926] tracking-tight">
-                            R{balance.toFixed(2)}
-                        </h2>
-                        <div className="mt-8 pt-8 border-t border-dashed border-gray-100">
-                            <form onSubmit={handleWithdrawalRequest} className="space-y-4">
-                                <div className="space-y-2">
-                                    <Label htmlFor="amount" className="text-xs font-black text-[#697586] uppercase tracking-widest ml-1">Withdrawal Amount</Label>
-                                    <div className="relative">
-                                        <span className="absolute left-4 top-1/2 -translate-y-1/2 font-bold text-[#121926]">R</span>
-                                        <Input
-                                            id="amount"
-                                            type="number"
-                                            step="0.01"
-                                            placeholder="0.00"
-                                            value={withdrawalAmount}
-                                            onChange={(e) => setWithdrawalAmount(e.target.value)}
-                                            className="pl-8 h-12 rounded-xl border-gray-100 bg-slate-50 font-bold text-lg"
-                                        />
-                                    </div>
-                                </div>
-                                <Button
-                                    type="submit"
-                                    className={cn("w-full h-12 rounded-xl font-bold text-white shadow-lg transition-all hover:scale-[1.02] active:scale-[0.98]", themeButton)}
-                                    disabled={isSubmitting || balance <= 0}
-                                >
-                                    Request Withdrawal
-                                </Button>
+                        <Stack spacing={3} sx={{ position: 'relative', zIndex: 1 }}>
+                            <Avatar sx={{ bgcolor: 'primary.main', color: 'white', width: 48, height: 48, borderRadius: 2 }}>
+                                <WalletIcon />
+                            </Avatar>
+
+                            <Box>
+                                <Typography variant="caption" sx={{ fontWeight: 700, textTransform: 'uppercase', color: 'text.secondary', letterSpacing: '0.1em' }}>
+                                    Available Balance
+                                </Typography>
+                                <Typography variant="h3" sx={{ fontWeight: 900, mt: 0.5 }}>
+                                    R {balance.toFixed(2)}
+                                </Typography>
+                            </Box>
+
+                            <Divider sx={{ borderStyle: 'dashed' }} />
+
+                            <form onSubmit={handleWithdrawalRequest}>
+                                <Stack spacing={2}>
+                                    <TextField
+                                        fullWidth
+                                        label="Withdrawal Amount"
+                                        type="number"
+                                        size="small"
+                                        placeholder="0.00"
+                                        value={withdrawalAmount}
+                                        onChange={(e) => setWithdrawalAmount(e.target.value)}
+                                        slotProps={{
+                                            input: {
+                                                startAdornment: <InputAdornment position="start"><Typography sx={{ fontWeight: 700 }}>R</Typography></InputAdornment>,
+                                                sx: { fontWeight: 800, bgcolor: 'background.paper' }
+                                            }
+                                        }}
+                                    />
+                                    <Button
+                                        fullWidth
+                                        type="submit"
+                                        variant="contained"
+                                        size="large"
+                                        disabled={isSubmitting || balance <= 0}
+                                        sx={{
+                                            fontWeight: 800,
+                                            borderRadius: 2,
+                                            py: 1.2,
+                                            boxShadow: `0 8px 16px ${alpha(theme.palette.primary.main, 0.2)}`
+                                        }}
+                                    >
+                                        {isSubmitting ? <CircularProgress size={24} color="inherit" /> : "Request Payout"}
+                                    </Button>
+                                </Stack>
                             </form>
-                        </div>
-                    </div>
-                </div>
+                        </Stack>
+                    </Paper>
 
-                <div className="bg-[#121926] rounded-2xl p-6 text-white shadow-xl shadow-slate-200">
-                    <h4 className="text-xs font-bold uppercase tracking-widest text-[#697586] mb-4">Earnings Info</h4>
-                    <div className="space-y-4">
-                        <div className="flex items-start gap-3">
-                            <AlertCircle className="h-5 w-5 text-blue-400 shrink-0 mt-0.5" />
-                            <p className="text-sm text-slate-300 leading-relaxed">
-                                Withdrawal requests are processed within <span className="text-white font-bold">24-48 hours</span>. Standard bank transfer fees may apply.
-                            </p>
-                        </div>
-                    </div>
-                </div>
-            </div>
+                    <Paper sx={{ p: 3, borderRadius: 3, bgcolor: '#121926', color: 'white' }}>
+                        <Stack direction="row" spacing={2} alignItems="flex-start">
+                            <InfoIcon sx={{ color: 'primary.main' }} />
+                            <Box>
+                                <Typography variant="subtitle2" sx={{ fontWeight: 800, mb: 0.5 }}>Payout Processing</Typography>
+                                <Typography variant="caption" sx={{ color: alpha('#fff', 0.7), lineHeight: 1.5 }}>
+                                    Requests are verified and settled within 24-48 business hours. Standard bank rates apply to all outgoing transfers.
+                                </Typography>
+                            </Box>
+                        </Stack>
+                    </Paper>
+                </Stack>
+            </Grid>
 
             {/* Transaction History */}
-            <div className="lg:col-span-2">
-                <div className="bg-white border border-gray-100 rounded-2xl shadow-sm overflow-hidden h-full">
-                    <div className="border-b border-gray-100 px-6 py-5 flex justify-between items-center bg-slate-50/50">
-                        <div className="flex items-center gap-3">
-                            <div className={cn("p-2 rounded-lg", themeBg, themeColor)}>
-                                <History className="h-5 w-5" />
-                            </div>
-                            <h2 className="text-lg font-bold text-[#121926]">Transaction History</h2>
-                        </div>
-                        <button className="text-xs font-bold text-[#1e88e5] hover:underline flex items-center gap-1">
-                            <Download className="h-3 w-3" /> Export CSV
-                        </button>
-                    </div>
+            <Grid size={{ xs: 12, lg: 8 }}>
+                <Paper variant="outlined" sx={{ borderRadius: 3, overflow: 'hidden', borderColor: alpha(theme.palette.divider, 0.08), height: '100%' }}>
+                    <Box sx={{ p: 2.5, display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid', borderColor: alpha(theme.palette.divider, 0.08) }}>
+                        <Stack direction="row" spacing={2} alignItems="center">
+                            <Avatar sx={{ bgcolor: alpha(theme.palette.action.hover, 0.04), color: 'text.secondary', width: 36, height: 36 }}>
+                                <HistoryIcon fontSize="small" />
+                            </Avatar>
+                            <Typography variant="subtitle1" sx={{ fontWeight: 800 }}>Transaction Registry</Typography>
+                        </Stack>
+                        <Button size="small" startIcon={<DownloadIcon />} sx={{ fontWeight: 700 }}>Export</Button>
+                    </Box>
 
-                    <div className="overflow-x-auto">
-                        <table className="min-w-full divide-y divide-gray-100">
-                            <thead className="bg-[#f8fafc]">
-                                <tr>
-                                    <th className="px-6 py-4 text-left text-[10px] font-black text-[#697586] uppercase tracking-widest">Type</th>
-                                    <th className="px-6 py-4 text-left text-[10px] font-black text-[#697586] uppercase tracking-widest">Details</th>
-                                    <th className="px-6 py-4 text-left text-[10px] font-black text-[#697586] uppercase tracking-widest">Date</th>
-                                    <th className="px-6 py-4 text-right text-[10px] font-black text-[#697586] uppercase tracking-widest">Amount</th>
-                                    <th className="px-6 py-4 text-right text-[10px] font-black text-[#697586] uppercase tracking-widest">Status</th>
-                                </tr>
-                            </thead>
-                            <tbody className="divide-y divide-gray-100 bg-white">
+                    <TableContainer>
+                        <Table stickyHeader>
+                            <TableHead>
+                                <TableRow>
+                                    <TableCell sx={{ fontWeight: 700, color: 'text.secondary', fontSize: '0.7rem', textTransform: 'uppercase' }}>Type</TableCell>
+                                    <TableCell sx={{ fontWeight: 700, color: 'text.secondary', fontSize: '0.7rem', textTransform: 'uppercase' }}>Details</TableCell>
+                                    <TableCell sx={{ fontWeight: 700, color: 'text.secondary', fontSize: '0.7rem', textTransform: 'uppercase' }}>Date</TableCell>
+                                    <TableCell align="right" sx={{ fontWeight: 700, color: 'text.secondary', fontSize: '0.7rem', textTransform: 'uppercase' }}>Amount</TableCell>
+                                    <TableCell align="right" sx={{ fontWeight: 700, color: 'text.secondary', fontSize: '0.7rem', textTransform: 'uppercase' }}>Status</TableCell>
+                                </TableRow>
+                            </TableHead>
+                            <TableBody>
                                 {transactions.length > 0 ? (
-                                    transactions.map((tx) => (
-                                        <tr key={tx.id} className="hover:bg-[#f8fafc] transition-colors group">
-                                            <td className="px-6 py-4 whitespace-nowrap">
-                                                <div className={cn(
-                                                    "h-10 w-10 rounded-xl flex items-center justify-center font-bold text-xs",
-                                                    tx.transaction_type === 'credit' || tx.transaction_type === 'payment' ? "bg-green-50 text-green-600" : "bg-red-50 text-red-600"
-                                                )}>
-                                                    {tx.transaction_type === 'credit' || tx.transaction_type === 'payment' ? <ArrowDownLeft className="h-5 w-5" /> : <ArrowUpRight className="h-5 w-5" />}
-                                                </div>
-                                            </td>
-                                            <td className="px-6 py-4">
-                                                <p className="text-sm font-bold text-[#121926] capitalize">
-                                                    {tx.transaction_type.replace('-', ' ')}
-                                                </p>
-                                                <p className="text-xs text-[#697586] whitespace-nowrap overflow-hidden text-ellipsis max-w-[200px]">
-                                                    {tx.description || `Transaction #${tx.id.slice(-6)}`}
-                                                </p>
-                                            </td>
-                                            <td className="px-6 py-4 whitespace-nowrap text-sm text-[#697586] font-medium font-mono">
-                                                {new Date(tx.created_at).toLocaleDateString()}
-                                            </td>
-                                            <td className="px-6 py-4 whitespace-nowrap text-right">
-                                                <p className={cn(
-                                                    "text-sm font-black tracking-tight",
-                                                    tx.transaction_type === 'credit' || tx.transaction_type === 'payment' ? "text-green-600" : "text-red-600"
-                                                )}>
-                                                    {tx.transaction_type === 'credit' || tx.transaction_type === 'payment' ? "+" : "-"} R{tx.amount.toFixed(2)}
-                                                </p>
-                                            </td>
-                                            <td className="px-6 py-4 whitespace-nowrap text-right">
-                                                <span className={cn(
-                                                    "px-2.5 py-1 text-[10px] font-black uppercase tracking-wider rounded-md border",
-                                                    tx.status === 'completed' ? "bg-green-50 text-green-700 border-green-100" :
-                                                        tx.status === 'pending' ? "bg-orange-50 text-orange-700 border-orange-100" :
-                                                            "bg-red-50 text-red-700 border-red-100"
-                                                )}>
-                                                    {tx.status}
-                                                </span>
-                                            </td>
-                                        </tr>
-                                    ))
+                                    transactions.map((tx) => {
+                                        const isCredit = tx.transaction_type === 'credit' || tx.transaction_type === 'payment' || tx.transaction_type === 'top-up';
+                                        return (
+                                            <TableRow key={tx.id} hover>
+                                                <TableCell>
+                                                    <Avatar
+                                                        sx={{
+                                                            width: 32,
+                                                            height: 32,
+                                                            bgcolor: isCredit ? alpha(theme.palette.success.main, 0.1) : alpha(theme.palette.error.main, 0.1),
+                                                            color: isCredit ? 'success.main' : 'error.main'
+                                                        }}
+                                                    >
+                                                        {isCredit ? <ArrowDownIcon sx={{ fontSize: 16 }} /> : <ArrowUpIcon sx={{ fontSize: 16 }} />}
+                                                    </Avatar>
+                                                </TableCell>
+                                                <TableCell>
+                                                    <Typography variant="body2" sx={{ fontWeight: 700, textTransform: 'capitalize' }}>
+                                                        {tx.transaction_type.replace('-', ' ')}
+                                                    </Typography>
+                                                    <Typography variant="caption" color="text.secondary" noWrap sx={{ display: 'block', maxWidth: 200 }}>
+                                                        {tx.description || `REF: ${tx.id.slice(-8).toUpperCase()}`}
+                                                    </Typography>
+                                                </TableCell>
+                                                <TableCell sx={{ fontWeight: 500, color: 'text.secondary' }}>
+                                                    {new Date(tx.created_at).toLocaleDateString()}
+                                                </TableCell>
+                                                <TableCell align="right">
+                                                    <Typography variant="subtitle2" sx={{ fontWeight: 900, color: isCredit ? 'success.main' : 'error.main' }}>
+                                                        {isCredit ? '+' : '-'} R {Number(tx.amount).toFixed(2)}
+                                                    </Typography>
+                                                </TableCell>
+                                                <TableCell align="right">
+                                                    <Chip
+                                                        label={tx.status}
+                                                        size="small"
+                                                        sx={{
+                                                            height: 20,
+                                                            fontSize: '0.6rem',
+                                                            fontWeight: 800,
+                                                            textTransform: 'uppercase',
+                                                            borderRadius: 1,
+                                                            bgcolor: tx.status === 'completed' ? alpha(theme.palette.success.main, 0.1) : alpha(theme.palette.warning.main, 0.1),
+                                                            color: tx.status === 'completed' ? 'success.dark' : 'warning.dark'
+                                                        }}
+                                                    />
+                                                </TableCell>
+                                            </TableRow>
+                                        );
+                                    })
                                 ) : (
-                                    <tr>
-                                        <td colSpan={5} className="px-6 py-12 text-center text-[#697586]">
-                                            <div className="flex flex-col items-center">
-                                                <History className="h-8 w-8 text-slate-200 mb-2" />
-                                                <span className="text-sm italic">No recent transactions.</span>
-                                            </div>
-                                        </td>
-                                    </tr>
+                                    <TableRow>
+                                        <TableCell colSpan={5} align="center" sx={{ py: 10 }}>
+                                            <Typography variant="body2" color="text.disabled" sx={{ fontStyle: 'italic' }}>No financial activity recorded.</Typography>
+                                        </TableCell>
+                                    </TableRow>
                                 )}
-                            </tbody>
-                        </table>
-                    </div>
-                </div>
-            </div>
-        </div>
+                            </TableBody>
+                        </Table>
+                    </TableContainer>
+                </Paper>
+            </Grid>
+        </Grid>
     );
 };
+
+export default WalletManagement;

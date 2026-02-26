@@ -125,22 +125,29 @@ remote "
 "
 success "Docker ready."
 
-info "Step 3/5 — Syncing project files to VM…"
-# Exclude heavy/unnecessary dirs
-gcloud compute scp \
+info "Step 2b/5 — Opening GCP firewall ports (80, 3000)…"
+gcloud compute firewall-rules describe mzansiserve-http \
+  --project "$PROJECT" &>/dev/null 2>&1 || \
+gcloud compute firewall-rules create mzansiserve-http \
+  --project "$PROJECT" \
+  --allow tcp:80,tcp:5006 \
+  --source-ranges 0.0.0.0/0 \
+  --target-tags http-server \
+  --description "MzansiServe HTTP ports" \
+  --quiet 2>/dev/null || true
+
+# Also ensure the VM has the http-server tag
+gcloud compute instances add-tags "$INSTANCE" \
   --zone "$ZONE" \
   --project "$PROJECT" \
-  --recurse \
-  "$LOCAL_DIR/" \
-  "${INSTANCE}:${REMOTE_DIR}/" \
-  --scp-flag="-o StrictHostKeyChecking=no" \
-  --scp-flag="-r" \
-  -- \
-  2>/dev/null || true
+  --tags http-server 2>/dev/null || true
+success "Firewall ready (ports 80, 3000 open)."
 
-# Use rsync-style approach via tar for reliability
-info "  (Using tar+ssh for reliable transfer…)"
+info "Step 3/5 — Syncing project files to VM…"
 cd "$LOCAL_DIR"
+# COPYFILE_DISABLE=1 prevents macOS tar from embedding extended attributes
+# (eliminates 'Ignoring unknown extended header keyword' warnings on the remote)
+export COPYFILE_DISABLE=1
 tar --exclude='.git' \
     --exclude='venv' \
     --exclude='__pycache__' \
@@ -153,15 +160,40 @@ tar --exclude='.git' \
   gcloud compute ssh \
     --zone "$ZONE" \
     --project "$PROJECT" \
+    --ssh-flag="-T" \
     --ssh-flag="-o StrictHostKeyChecking=no" \
-    "$INSTANCE" -- "mkdir -p $REMOTE_DIR && tar -xzf - -C $REMOTE_DIR"
+    "$INSTANCE" -- "mkdir -p $REMOTE_DIR && tar --warning=no-unknown-keyword -xzf - -C $REMOTE_DIR"
 
 success "Files synced to VM."
 
 info "Step 4/5 — Building & starting containers…"
+# Fetch the VM's public IP so VITE_API_URL is baked in correctly
+PUBLIC_IP=$(gcloud compute instances describe "$INSTANCE" \
+  --zone "$ZONE" \
+  --project "$PROJECT" \
+  --format='get(networkInterfaces[0].accessConfigs[0].natIP)' 2>/dev/null || echo "34.173.133.132")
+info "  Public IP: $PUBLIC_IP"
+
 remote "
   set -e
   cd $REMOTE_DIR
+
+  # Inject public IP so VITE_API_URL is correct
+  export PUBLIC_IP=$PUBLIC_IP
+
+  # ── Free up ports 80 and 5006 from any host-level services ──
+  echo 'Freeing ports 80 and 5006 on host...'
+  # Stop system nginx if running
+  sudo systemctl stop nginx   2>/dev/null || true
+  sudo systemctl disable nginx 2>/dev/null || true
+  # Stop apache if running
+  sudo systemctl stop apache2  2>/dev/null || true
+  sudo systemctl disable apache2 2>/dev/null || true
+  # Kill anything else still holding port 80 or 5006
+  sudo fuser -k 80/tcp   2>/dev/null || true
+  sudo fuser -k 5006/tcp 2>/dev/null || true
+  sleep 1
+  echo 'Ports cleared.'
 
   # Make entrypoint executable
   chmod +x docker-entrypoint.sh 2>/dev/null || true
@@ -169,8 +201,8 @@ remote "
   # Pull any updated base images
   docker compose pull --quiet 2>/dev/null || true
 
-  # Build & bring up (detached)
-  docker compose up --build -d
+  # Build & bring up (detached), passing PUBLIC_IP as build arg
+  PUBLIC_IP=$PUBLIC_IP docker compose up --build -d
 
   # Remove dangling images to save disk space
   docker image prune -f 2>/dev/null || true
@@ -193,8 +225,8 @@ echo -e "${GREEN}╔════════════════════
 echo -e "${GREEN}║         🚀  Deployment complete!                  ║${NC}"
 echo -e "${GREEN}╚══════════════════════════════════════════════════╝${NC}"
 echo ""
-echo -e "  Backend  → ${CYAN}http://\$(gcloud compute instances describe $INSTANCE --zone $ZONE --project $PROJECT --format='get(networkInterfaces[0].accessConfigs[0].natIP)'):5006${NC}"
-echo -e "  Frontend → ${CYAN}http://\$(gcloud compute instances describe $INSTANCE --zone $ZONE --project $PROJECT --format='get(networkInterfaces[0].accessConfigs[0].natIP)'):8080${NC}"
+echo -e "  Frontend (App) → ${CYAN}http://$PUBLIC_IP${NC}           (port 80)"
+echo -e "  Backend  (API) → ${CYAN}http://$PUBLIC_IP:5006${NC}      (port 5006)"
 echo ""
 echo -e "  Next time, just run:  ${YELLOW}./deploy.sh${NC}"
 echo ""

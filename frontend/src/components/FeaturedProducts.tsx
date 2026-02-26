@@ -77,38 +77,40 @@ const FeaturedProducts = () => {
                                     initial={{ opacity: 0, y: 30 }}
                                     animate={isInView ? { opacity: 1, y: 0 } : {}}
                                     transition={{ duration: 0.5, delay: i * 0.06 }}
-                                    className="group cursor-pointer rounded-2xl border border-border/50 bg-card overflow-hidden hover:shadow-lg hover:border-sa-red/30 transition-all duration-300"
+                                    className="group cursor-pointer rounded-[2rem] border border-slate-50 bg-white overflow-hidden shadow-sm shadow-slate-200/50 hover:shadow-2xl hover:shadow-slate-200/80 transition-all duration-500 hover:-translate-y-2"
                                     onClick={() => navigate(`/shop/product/${product.id}`)}
                                 >
-                                    <div className="relative h-44 bg-muted/40 overflow-hidden">
+                                    <div className="relative h-56 bg-slate-50 overflow-hidden">
                                         {imgSrc ? (
                                             <img
                                                 src={imgSrc}
                                                 alt={product.name}
-                                                className="h-full w-full object-cover group-hover:scale-105 transition-transform duration-500"
+                                                className="h-full w-full object-cover group-hover:scale-110 transition-transform duration-700"
                                             />
                                         ) : (
                                             <div className="h-full w-full flex items-center justify-center">
-                                                <ShoppingBag className="h-10 w-10 text-muted-foreground/30" />
+                                                <ShoppingBag className="h-10 w-10 text-slate-200" />
                                             </div>
                                         )}
                                         {!product.in_stock && (
-                                            <span className="absolute top-2 left-2 rounded-full bg-destructive/90 text-destructive-foreground text-xs px-2 py-0.5">
-                                                Out of Stock
+                                            <span className="absolute top-4 left-4 rounded-full bg-white/90 backdrop-blur-md text-[#222222] text-[10px] font-bold uppercase tracking-wider px-3 py-1 shadow-sm">
+                                                Sold Out
                                             </span>
                                         )}
                                     </div>
-                                    <div className="p-4">
-                                        {product.category?.title && (
-                                            <p className="mb-1 text-xs font-medium text-muted-foreground uppercase tracking-wide">
-                                                {product.category.title}
-                                            </p>
-                                        )}
-                                        <h3 className="font-semibold text-sm leading-tight line-clamp-2 group-hover:text-sa-red transition-colors">
+                                    <div className="p-6">
+                                        <div className="flex justify-between items-start mb-2">
+                                            {product.category?.title && (
+                                                <p className="text-[10px] font-bold text-slate-400 uppercase tracking-[0.15em]">
+                                                    {product.category.title}
+                                                </p>
+                                            )}
+                                        </div>
+                                        <h3 className="font-bold text-base text-[#222222] leading-tight line-clamp-1 mb-2">
                                             {product.name}
                                         </h3>
-                                        <p className="mt-1.5 font-bold text-primary">
-                                            R{!isNaN(price) ? price.toFixed(2) : "—"}
+                                        <p className="font-bold text-lg text-primary">
+                                            R{!isNaN(price) ? price.toLocaleString() : "—"}
                                         </p>
                                     </div>
                                 </motion.div>

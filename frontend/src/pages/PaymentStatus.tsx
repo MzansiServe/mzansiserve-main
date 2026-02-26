@@ -164,7 +164,7 @@ const PaymentStatus = () => {
                                         </div>
 
                                         <p className="text-xs text-muted-foreground italic">
-                                            Need help? Contact our support at info@mzansiserve.com
+                                            Need help? Contact our support at info@mzansiserve.co.za
                                         </p>
                                     </div>
                                 )}

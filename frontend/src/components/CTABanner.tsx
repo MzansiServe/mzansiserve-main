@@ -1,7 +1,6 @@
-import { motion } from "framer-motion";
-import { useInView } from "framer-motion";
+import { motion, useInView } from "framer-motion";
 import { useRef } from "react";
-import { ArrowRight } from "lucide-react";
+import { ArrowRight, ChevronRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useNavigate } from "react-router-dom";
 
@@ -11,32 +10,41 @@ const CTABanner = () => {
   const navigate = useNavigate();
 
   return (
-    <section ref={ref} className="py-24 lg:py-32">
-      <div className="container mx-auto px-4 lg:px-8">
+    <section ref={ref} className="py-24">
+      <div className="container mx-auto px-6">
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={isInView ? { opacity: 1, y: 0 } : {}}
           transition={{ duration: 0.8, ease: "easeOut" }}
-          className="relative overflow-hidden rounded-[2.5rem] bg-[#0A0A14] p-12 text-center lg:p-24 shadow-2xl shadow-sa-black/20"
+          className="relative overflow-hidden rounded-[2rem] bg-gradient-to-br from-primary/10 via-primary/5 to-primary/5 p-12 lg:p-24"
         >
-          {/* Subtle Dynamic Gradients */}
-          <div className="absolute inset-0 bg-gradient-to-br from-[#0020A3]/20 via-transparent to-[#7C3AED]/10 pointer-events-none" />
-          <div className="absolute -left-1/4 -top-1/4 h-full w-full rounded-full bg-[#0020A3]/10 blur-[120px]" />
-          <div className="absolute -right-1/4 -bottom-1/4 h-full w-full rounded-full bg-[#7C3AED]/10 blur-[120px]" />
+          {/* Dot pattern */}
+          <div className="absolute inset-0 bg-[url('data:image/svg+xml,%3Csvg width=\'6\' height=\'6\' viewBox=\'0 0 6 6\' xmlns=\'http://www.w3.org/2000/svg\'%3E%3Cg fill=\'%2314B8A6\' fill-opacity=\'0.05\'%3E%3Cpath d=\'M5 0h1L0 6V5zM6 5v1H5z\'/%3E%3C/g%3E%3C/svg%3E')] opacity-50" />
 
-          <div className="relative z-10 max-w-3xl mx-auto">
-            <h2 className="mb-6 text-4xl font-extrabold tracking-tight text-white lg:text-6xl">
-              Ready to Get Started?
-            </h2>
-            <p className="mb-10 text-lg lg:text-xl text-sa-white/70 leading-relaxed font-medium">
-              Join thousands of South Africans already using MzansiServe. <br className="hidden md:block" />
+          <div className="relative z-10 max-w-3xl mx-auto text-center">
+            <motion.h2
+              initial={{ opacity: 0, y: 20 }}
+              animate={isInView ? { opacity: 1, y: 0 } : {}}
+              transition={{ duration: 0.6 }}
+              className="text-4xl md:text-5xl lg:text-6xl font-semibold text-[#222222] mb-6"
+            >
+              Ready to Get <span className="text-primary">Started?</span>
+            </motion.h2>
+            <motion.p
+              initial={{ opacity: 0, y: 20 }}
+              animate={isInView ? { opacity: 1, y: 0 } : {}}
+              transition={{ duration: 0.6, delay: 0.2 }}
+              className="text-lg md:text-xl text-slate-600 font-normal leading-relaxed mb-10"
+            >
+              Join thousands of South Africans already using MzansiServe.{" "}
+              <br className="hidden md:block" />
               Sign up today and get access to verified services across the country.
-            </p>
+            </motion.p>
 
-            <div className="flex flex-wrap items-center justify-center gap-6">
+            <div className="flex flex-wrap items-center justify-center gap-4">
               <Button
                 size="lg"
-                className="bg-[#7C3AED] hover:bg-[#6D28D9] text-white shadow-lg shadow-sa-purple/20 px-10 py-7 text-lg font-bold rounded-2xl transition-all hover:scale-105 active:scale-95 group"
+                className="bg-primary hover:bg-primary/90 text-white font-semibold px-10 py-7 rounded-xl shadow-lg hover:shadow-xl transition-all hover:scale-105 active:scale-95 group"
                 onClick={() => navigate("/register")}
               >
                 Create Free Account
@@ -45,10 +53,12 @@ const CTABanner = () => {
 
               <Button
                 size="lg"
-                className="bg-[#0020A3]/10 border-2 border-[#0020A3]/30 text-white hover:bg-[#0020A3]/20 px-10 py-7 text-lg font-bold rounded-2xl transition-all backdrop-blur-md"
+                variant="outline"
+                className="border-2 border-primary/30 text-primary hover:bg-primary/5 hover:border-primary font-semibold px-10 py-7 rounded-xl transition-all"
                 onClick={() => navigate("/services")}
               >
                 Become a Provider
+                <ChevronRight className="ml-2 h-4 w-4" />
               </Button>
             </div>
           </div>

@@ -16,6 +16,9 @@ import {
   Plus,
   Minus,
   ArrowLeft,
+  Lock,
+  Share2,
+  Heart
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useCart } from "@/contexts/CartContext";
@@ -23,6 +26,7 @@ import { useToast } from "@/hooks/use-toast";
 import { apiFetch, API_BASE_URL } from "@/lib/api";
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
+import { cn } from "@/lib/utils";
 
 // ─── Types ─────────────────────────────────────────────────────────────────────
 interface ApiProduct {
@@ -92,15 +96,10 @@ const ProductDetails = () => {
 
   if (isLoading) {
     return (
-      <div className="min-h-screen bg-white flex flex-col">
+      <div className="min-h-screen bg-white flex flex-col items-center justify-center">
         <Navbar />
-        <div className="flex-1 flex items-center justify-center">
-          <div className="flex flex-col items-center gap-4">
-            <div className="h-12 w-12 border-4 border-primary border-t-transparent rounded-full animate-spin" />
-            <p className="text-slate-500 font-medium text-sm">Loading product details...</p>
-          </div>
-        </div>
-        <Footer />
+        <Loader2 className="h-10 w-10 animate-spin text-primary mb-4" />
+        <p className="font-bold text-slate-400">Loading details...</p>
       </div>
     );
   }
@@ -110,14 +109,14 @@ const ProductDetails = () => {
       <div className="min-h-screen bg-white flex flex-col">
         <Navbar />
         <div className="flex-1 flex flex-col items-center justify-center p-6 text-center">
-          <div className="w-20 h-20 bg-red-50 text-red-500 rounded-full flex items-center justify-center mb-6">
-            <Package className="h-10 w-10" />
+          <div className="w-24 h-24 bg-rose-50 text-rose-500 rounded-[2rem] flex items-center justify-center mb-8 shadow-inner">
+            <Package className="h-12 w-12" />
           </div>
-          <h1 className="text-2xl font-bold text-slate-900 mb-2">Product Not Found</h1>
-          <p className="text-slate-500 max-w-md mb-8">
+          <h1 className="text-3xl font-bold text-[#222222] mb-4 tracking-tight">Product Not Found</h1>
+          <p className="text-slate-500 max-w-sm mb-10 text-lg font-normal leading-relaxed">
             The product you're looking for doesn't exist or has been removed from our shop.
           </p>
-          <Button onClick={() => navigate("/shop")} className="bg-primary hover:bg-primary/90">
+          <Button onClick={() => navigate("/shop")} className="h-14 px-10 rounded-2xl bg-primary text-white font-bold">
             Back to Shop
           </Button>
         </div>
@@ -132,62 +131,75 @@ const ProductDetails = () => {
     <div className="min-h-screen bg-white flex flex-col">
       <Navbar />
 
-      <main className="flex-1 pt-24 pb-12">
-        <div className="container mx-auto px-4 lg:px-8">
-          {/* Breadcrumbs */}
-          <nav className="flex items-center gap-2 text-xs text-slate-500 mb-8 overflow-x-auto whitespace-nowrap pb-2">
-            <button onClick={() => navigate("/")} className="hover:text-primary transition-colors">Home</button>
-            <ChevronRight className="h-3 w-3 shrink-0" />
-            <button onClick={() => navigate("/shop")} className="hover:text-primary transition-colors">Shop</button>
-            <ChevronRight className="h-3 w-3 shrink-0" />
-            <span className="font-bold text-slate-900 truncate">{product.name}</span>
-          </nav>
+      <main className="flex-1 pt-32 pb-24">
+        <div className="container mx-auto px-6 max-w-7xl">
+          {/* Breadcrumbs & Actions */}
+          <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 mb-12">
+            <nav className="flex items-center gap-2 text-[10px] font-bold uppercase tracking-widest text-slate-400">
+              <button onClick={() => navigate("/")} className="hover:text-primary transition-colors">Home</button>
+              <ChevronRight className="h-3 w-3" />
+              <button onClick={() => navigate("/shop")} className="hover:text-primary transition-colors">Shop</button>
+              <ChevronRight className="h-3 w-3" />
+              <span className="text-slate-900 truncate max-w-[200px]">{product.name}</span>
+            </nav>
+            <div className="flex items-center gap-3">
+              <Button variant="ghost" className="h-10 w-10 p-0 rounded-xl bg-slate-50 hover:bg-slate-100 text-slate-400">
+                <Share2 className="h-5 w-5" />
+              </Button>
+              <Button variant="ghost" className="h-10 w-10 p-0 rounded-xl bg-slate-50 hover:bg-slate-100 text-slate-400">
+                <Heart className="h-5 w-5" />
+              </Button>
+            </div>
+          </div>
 
-          <div className="grid grid-cols-1 lg:grid-cols-12 gap-12 xl:gap-16">
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-16 xl:gap-24">
             {/* Image Gallery */}
-            <div className="lg:col-span-7 flex flex-col gap-4">
-              <div className="relative aspect-square bg-slate-50 rounded-3xl overflow-hidden border border-slate-100 group">
+            <div className="lg:col-span-7 flex flex-col gap-6">
+              <div className="relative aspect-square bg-[#FBFBFD] rounded-[2.5rem] overflow-hidden border border-slate-50 shadow-inner group">
                 <AnimatePresence mode="wait">
                   <motion.img
                     key={selectedImageIndex}
                     initial={{ opacity: 0, scale: 0.95 }}
                     animate={{ opacity: 1, scale: 1 }}
                     exit={{ opacity: 0, scale: 1.05 }}
-                    transition={{ duration: 0.4 }}
+                    transition={{ duration: 0.6, ease: [0.16, 1, 0.3, 1] }}
                     src={getImageSrc(images[selectedImageIndex]) || "/placeholder.png"}
                     alt={product.name}
-                    className="w-full h-full object-contain p-8 md:p-12"
+                    className="w-full h-full object-contain p-12 md:p-20"
                   />
                 </AnimatePresence>
 
                 {images.length > 1 && (
-                  <>
+                  <div className="absolute inset-x-8 top-1/2 -translate-y-1/2 flex justify-between opacity-0 group-hover:opacity-100 transition-opacity duration-300">
                     <button
                       onClick={() => setSelectedImageIndex((prev) => (prev === 0 ? images.length - 1 : prev - 1))}
-                      className="absolute left-4 top-1/2 -translate-y-1/2 w-10 h-10 rounded-full bg-white/80 backdrop-blur-sm border border-slate-200 flex items-center justify-center text-slate-700 hover:bg-white transition-all opacity-0 group-hover:opacity-100"
+                      className="w-12 h-12 rounded-2xl bg-white/90 backdrop-blur-xl shadow-xl flex items-center justify-center text-slate-900 hover:scale-110 active:scale-95 transition-all"
                     >
-                      <ChevronLeft className="h-6 w-6" />
+                      <ChevronLeft className="h-6 w-6" strokeWidth={2.5} />
                     </button>
                     <button
                       onClick={() => setSelectedImageIndex((prev) => (prev === images.length - 1 ? 0 : prev + 1))}
-                      className="absolute right-4 top-1/2 -translate-y-1/2 w-10 h-10 rounded-full bg-white/80 backdrop-blur-sm border border-slate-200 flex items-center justify-center text-slate-700 hover:bg-white transition-all opacity-0 group-hover:opacity-100"
+                      className="w-12 h-12 rounded-2xl bg-white/90 backdrop-blur-xl shadow-xl flex items-center justify-center text-slate-900 hover:scale-110 active:scale-95 transition-all"
                     >
-                      <ChevronRight className="h-6 w-6" />
+                      <ChevronRight className="h-6 w-6" strokeWidth={2.5} />
                     </button>
-                  </>
+                  </div>
                 )}
               </div>
 
               {/* Thumbnails */}
               {images.length > 1 && (
-                <div className="flex gap-4 overflow-x-auto pb-2 px-1">
+                <div className="flex gap-4 overflow-x-auto pb-4 hide-scrollbar px-1">
                   {images.map((img, idx) => (
                     <button
                       key={idx}
                       onClick={() => setSelectedImageIndex(idx)}
-                      className={`relative w-24 aspect-square rounded-xl overflow-hidden border-2 shrink-0 transition-all ${
-                        selectedImageIndex === idx ? "border-primary ring-4 ring-primary/10" : "border-slate-100 hover:border-slate-300"
-                      }`}
+                      className={cn(
+                        "relative w-24 aspect-square rounded-2xl overflow-hidden border-2 shrink-0 transition-all duration-300",
+                        selectedImageIndex === idx
+                          ? "border-primary shadow-lg shadow-primary/10"
+                          : "border-slate-50 hover:border-slate-200"
+                      )}
                     >
                       <img
                         src={getImageSrc(img) || "/placeholder.png"}
@@ -202,128 +214,131 @@ const ProductDetails = () => {
 
             {/* Product Info */}
             <div className="lg:col-span-5 flex flex-col">
-              <div className="mb-6">
-                <div className="flex items-center gap-2 mb-4">
-                  <span className="px-3 py-1 rounded-full bg-primary/10 text-primary text-[10px] font-bold uppercase tracking-wider">
+              <div className="mb-10">
+                <div className="flex items-center gap-3 mb-6">
+                  <span className="px-3 py-1 rounded-full bg-primary/5 text-primary text-[10px] font-black uppercase tracking-wider border border-primary/10">
                     {product.category?.title || "New Arrival"}
                   </span>
-                  {inStock ? (
-                    <span className="flex items-center gap-1 text-[11px] font-bold text-emerald-600">
-                      <Check className="h-3.5 w-3.5" /> In Stock
-                    </span>
-                  ) : (
-                    <span className="flex items-center gap-1 text-[11px] font-bold text-red-500">
-                      <X className="h-3.5 w-3.5" /> Out of Stock
-                    </span>
-                  )}
+                  <div className={cn(
+                    "flex items-center gap-1.5 px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-wider border",
+                    inStock ? "bg-emerald-50 text-emerald-600 border-emerald-100" : "bg-rose-50 text-rose-500 border-rose-100"
+                  )}>
+                    {inStock ? <Check className="h-3 w-3" strokeWidth={3} /> : <X className="h-3 w-3" strokeWidth={3} />}
+                    {inStock ? "In Stock" : "Unavailable"}
+                  </div>
                 </div>
 
-                <h1 className="text-3xl md:text-4xl font-semibold text-slate-900 leading-tight mb-4 tracking-tight">
+                <h1 className="text-4xl md:text-5xl font-bold text-[#222222] leading-[1.1] mb-6 tracking-tight">
                   {product.name}
                 </h1>
 
-                <div className="flex items-center gap-4 mb-8">
+                <div className="flex items-center gap-6 mb-10 pb-10 border-b border-slate-50">
                   <div className="flex items-center gap-1">
                     {[1, 2, 3, 4, 5].map((i) => (
                       <Star
                         key={i}
-                        className={`h-4 w-4 ${
-                          i <= Math.round(product.rating || 4.5) ? "fill-amber-400 text-amber-400" : "fill-slate-100 text-slate-100"
-                        }`}
+                        className={`h-4 w-4 ${i <= Math.round(product.rating || 4.5) ? "fill-amber-400 text-amber-400" : "fill-slate-100 text-slate-100"
+                          }`}
                       />
                     ))}
-                    <span className="text-sm font-bold text-slate-700 ml-1">
+                    <span className="text-sm font-black text-[#222222] ml-2">
                       {product.rating || "4.5"}
                     </span>
                   </div>
                   <div className="w-[1px] h-4 bg-slate-200" />
-                  <span className="text-sm text-slate-500 font-medium">
-                    {product.reviews_count || 48} Customer reviews
+                  <span className="text-sm text-slate-400 font-bold uppercase tracking-widest">
+                    {product.reviews_count || 48} Reviews
                   </span>
                 </div>
 
-                <div className="flex items-baseline gap-4 mb-8">
-                  <span className="text-4xl font-black text-slate-900">
+                <div className="flex items-baseline gap-5 mb-10">
+                  <span className="text-5xl font-black text-primary tracking-tighter">
                     R {price.toLocaleString("en-ZA")}
                   </span>
-                  <span className="text-lg text-slate-400 line-through">
+                  <span className="text-xl text-slate-300 line-through font-bold">
                     R {(price * 1.2).toLocaleString("en-ZA", { maximumFractionDigits: 0 })}
                   </span>
-                  <span className="px-2 py-0.5 rounded-md bg-red-100 text-red-600 text-[10px] font-bold">
-                    SAVE 20%
+                  <span className="px-3 py-1 rounded-xl bg-primary/10 text-primary text-xs font-black">
+                    -20%
                   </span>
                 </div>
 
-                <div className="p-6 rounded-2xl bg-slate-50 border border-slate-100 mb-8">
-                  <h3 className="text-sm font-bold text-slate-900 mb-3 uppercase tracking-wider">Description</h3>
-                  <p className="text-slate-600 text-sm leading-relaxed">
-                    {product.description || "No description available for this product yet. Stay tuned for more details about this amazing item."}
+                <div className="p-8 rounded-[2rem] bg-slate-50 border border-slate-50 mb-10">
+                  <h3 className="text-[10px] font-black text-slate-400 mb-4 uppercase tracking-[0.2em]">Product overview</h3>
+                  <p className="text-slate-600 text-base leading-relaxed font-normal">
+                    {product.description || "Every MzansiServe product is carefully selected to meet our high quality standards. This item combines durability with modern design to provide exceptional value for our customers."}
                   </p>
                 </div>
 
                 {/* Seller Info */}
-                <div className="flex items-center gap-3 mb-8 p-4 rounded-xl border border-slate-100">
-                  <div className="w-10 h-10 rounded-full bg-slate-100 flex items-center justify-center text-slate-500">
-                    <Package className="h-5 w-5" />
+                <div className="flex items-center gap-4 mb-10 p-5 rounded-2xl border border-slate-50 bg-white shadow-sm">
+                  <div className="w-12 h-12 rounded-xl bg-slate-50 flex items-center justify-center text-slate-300 shadow-inner">
+                    <Package className="h-6 w-6" />
                   </div>
                   <div>
-                    <p className="text-[10px] text-slate-400 uppercase font-bold tracking-widest">Sold by</p>
-                    <p className="text-sm font-bold text-slate-900">{product.seller_name || "MzansiServe Marketplace"}</p>
+                    <p className="text-[10px] text-slate-400 uppercase font-black tracking-widest mb-0.5">Verified seller</p>
+                    <p className="text-base font-bold text-[#222222]">{product.seller_name || "Official Marketplace"}</p>
                   </div>
                 </div>
 
                 {/* Add to Cart Controls */}
-                <div className="flex flex-col gap-4 mb-10">
-                  <div className="flex items-center gap-4">
-                    <div className="flex items-center border border-slate-200 rounded-xl h-14 px-2">
+                <div className="flex flex-col gap-5 mb-12">
+                  <div className="flex flex-col sm:flex-row items-center gap-4">
+                    <div className="flex items-center bg-slate-50 rounded-2xl h-16 px-2 w-full sm:w-auto border border-transparent focus-within:border-primary/20 transition-all">
                       <button
                         onClick={() => setQuantity((q) => Math.max(1, q - 1))}
-                        className="w-10 h-10 flex items-center justify-center text-slate-500 hover:text-primary transition-colors"
+                        className="w-12 h-12 flex items-center justify-center text-slate-400 hover:text-primary transition-all active:scale-90"
                       >
-                        <Minus className="h-4 w-4" />
+                        <Minus className="h-5 w-5" strokeWidth={3} />
                       </button>
-                      <span className="w-12 text-center font-bold text-slate-900">{quantity}</span>
+                      <span className="w-12 text-center text-xl font-black text-[#222222]">{quantity}</span>
                       <button
                         onClick={() => setQuantity((q) => q + 1)}
-                        className="w-10 h-10 flex items-center justify-center text-slate-500 hover:text-primary transition-colors"
+                        className="w-12 h-12 flex items-center justify-center text-slate-400 hover:text-primary transition-all active:scale-90"
                       >
-                        <Plus className="h-4 w-4" />
+                        <Plus className="h-5 w-5" strokeWidth={3} />
                       </button>
                     </div>
 
                     <Button
                       disabled={!inStock}
                       onClick={handleAddToCart}
-                      className="flex-1 h-14 rounded-xl bg-primary hover:bg-primary/90 text-white font-bold text-base shadow-lg shadow-primary/25 transition-all active:scale-95"
+                      className="w-full h-16 rounded-2xl bg-primary hover:bg-primary text-white font-bold text-xl shadow-xl shadow-primary/20 transition-all hover:-translate-y-1 active:scale-95 flex-1"
                     >
-                      <ShoppingCart className="h-5 w-5 mr-3" />
-                      Add to Cart
+                      <ShoppingCart className="h-6 w-6 mr-3" strokeWidth={2.5} />
+                      Add to Bag
                     </Button>
                   </div>
                 </div>
 
                 {/* Trust Badges */}
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 py-8 border-t border-slate-100">
-                  <div className="flex flex-col items-center text-center gap-2">
-                    <div className="w-10 h-10 rounded-full bg-blue-50 text-blue-600 flex items-center justify-center mb-1">
-                      <Truck className="h-5 w-5" />
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-8 py-10 border-t border-slate-50">
+                  <div className="flex items-center gap-4">
+                    <div className="w-12 h-12 rounded-2xl bg-blue-50 text-blue-500 flex items-center justify-center shrink-0 shadow-sm shadow-blue-100/50">
+                      <Truck className="h-6 w-6" />
                     </div>
-                    <p className="text-[10px] font-bold text-slate-900 uppercase">Fast Delivery</p>
-                    <p className="text-[9px] text-slate-400">Within 2-3 business days</p>
+                    <div className="min-w-0">
+                      <p className="text-[10px] font-black text-[#222222] uppercase tracking-widest mb-0.5">Fast Delivery</p>
+                      <p className="text-[10px] text-slate-400 font-bold uppercase truncate">2-3 days</p>
+                    </div>
                   </div>
-                  <div className="flex flex-col items-center text-center gap-2">
-                    <div className="w-10 h-10 rounded-full bg-emerald-50 text-emerald-600 flex items-center justify-center mb-1">
-                      <ShieldCheck className="h-5 w-5" />
+                  <div className="flex items-center gap-4">
+                    <div className="w-12 h-12 rounded-2xl bg-emerald-50 text-emerald-500 flex items-center justify-center shrink-0 shadow-sm shadow-emerald-100/50">
+                      <Lock className="h-6 w-6" />
                     </div>
-                    <p className="text-[10px] font-bold text-slate-900 uppercase">Secure Payment</p>
-                    <p className="text-[9px] text-slate-400">100% Secure Checkout</p>
+                    <div className="min-w-0">
+                      <p className="text-[10px] font-black text-[#222222] uppercase tracking-widest mb-0.5">Secure Pay</p>
+                      <p className="text-[10px] text-slate-400 font-bold uppercase truncate">Encrypted</p>
+                    </div>
                   </div>
-                  <div className="flex flex-col items-center text-center gap-2">
-                    <div className="w-10 h-10 rounded-full bg-amber-50 text-amber-600 flex items-center justify-center mb-1">
-                      <RotateCcw className="h-5 w-5" />
+                  <div className="flex items-center gap-4">
+                    <div className="w-12 h-12 rounded-2xl bg-amber-50 text-amber-500 flex items-center justify-center shrink-0 shadow-sm shadow-amber-100/50">
+                      <RotateCcw className="h-6 w-6" />
                     </div>
-                    <p className="text-[10px] font-bold text-slate-900 uppercase">Easy Returns</p>
-                    <p className="text-[9px] text-slate-400">30-day return policy</p>
+                    <div className="min-w-0">
+                      <p className="text-[10px] font-black text-[#222222] uppercase tracking-widest mb-0.5">Easy returns</p>
+                      <p className="text-[10px] text-slate-400 font-bold uppercase truncate">30-day</p>
+                    </div>
                   </div>
                 </div>
               </div>
@@ -336,5 +351,10 @@ const ProductDetails = () => {
     </div>
   );
 };
+
+// Placeholder for missing Loader2 icon
+const Loader2 = ({ className }: { className?: string }) => (
+  <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={cn("animate-spin", className)}><path d="M21 12a9 9 0 1 1-6.219-8.56" /></svg>
+);
 
 export default ProductDetails;

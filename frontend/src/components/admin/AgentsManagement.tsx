@@ -67,6 +67,9 @@ export const AgentsManagement = () => {
         name: "",
         surname: "",
         id_number: "",
+        phone: "",
+        municipality: "",
+        ward: "",
     });
     const [deleteTargetId, setDeleteTargetId] = useState<string | null>(null);
 
@@ -103,6 +106,9 @@ export const AgentsManagement = () => {
                 name: agent.name,
                 surname: agent.surname,
                 id_number: agent.id_number || "",
+                phone: agent.phone || "",
+                municipality: agent.municipality || "",
+                ward: agent.ward || "",
             });
         } else {
             setFormData({
@@ -110,6 +116,9 @@ export const AgentsManagement = () => {
                 name: "",
                 surname: "",
                 id_number: "",
+                phone: "",
+                municipality: "",
+                ward: "",
             });
         }
         setIsModalOpen(true);
@@ -310,6 +319,33 @@ export const AgentsManagement = () => {
                                     className="font-bold text-[#5e35b1]"
                                     value={formData.agent_id}
                                     onChange={(e) => setFormData({ ...formData, agent_id: e.target.value })}
+                                />
+                            </div>
+                            <div className="space-y-1.5">
+                                <label className="text-[11px] font-black text-slate-400 uppercase tracking-widest ml-1">Phone Number</label>
+                                <Input
+                                    placeholder="e.g. +27..."
+                                    className="font-bold"
+                                    value={formData.phone}
+                                    onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
+                                />
+                            </div>
+                            <div className="space-y-1.5">
+                                <label className="text-[11px] font-black text-slate-400 uppercase tracking-widest ml-1">Municipality</label>
+                                <Input
+                                    placeholder="e.g. City of Joburg"
+                                    className="font-bold"
+                                    value={formData.municipality}
+                                    onChange={(e) => setFormData({ ...formData, municipality: e.target.value })}
+                                />
+                            </div>
+                            <div className="space-y-1.5">
+                                <label className="text-[11px] font-black text-slate-400 uppercase tracking-widest ml-1">Ward Number</label>
+                                <Input
+                                    placeholder="e.g. 42"
+                                    className="font-bold"
+                                    value={formData.ward}
+                                    onChange={(e) => setFormData({ ...formData, ward: e.target.value })}
                                 />
                             </div>
                         </div>

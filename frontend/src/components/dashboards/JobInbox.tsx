@@ -1,16 +1,32 @@
 import { useState } from "react";
 import {
-    ClipboardList,
-    MapPin,
-    Clock,
-    Calendar,
-    CheckCircle2,
-    AlertCircle,
-    ChevronRight,
-    User as UserIcon
-} from "lucide-react";
-import { cn } from "@/lib/utils";
-import { Button } from "@/components/ui/button";
+    Box,
+    Typography,
+    Paper,
+    Button,
+    Avatar,
+    Stack,
+    Divider,
+    IconButton,
+    Chip,
+    alpha,
+    useTheme,
+    Grid,
+    CircularProgress,
+    Dialog,
+    DialogTitle,
+    DialogContent,
+    DialogActions,
+    TextField,
+} from "@mui/material";
+import {
+    AssignmentOutlined as ClipboardIcon,
+    LocationOnOutlined as MapPinIcon,
+    AccessTime as ClockIcon,
+    CalendarMonthOutlined as CalendarIcon,
+    ChevronRight as ChevronRightIcon,
+    Person as UserIcon
+} from "@mui/icons-material";
 import { useToast } from "@/hooks/use-toast";
 import { apiFetch } from "@/lib/api";
 
@@ -35,12 +51,15 @@ interface JobInboxProps {
 
 export const JobInbox = ({ jobs, role, onJobAccepted }: JobInboxProps) => {
     const { toast } = useToast();
+    const theme = useTheme();
     const [acceptingId, setAcceptingId] = useState<string | null>(null);
+    const [quotingJob, setQuotingJob] = useState<Job | null>(null);
+    const [quoteAmount, setQuoteAmount] = useState<string>("");
+    const [isQuoting, setIsQuoting] = useState(false);
 
     const handleAccept = async (jobId: string) => {
         setAcceptingId(jobId);
         try {
-            // Updated to POST to match backend @bp.route('/<request_id>/accept', methods=['POST'])
             const res = await apiFetch(`/api/requests/${jobId}/accept`, {
                 method: 'POST'
             });
@@ -56,102 +75,205 @@ export const JobInbox = ({ jobs, role, onJobAccepted }: JobInboxProps) => {
         }
     };
 
+    const handleSubmitQuote = async () => {
+        if (!quotingJob || !quoteAmount) return;
+        setIsQuoting(true);
+        try {
+            const res = await apiFetch(`/api/requests/${quotingJob.id}/quote`, {
+                method: 'POST',
+                body: JSON.stringify({ quote_amount: parseFloat(quoteAmount) })
+            });
+
+            if (res.success) {
+                // After quoting, we also "Accept" it to move it to active jobs
+                await handleAccept(quotingJob.id);
+                setQuotingJob(null);
+                setQuoteAmount("");
+            }
+        } catch (err: any) {
+            toast({ title: "Error", description: err.message || "Failed to submit quote", variant: "destructive" });
+        } finally {
+            setIsQuoting(false);
+        }
+    };
+
     const getJobTitle = (job: Job) => {
         if (job.request_type === 'cab') return "Transport Request";
         if (job.request_type === 'professional') return job.details?.service_name || "Professional Service";
         return job.details?.service_name || "General Service";
     };
 
-    const themeColor = role === 'driver' ? 'text-[#1e88e5]' : 'text-[#5e35b1]';
-    const themeBg = role === 'driver' ? 'bg-[#e3f2fd]' : 'bg-[#ede7f6]';
+    const renderLocation = (locationData: any) => {
+        if (!locationData) return "Address not specified";
+        const loc = locationData.location || locationData.pickup || locationData;
+        if (typeof loc === 'string') return loc;
+        if (typeof loc === 'object' && loc.address) return loc.address;
+        return "Address details available";
+    };
 
     return (
-        <div className="bg-white border border-gray-100 rounded-2xl shadow-sm overflow-hidden">
-            <div className="border-b border-gray-100 px-6 py-5 flex justify-between items-center bg-slate-50/50">
-                <div className="flex items-center gap-3">
-                    <div className={cn("p-2 rounded-lg", themeBg, themeColor)}>
-                        <ClipboardList className="h-5 w-5" />
-                    </div>
-                    <h2 className="text-lg font-bold text-[#121926]">Available Jobs</h2>
-                </div>
-                <span className="text-xs font-bold text-[#697586] bg-white border border-gray-200 px-2.5 py-1 rounded-full uppercase tracking-wider">
-                    {jobs.length} New
-                </span>
-            </div>
+        <Paper variant="outlined" sx={{ borderRadius: 3, overflow: 'hidden', borderColor: alpha(theme.palette.divider, 0.08) }}>
+            <Box sx={{ p: 3, bgcolor: alpha(theme.palette.background.default, 0.5), borderBottom: '1px solid', borderColor: alpha(theme.palette.divider, 0.08), display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <Stack direction="row" spacing={2} alignItems="center">
+                    <Avatar sx={{ bgcolor: alpha(theme.palette.primary.main, 0.1), color: 'primary.main', width: 40, height: 40, borderRadius: 2 }}>
+                        <ClipboardIcon fontSize="small" />
+                    </Avatar>
+                    <Typography variant="subtitle1" sx={{ fontWeight: 800 }}>Available Jobs</Typography>
+                </Stack>
+                <Chip
+                    label={`${jobs.length} New`}
+                    size="small"
+                    sx={{ fontWeight: 800, bgcolor: 'primary.main', color: 'white' }}
+                />
+            </Box>
 
-            <div className="divide-y divide-gray-100">
+            <Box>
                 {jobs.length > 0 ? (
-                    jobs.map((job) => (
-                        <div key={job.id} className="p-6 hover:bg-[#f8fafc] transition-colors group">
-                            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-                                <div className="flex items-start gap-4">
-                                    <div className={cn("h-12 w-12 rounded-xl flex items-center justify-center font-bold text-lg shrink-0", themeBg, themeColor)}>
-                                        {job.client_name?.charAt(0) || <UserIcon className="h-6 w-6" />}
-                                    </div>
-                                    <div>
-                                        <h3 className="text-base font-bold text-[#121926] group-hover:text-blue-600 transition-colors">
-                                            {getJobTitle(job)}
-                                        </h3>
-                                        <div className="mt-2 flex flex-wrap gap-x-4 gap-y-2 text-sm text-[#697586]">
-                                            <div className="flex items-center gap-1.5 font-medium">
-                                                <Calendar className="h-4 w-4" />
-                                                {new Date(job.scheduled_date).toLocaleDateString()}
-                                            </div>
-                                            <div className="flex items-center gap-1.5 font-medium">
-                                                <Clock className="h-4 w-4" />
-                                                {job.scheduled_time}
-                                            </div>
-                                            <div className="flex items-center gap-1.5 font-medium">
-                                                <MapPin className="h-4 w-4" />
-                                                {job.location_data?.location || job.location_data?.pickup || "Location details"}
-                                            </div>
-                                        </div>
-                                    </div>
-                                </div>
-
-                                <div className="flex items-center justify-between md:flex-col md:items-end gap-3">
-                                    <div className="text-right">
-                                        <p className={cn("text-xl font-bold tracking-tight", themeColor)}>
-                                            R{job.payment_amount.toFixed(2)}
-                                        </p>
-                                        <p className="text-[10px] uppercase font-black tracking-widest text-[#697586] opacity-50">
-                                            Potential Earnings
-                                        </p>
-                                    </div>
-                                    <Button
-                                        onClick={() => handleAccept(job.id)}
-                                        disabled={acceptingId === job.id}
-                                        className={cn(
-                                            "rounded-xl px-6 font-bold shadow-md hover:scale-105 active:scale-95 transition-all",
-                                            role === 'driver' ? "bg-[#1e88e5] hover:bg-[#1565c0]" : "bg-[#5e35b1] hover:bg-[#4527a0]"
+                    jobs.map((job, index) => (
+                        <Box
+                            key={job.id}
+                            sx={{
+                                p: 3,
+                                borderBottom: index === jobs.length - 1 ? 'none' : '1px solid',
+                                borderColor: alpha(theme.palette.divider, 0.05),
+                                transition: 'background 0.2s',
+                                '&:hover': { bgcolor: alpha(theme.palette.action.hover, 0.02) }
+                            }}
+                        >
+                            <Grid container spacing={3} alignItems="center">
+                                <Grid size={{ xs: 12, md: 7 }}>
+                                    <Stack direction="row" spacing={2} alignItems="flex-start">
+                                        <Avatar sx={{ bgcolor: alpha(theme.palette.primary.main, 0.05), color: 'primary.main', fontWeight: 800, borderRadius: 2 }}>
+                                            {job.client_name?.charAt(0) || <UserIcon />}
+                                        </Avatar>
+                                        <Box>
+                                            <Typography variant="subtitle2" sx={{ fontWeight: 800, mb: 1 }}>{getJobTitle(job)}</Typography>
+                                            <Stack direction="row" spacing={2} flexWrap="wrap" useFlexGap>
+                                                <Stack direction="row" spacing={0.5} alignItems="center" sx={{ color: 'text.secondary' }}>
+                                                    <CalendarIcon sx={{ fontSize: 14 }} />
+                                                    <Typography variant="caption" sx={{ fontWeight: 600 }}>{new Date(job.scheduled_date).toLocaleDateString()}</Typography>
+                                                </Stack>
+                                                <Stack direction="row" spacing={0.5} alignItems="center" sx={{ color: 'text.secondary' }}>
+                                                    <ClockIcon sx={{ fontSize: 14 }} />
+                                                    <Typography variant="caption" sx={{ fontWeight: 600 }}>{job.scheduled_time}</Typography>
+                                                </Stack>
+                                                <Stack direction="row" spacing={0.5} alignItems="center" sx={{ color: 'text.secondary' }}>
+                                                    <MapPinIcon sx={{ fontSize: 14 }} />
+                                                    <Typography variant="caption" sx={{ fontWeight: 600 }}>
+                                                        {renderLocation(job.location_data)}
+                                                    </Typography>
+                                                </Stack>
+                                            </Stack>
+                                        </Box>
+                                    </Stack>
+                                </Grid>
+                                <Grid size={{ xs: 12, md: 5 }}>
+                                    <Stack direction={{ xs: 'row', md: 'row' }} spacing={3} justifyContent={{ xs: 'space-between', md: 'flex-end' }} alignItems="center">
+                                        <Box sx={{ textAlign: 'right' }}>
+                                            <Typography variant="h6" sx={{ fontWeight: 900, color: 'primary.main', lineHeight: 1 }}>
+                                                {job.details?.is_rfq ? "TBD" : `R ${Number(job.payment_amount).toFixed(2)}`}
+                                            </Typography>
+                                            <Typography variant="caption" sx={{ fontWeight: 700, color: 'text.disabled', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                                                {job.details?.is_rfq ? "Request for Quote" : "Potential"}
+                                            </Typography>
+                                        </Box>
+                                        {job.details?.is_rfq ? (
+                                            <Button
+                                                variant="outlined"
+                                                onClick={() => setQuotingJob(job)}
+                                                sx={{ fontWeight: 800, borderRadius: 2, px: 3 }}
+                                            >
+                                                Submit Quote
+                                            </Button>
+                                        ) : (
+                                            <Button
+                                                variant="contained"
+                                                disabled={acceptingId === job.id}
+                                                onClick={() => handleAccept(job.id)}
+                                                sx={{
+                                                    fontWeight: 800,
+                                                    borderRadius: 2,
+                                                    px: 3,
+                                                    boxShadow: `0 4px 12px ${alpha(theme.palette.primary.main, 0.2)}`
+                                                }}
+                                            >
+                                                {acceptingId === job.id ? <CircularProgress size={20} color="inherit" /> : "Accept Job"}
+                                            </Button>
                                         )}
-                                    >
-                                        {acceptingId === job.id ? "Accepting..." : "Accept Job"}
-                                    </Button>
-                                </div>
-                            </div>
-                        </div>
+                                    </Stack>
+                                </Grid>
+                            </Grid>
+                        </Box>
                     ))
                 ) : (
-                    <div className="flex flex-col items-center justify-center py-20 px-6 text-center">
-                        <div className="h-20 w-20 bg-slate-50 rounded-full flex items-center justify-center mb-4">
-                            <ClipboardList className="h-10 w-10 text-slate-300" />
-                        </div>
-                        <h3 className="text-lg font-bold text-[#121926]">Waiting for incoming jobs...</h3>
-                        <p className="max-w-[260px] text-sm text-[#697586] mt-2 leading-relaxed italic">
-                            New service requests from clients will appear here as soon as they are submitted.
-                        </p>
-                    </div>
+                    <Box sx={{ py: 10, textAlign: 'center' }}>
+                        <ClipboardIcon sx={{ fontSize: 48, color: 'text.disabled', opacity: 0.2, mb: 2 }} />
+                        <Typography variant="subtitle2" color="text.secondary" sx={{ fontWeight: 700 }}>Service queue is currently empty.</Typography>
+                        <Typography variant="caption" color="text.disabled">New requests will appear here in real-time.</Typography>
+                    </Box>
                 )}
-            </div>
+            </Box>
+
+            <Dialog
+                open={!!quotingJob}
+                onClose={() => setQuotingJob(null)}
+                PaperProps={{ sx: { borderRadius: 4, p: 2, maxWidth: 400, width: '100%' } }}
+            >
+                <DialogTitle sx={{ fontWeight: 900, pb: 1 }}>Submit Your Quote</DialogTitle>
+                <DialogContent>
+                    <Typography variant="body2" color="text.secondary" sx={{ mb: 3, fontWeight: 500 }}>
+                        Provide your estimated price for this custom service request:
+                        <Typography component="span" variant="body2" sx={{ fontWeight: 800, color: 'text.primary', ml: 0.5 }}>
+                            {quotingJob ? getJobTitle(quotingJob) : ""}
+                        </Typography>
+                    </Typography>
+
+                    <TextField
+                        fullWidth
+                        label="Quote Amount"
+                        type="number"
+                        value={quoteAmount}
+                        onChange={(e) => setQuoteAmount(e.target.value)}
+                        placeholder="0.00"
+                        autoFocus
+                        slotProps={{
+                            input: {
+                                startAdornment: <Typography sx={{ mr: 1, fontWeight: 800 }}>R</Typography>,
+                                sx: { fontWeight: 900, fontSize: '1.25rem', borderRadius: 3 }
+                            }
+                        } as any}
+                    />
+
+                    <Typography variant="caption" color="text.disabled" sx={{ mt: 2, display: 'block', fontWeight: 600 }}>
+                        * This price will be sent to the client for approval.
+                    </Typography>
+                </DialogContent>
+                <DialogActions sx={{ p: 3, gap: 1 }}>
+                    <Button onClick={() => setQuotingJob(null)} sx={{ fontWeight: 700, color: 'text.secondary' }}>Cancel</Button>
+                    <Button
+                        variant="contained"
+                        onClick={handleSubmitQuote}
+                        disabled={!quoteAmount || isQuoting}
+                        sx={{ fontWeight: 800, borderRadius: 2, px: 4 }}
+                    >
+                        {isQuoting ? <CircularProgress size={20} color="inherit" /> : "Send Quote"}
+                    </Button>
+                </DialogActions>
+            </Dialog>
 
             {jobs.length > 0 && (
-                <div className="p-4 bg-slate-50/50 text-center border-t border-gray-100">
-                    <button className="text-sm font-bold text-[#697586] hover:text-[#121926] transition-colors flex items-center justify-center gap-1 mx-auto">
-                        View All Available <ChevronRight className="h-4 w-4" />
-                    </button>
-                </div>
+                <Box sx={{ p: 2, bgcolor: alpha(theme.palette.background.default, 0.3), textAlign: 'center', borderTop: '1px solid', borderColor: alpha(theme.palette.divider, 0.05) }}>
+                    <Button
+                        size="small"
+                        endIcon={<ChevronRightIcon />}
+                        sx={{ fontWeight: 700, color: 'text.secondary' }}
+                    >
+                        Explore All Available
+                    </Button>
+                </Box>
             )}
-        </div>
+        </Paper>
     );
 };
+
+export default JobInbox;

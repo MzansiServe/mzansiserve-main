@@ -4,6 +4,7 @@ import { ChevronLeft, ChevronRight, Car, Briefcase, Wrench, ShoppingBag } from "
 import { Button } from "@/components/ui/button";
 import { useNavigate } from "react-router-dom";
 import { apiFetch, API_BASE_URL } from "@/lib/api";
+import { cn } from "@/lib/utils";
 
 // Mapping logical badge/types to appropriate Lucide icons
 const iconMap: Record<string, any> = {
@@ -108,37 +109,53 @@ const HeroCarousel = () => {
           <AnimatePresence mode="wait">
             <motion.div
               key={slide.id}
-              initial={{ opacity: 0, y: 20 }}
+              initial={{ opacity: 0, y: 30 }}
               animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -20 }}
-              transition={{ duration: 0.6, ease: [0.2, 0, 0, 1] }}
-              className="max-w-xl"
+              exit={{ opacity: 0, y: -30 }}
+              transition={{ duration: 0.8, ease: [0.16, 1, 0.3, 1] }}
+              className="max-w-2xl"
             >
-              <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.2 }}
-                className="mb-6 inline-flex items-center gap-2 rounded-full bg-white/20 px-4 py-1.5 backdrop-blur-md">
-                <IconComponent className="h-4 w-4 text-white" />
-                <span className="text-xs font-bold tracking-widest uppercase text-white">{slide.badge}</span>
+              <motion.div
+                initial={{ opacity: 0, scale: 0.9 }}
+                animate={{ opacity: 1, scale: 1 }}
+                transition={{ delay: 0.3, duration: 0.5 }}
+                className="mb-8 inline-flex items-center gap-3 rounded-full bg-white/10 px-5 py-2 backdrop-blur-xl border border-white/10 shadow-2xl"
+              >
+                <div className="h-6 w-6 rounded-full bg-white/20 flex items-center justify-center">
+                  <IconComponent className="h-3.5 w-3.5 text-white" />
+                </div>
+                <span className="text-[10px] font-black tracking-[0.2em] uppercase text-white">{slide.badge}</span>
               </motion.div>
 
-              <h1 className="mb-6 text-4xl font-bold leading-[1.1] text-white sm:text-5xl lg:text-6xl tracking-tighter whitespace-pre-line">
+              <h1 className="mb-8 text-5xl font-bold leading-[1.05] text-white sm:text-6xl lg:text-7xl tracking-tighter whitespace-pre-line drop-shadow-sm">
                 {slide.title}
               </h1>
 
-              <p className="mb-10 max-w-md text-lg text-white/90 font-medium leading-snug">{slide.subtitle}</p>
+              <p className="mb-12 max-w-lg text-xl text-white/90 font-medium leading-relaxed drop-shadow-sm">
+                {slide.subtitle}
+              </p>
 
-              <div className="flex flex-wrap gap-4">
+              <div className="flex flex-wrap gap-5">
                 {slide.cta_text && (
-                  <Button size="lg"
-                    className={`${slide.ctaColor} text-white font-bold px-10 py-7 rounded-2xl hover:scale-105 active:scale-95 transition-all shadow-xl border-none`}
-                    onClick={() => navigate(slide.cta_link || '/')}>
+                  <Button
+                    size="lg"
+                    className={cn(
+                      "h-16 px-10 rounded-2xl text-white font-bold text-lg shadow-2xl transition-all hover:-translate-y-1 active:scale-95 border-none",
+                      slide.ctaColor || "bg-primary"
+                    )}
+                    onClick={() => navigate(slide.cta_link || '/')}
+                  >
                     {slide.cta_text}
                   </Button>
                 )}
                 {slide.learnMore && (
-                  <Button size="lg" variant="outline"
-                    className="border-white/40 text-white bg-white/10 hover:bg-white/20 px-10 py-7 rounded-2xl backdrop-blur-md transition-all font-bold"
-                    onClick={() => navigate(slide.learnMore || '/')}>
-                    Explore
+                  <Button
+                    size="lg"
+                    variant="outline"
+                    className="h-16 border-white/30 text-white bg-white/5 hover:bg-white/10 px-10 rounded-2xl backdrop-blur-md transition-all font-bold text-lg border-2"
+                    onClick={() => navigate(slide.learnMore || '/')}
+                  >
+                    Explore Details
                   </Button>
                 )}
               </div>
@@ -149,18 +166,40 @@ const HeroCarousel = () => {
 
       {slides.length > 1 && (
         <>
-          {/* Navigation arrows - Airbnb bottom corner style */}
-          <div className="absolute bottom-12 right-8 z-20 flex items-center gap-2 lg:right-12">
-            <button onClick={prev}
-              className="flex h-10 w-10 items-center justify-center rounded-full border border-white/20 bg-black/20 text-white backdrop-blur-md transition-all hover:bg-black/40"
-              aria-label="Previous slide">
-              <ChevronLeft size={18} />
-            </button>
-            <button onClick={next}
-              className="flex h-10 w-10 items-center justify-center rounded-full border border-white/20 bg-black/20 text-white backdrop-blur-md transition-all hover:bg-black/40"
-              aria-label="Next slide">
-              <ChevronRight size={18} />
-            </button>
+          {/* Navigation controls - Refined Minimal Style */}
+          <div className="absolute bottom-16 right-12 z-20 flex items-center gap-4">
+            <div className="flex gap-2 mr-4">
+              {slides.map((_, idx) => (
+                <button
+                  key={idx}
+                  onClick={() => {
+                    setDirection(idx > current ? 1 : -1);
+                    setCurrent(idx);
+                  }}
+                  className={cn(
+                    "h-1.5 transition-all duration-500 rounded-full",
+                    current === idx ? "w-8 bg-white" : "w-1.5 bg-white/30 hover:bg-white/50"
+                  )}
+                  aria-label={`Go to slide ${idx + 1}`}
+                />
+              ))}
+            </div>
+            <div className="flex gap-2">
+              <button
+                onClick={prev}
+                className="group flex h-12 w-12 items-center justify-center rounded-full border border-white/20 bg-black/10 text-white backdrop-blur-xl transition-all hover:bg-black/30 hover:scale-105 active:scale-95"
+                aria-label="Previous slide"
+              >
+                <ChevronLeft size={20} className="group-hover:-translate-x-0.5 transition-transform" />
+              </button>
+              <button
+                onClick={next}
+                className="group flex h-12 w-12 items-center justify-center rounded-full border border-white/20 bg-black/10 text-white backdrop-blur-xl transition-all hover:bg-black/30 hover:scale-105 active:scale-95"
+                aria-label="Next slide"
+              >
+                <ChevronRight size={20} className="group-hover:translate-x-0.5 transition-transform" />
+              </button>
+            </div>
           </div>
         </>
       )}

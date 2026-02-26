@@ -14,7 +14,6 @@ interface Feature {
   description: string;
 }
 
-// Map icon name strings (stored in DB) to actual Lucide components
 const ICON_MAP: Record<string, LucideIcon> = {
   ShieldCheck, Clock, BadgeCheck, Headphones,
   Star, Zap, Heart, Globe, Award, Users, Smile, Phone,
@@ -44,29 +43,32 @@ const WhySection = () => {
   const displayed = features.length > 0 ? features : FALLBACK;
 
   return (
-    <section id="about" ref={ref} className="relative overflow-hidden py-24 lg:py-32">
-      {/* Background decoration */}
-      <div className="absolute inset-0 bg-gradient-to-br from-primary/5 via-transparent to-accent/5" />
+    <section
+      id="about"
+      ref={ref}
+      className="py-24 bg-gradient-to-br from-primary/10 via-primary/5 to-primary/5 relative"
+    >
+      {/* Subtle dot pattern */}
+      <div className="absolute inset-0 bg-[url('data:image/svg+xml,%3Csvg width=\'6\' height=\'6\' viewBox=\'0 0 6 6\' xmlns=\'http://www.w3.org/2000/svg\'%3E%3Cg fill=\'%2314B8A6\' fill-opacity=\'0.05\'%3E%3Cpath d=\'M5 0h1L0 6V5zM6 5v1H5z\'/%3E%3C/g%3E%3C/svg%3E')] opacity-50" />
 
-      <div className="container relative mx-auto px-4 lg:px-8">
+      <div className="container relative mx-auto px-6">
+        {/* Header */}
         <motion.div
-          initial={{ opacity: 0, y: 30 }}
+          initial={{ opacity: 0, y: 20 }}
           animate={isInView ? { opacity: 1, y: 0 } : {}}
           transition={{ duration: 0.6 }}
-          className="mb-16 text-center"
+          className="text-center mb-16"
         >
-          <span className="mb-4 inline-block rounded-full bg-primary/10 px-4 py-1.5 text-xs font-semibold uppercase tracking-wider text-primary">
-            Why MzansiServe
-          </span>
-          <h2 className="mb-4 text-3xl font-bold lg:text-4xl">
-            Why We're Different
+          <h2 className="text-4xl md:text-5xl lg:text-6xl font-semibold text-[#222222] mb-4">
+            Why <span className="text-primary">MzansiServe</span>?
           </h2>
-          <p className="mx-auto max-w-xl text-lg text-muted-foreground">
-            Built by South Africans, for South Africans. We go beyond just connecting — we verify, validate, and protect.
+          <p className="text-lg md:text-xl text-slate-600 font-normal max-w-xl mx-auto">
+            Built by South Africans, for South Africans. We go beyond connecting — we verify, validate, and protect.
           </p>
         </motion.div>
 
-        <div className="grid gap-8 sm:grid-cols-2 lg:grid-cols-4">
+        {/* Feature cards */}
+        <div className="grid gap-8 max-w-6xl mx-auto md:grid-cols-2 lg:grid-cols-4">
           {displayed.map((feat, i) => {
             const IconComponent = ICON_MAP[feat.icon] || ShieldCheck;
             return (
@@ -74,14 +76,15 @@ const WhySection = () => {
                 key={feat.id}
                 initial={{ opacity: 0, y: 30 }}
                 animate={isInView ? { opacity: 1, y: 0 } : {}}
-                transition={{ duration: 0.5, delay: i * 0.12 }}
-                className="group text-center"
+                transition={{ duration: 0.6, delay: i * 0.15 }}
+                className="group bg-white rounded-2xl p-8 shadow-lg hover:shadow-2xl transition-all duration-300 flex flex-col items-start"
               >
-                <div className="mx-auto mb-5 flex h-16 w-16 items-center justify-center rounded-2xl bg-gradient-purple text-primary-foreground shadow-glow-purple transition-transform duration-300 group-hover:scale-110">
-                  <IconComponent className="h-7 w-7" />
+                {/* Icon */}
+                <div className="w-16 h-16 bg-gradient-to-br from-primary to-primary/80 rounded-xl flex items-center justify-center mb-6 group-hover:scale-110 transition-transform shadow-lg">
+                  <IconComponent className="h-8 w-8 text-white" />
                 </div>
-                <h3 className="mb-2 text-lg font-semibold">{feat.title}</h3>
-                <p className="text-sm text-muted-foreground leading-relaxed">{feat.description}</p>
+                <h3 className="text-2xl font-semibold text-[#222222] mb-3">{feat.title}</h3>
+                <p className="text-slate-600 font-normal leading-relaxed text-sm">{feat.description}</p>
               </motion.div>
             );
           })}

@@ -50,7 +50,7 @@ class PaymentService:
         }
         
         # Set callback URLs (use default if not provided)
-        base_url = current_app.config.get('FRONTEND_URL', 'http://localhost:5000')
+        base_url = current_app.config.get('FRONTEND_URL', 'http://localhost').rstrip('/')
         checkout_data['successUrl'] = success_url or f"{base_url}/api/payments/callback?callback_status=success"
         checkout_data['cancelUrl'] = cancel_url or f"{base_url}/api/payments/callback?callback_status=cancel"
         checkout_data['failureUrl'] = failure_url or f"{base_url}/api/payments/callback?callback_status=failure"

@@ -29,7 +29,7 @@ class Config:
     MAIL_USE_TLS = True
     MAIL_USERNAME = os.environ.get('SMTP_USER')
     MAIL_PASSWORD = os.environ.get('SMTP_PASSWORD')
-    DEFAULT_FROM_EMAIL = os.environ.get('DEFAULT_FROM_EMAIL') or 'noreply@mzansiserve.com'
+    DEFAULT_FROM_EMAIL = os.environ.get('DEFAULT_FROM_EMAIL') or 'noreply@mzansiserve.co.za'
     
     # Payments
     PAYPAL_CLIENT_ID = os.environ.get('PAYPAL_CLIENT_ID')

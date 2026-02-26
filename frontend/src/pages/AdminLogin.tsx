@@ -1,161 +1,174 @@
-import React, { useState } from 'react';
-import { useNavigate, Link } from 'react-router-dom';
-import { Eye, EyeOff, Mail, Lock, ArrowRight, ShieldCheck } from "lucide-react";
+import React, { useState } from "react";
+import { useNavigate, Link } from "react-router-dom";
+import { Eye, EyeOff, Lock, AlertCircle, Loader2, ShieldCheck } from "lucide-react";
+import { motion, AnimatePresence } from "framer-motion";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { apiFetch } from '../lib/api';
+import { apiFetch } from "@/lib/api";
 import { useToast } from "@/hooks/use-toast";
-import logo from "@/assets/logo.jpeg";
+import { useAuth } from "@/contexts/AuthContext";
 
 const AdminLogin = () => {
-    const [email, setEmail] = useState('');
-    const [password, setPassword] = useState('');
+    const [email, setEmail] = useState("");
+    const [password, setPassword] = useState("");
     const [showPassword, setShowPassword] = useState(false);
-    const [error, setError] = useState('');
+    const [error, setError] = useState("");
     const [loading, setLoading] = useState(false);
     const navigate = useNavigate();
     const { toast } = useToast();
+    const { adminLogin } = useAuth();
 
     const handleLogin = async (e: React.FormEvent) => {
         e.preventDefault();
-        setError('');
+        setError("");
 
         if (!email.trim() || !password) {
-            setError('Please fill in both fields.');
+            setError("Please fill in both fields.");
             return;
         }
 
         setLoading(true);
         try {
-            const result = await apiFetch('/api/auth/admin-login', {
-                data: { email, password }
-            });
+            const result = await adminLogin(email, password);
 
-            if (result.success && result.data?.token) {
-                localStorage.setItem('adminToken', result.data.token);
-                localStorage.setItem('adminUser', JSON.stringify(result.data.user));
+            if (result.success) {
                 toast({ title: "Admin Authenticated", description: "Welcome to the Super Admin Dashboard." });
-                navigate('/admin');
+                navigate("/admin");
             } else {
-                setError(result.message || 'Login failed.');
+                setError(result.error || "Login failed.");
             }
         } catch (err: any) {
-            setError(err.message || 'An error occurred during admin login.');
+            setError(err.message || "An error occurred during admin login.");
         } finally {
             setLoading(false);
         }
     };
 
     return (
-        <main className="min-h-screen bg-[#eef2f6] flex items-center justify-center p-4">
-            <div className="w-full max-w-md animate-in fade-in slide-in-from-bottom-8 duration-700">
-                <div className="bg-white rounded-none p-10 shadow-2xl shadow-purple-100/50 border border-white/50 relative overflow-hidden">
-                    {/* Decorative Background Elements */}
-                    <div className="absolute -top-24 -right-24 h-64 w-64  bg-[#ede7f6]/40 blur-3xl animate-pulse" />
-                    <div className="absolute -bottom-24 -left-24 h-64 w-64  bg-[#e3f2fd]/40 blur-3xl" />
+        <main className="min-h-screen bg-white font-sans relative">
+            <div className="flex min-h-screen items-center justify-center px-4 py-12">
+                <motion.div
+                    initial={{ opacity: 0, y: 20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ duration: 0.5 }}
+                    className="w-full max-w-[568px] border border-[#DDDDDD] rounded-xl shadow-[0_8px_28px_rgba(0,0,0,0.12)] overflow-hidden bg-white"
+                >
+                    {/* Header */}
+                    <div className="px-6 py-4 border-b border-[#DDDDDD] flex items-center justify-center relative">
+                        <h1 className="text-base font-bold text-[#222222]">Admin Access Only</h1>
+                        <ShieldCheck className="w-5 h-5 text-primary absolute right-6" />
+                    </div>
 
-                    <div className="relative z-10">
-                        {/* Header */}
-                        <div className="text-center mb-10">
-                            <div className="mx-auto mb-6 flex h-16 w-auto items-center justify-center overflow-hidden rounded-xl">
-                                <img src={logo} alt="MzansiServe" className="h-full w-auto object-contain" />
-                            </div>
-                            <h2 className="text-2xl font-bold text-[#673ab7] mb-2 tracking-wide">Sign in</h2>
-                            <p className="text-sm text-gray-500 font-medium tracking-wide">Enter your credentials to continue</p>
-                            <div className="flex items-center justify-center gap-2 mt-6 mb-2">
-                                <span className="text-sm font-bold text-gray-800 tracking-wide">Sign in with Email address</span>
-                            </div>
+                    <div className="p-6">
+                        <div className="mb-8">
+                            <h2 className="text-[22px] font-semibold text-[#222222]">Admin Portal</h2>
+                            <p className="text-sm text-[#717171] mt-1">Authorized personnel only. Please verify your identity.</p>
                         </div>
 
-                        <form onSubmit={handleLogin} className="space-y-6">
-                            <div className="relative w-full group">
-                                <input
-                                    id="email"
-                                    type="email"
-                                    value={email}
-                                    onChange={(e) => setEmail(e.target.value)}
-                                    className="block px-4 pb-4 pt-5 w-full text-[15px] font-medium text-gray-900 bg-white  border border-gray-300 appearance-none focus:outline-none focus:ring-1 focus:ring-[#673ab7] focus:border-[#673ab7] peer transition-colors"
-                                    placeholder=" "
-                                    autoComplete="email"
-                                    required
-                                />
-                                <label
-                                    htmlFor="email"
-                                    className="absolute text-sm text-gray-500 duration-300 transform -translate-y-4 scale-75 top-2 z-10 origin-[0] bg-white px-2 peer-focus:px-2 peer-focus:text-[#673ab7] peer-placeholder-shown:scale-100 peer-placeholder-shown:-translate-y-1/2 peer-placeholder-shown:top-[50%] peer-focus:top-2 peer-focus:scale-75 peer-focus:-translate-y-4 start-3 cursor-text"
-                                >
-                                    Email Address / Username
-                                </label>
-                            </div>
-
-                            <div className="relative w-full group">
-                                <input
-                                    id="password"
-                                    type={showPassword ? "text" : "password"}
-                                    value={password}
-                                    onChange={(e) => setPassword(e.target.value)}
-                                    className="block px-4 pb-4 pt-5 w-full text-[15px] font-medium text-gray-900 bg-white  border border-gray-300 appearance-none focus:outline-none focus:ring-1 focus:ring-[#673ab7] focus:border-[#673ab7] peer transition-colors"
-                                    placeholder=" "
-                                    autoComplete="current-password"
-                                    required
-                                />
-                                <label
-                                    htmlFor="password"
-                                    className="absolute text-sm text-gray-500 duration-300 transform -translate-y-4 scale-75 top-2 z-10 origin-[0] bg-white px-2 peer-focus:px-2 peer-focus:text-[#673ab7] peer-placeholder-shown:scale-100 peer-placeholder-shown:-translate-y-1/2 peer-placeholder-shown:top-[50%] peer-focus:top-2 peer-focus:scale-75 peer-focus:-translate-y-4 start-3 cursor-text"
-                                >
-                                    Password
-                                </label>
-                                <button
-                                    type="button"
-                                    onClick={() => setShowPassword(!showPassword)}
-                                    className="absolute right-3 top-1/2 -translate-y-1/2 h-9 w-9 flex items-center justify-center text-gray-500 hover:text-gray-700 hover:bg-gray-100  transition-colors focus:outline-none"
-                                >
-                                    {showPassword ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5 border-gray-500" strokeWidth={1.5} />}
-                                </button>
-                            </div>
-
-                            <div className="flex items-center justify-between">
-                                <div className="flex items-center gap-2">
-                                    <input type="checkbox" id="remember" className="w-4 h-4 rounded-none border-gray-300 text-[#673ab7] focus:ring-[#673ab7]" />
-                                    <label htmlFor="remember" className="text-sm text-gray-800 font-medium cursor-pointer">Keep me logged in</label>
-                                </div>
-                                <Link to="#" className="text-sm font-medium text-[#673ab7] hover:underline">Forgot Password?</Link>
-                            </div>
-
+                        {/* Error Banner */}
+                        <AnimatePresence mode="wait">
                             {error && (
-                                <div className="p-3  bg-rose-50 border border-rose-100 flex items-center gap-3 animate-in shake duration-500">
-                                    <p className="text-sm font-medium text-rose-600">
-                                        {typeof error === 'string' ? error : JSON.stringify(error)}
-                                    </p>
-                                </div>
+                                <motion.div
+                                    key="error"
+                                    initial={{ opacity: 0, y: -10 }}
+                                    animate={{ opacity: 1, y: 0 }}
+                                    exit={{ opacity: 0, y: -10 }}
+                                    className="mb-4 p-4 bg-red-50 border border-red-200 rounded-lg flex items-start gap-3 text-[#C13515]"
+                                >
+                                    <AlertCircle className="w-5 h-5 shrink-0 mt-0.5" />
+                                    <p className="text-sm font-normal">{error}</p>
+                                </motion.div>
                             )}
+                        </AnimatePresence>
+
+                        <form onSubmit={handleLogin} className="space-y-6">
+                            {/* Email */}
+                            <div className="space-y-2">
+                                <label htmlFor="admin-email-input" className="text-[13px] font-bold text-[#222222] tracking-wide ml-1">
+                                    Admin Email Address
+                                </label>
+                                <div className="relative border border-[#DDDDDD] rounded-2xl overflow-hidden focus-within:ring-4 focus-within:ring-primary/10 focus-within:border-primary/50 transition-all bg-slate-50/50">
+                                    <input
+                                        id="admin-email-input"
+                                        type="email"
+                                        value={email}
+                                        onChange={(e) => { setEmail(e.target.value); if (error) setError(""); }}
+                                        className="w-full bg-transparent py-4 px-4 text-base text-[#222222] outline-none placeholder:text-[#B0B0B0] font-medium h-14"
+                                        placeholder="admin@mzansiserve.co.za"
+                                        autoComplete="email"
+                                        required
+                                    />
+                                </div>
+                            </div>
+
+                            {/* Password */}
+                            <div className="space-y-2">
+                                <div className="flex justify-between items-center ml-1">
+                                    <label htmlFor="admin-password-input" className="text-[13px] font-bold text-[#222222] tracking-wide">
+                                        Password
+                                    </label>
+                                    <button
+                                        type="button"
+                                        className="text-[13px] font-bold text-primary hover:underline underline-offset-4"
+                                    >
+                                        Forgot password?
+                                    </button>
+                                </div>
+                                <div className="relative border border-[#DDDDDD] rounded-2xl overflow-hidden focus-within:ring-4 focus-within:ring-primary/10 focus-within:border-primary/50 transition-all bg-slate-50/50">
+                                    <input
+                                        id="admin-password-input"
+                                        type={showPassword ? "text" : "password"}
+                                        value={password}
+                                        onChange={(e) => setPassword(e.target.value)}
+                                        className="w-full bg-transparent py-4 pl-4 pr-16 text-base text-[#222222] outline-none placeholder:text-[#B0B0B0] font-medium h-14"
+                                        placeholder="Enter administrator password"
+                                        autoComplete="current-password"
+                                        required
+                                    />
+                                    <button
+                                        id="admin-show-password-button"
+                                        type="button"
+                                        onClick={() => setShowPassword(!showPassword)}
+                                        className="absolute right-4 top-1/2 -translate-y-1/2 text-[#717171] hover:text-[#222222] transition-colors"
+                                    >
+                                        {showPassword ? <EyeOff size={20} /> : <Eye size={20} />}
+                                    </button>
+                                </div>
+                            </div>
 
                             <Button
+                                id="admin-login-submit-button"
                                 type="submit"
-                                className="w-full h-12  bg-[#673ab7] hover:bg-[#5e35b1] text-white text-[15px] font-medium transition-all active:scale-[0.98] shadow-none"
+                                className="w-full bg-primary hover:bg-primary/95 text-white font-bold py-4 rounded-2xl shadow-xl shadow-primary/10 transition-all active:scale-[0.98] h-14 text-base mt-2"
                                 disabled={loading}
                             >
                                 {loading ? (
-                                    <div className="flex items-center gap-2">
-                                        <div className="h-4 w-4 border-2 border-white/30 border-t-white  animate-spin" />
-                                        Signing in...
-                                    </div>
-                                ) : "Sign in"}
+                                    <Loader2 className="w-5 h-5 animate-spin mx-auto" />
+                                ) : (
+                                    "Administrator Login"
+                                )}
                             </Button>
                         </form>
 
-                        <div className="mt-10 pt-8 border-t border-slate-50 flex flex-col items-center gap-4">
+                        <div className="mt-4 flex justify-start">
+                            <Link to="#" className="text-sm font-semibold text-[#222222] underline hover:text-black transition-colors">
+                                Forgot password?
+                            </Link>
+                        </div>
+
+                        <div className="mt-8 pt-6 border-t border-[#DDDDDD] flex flex-col items-center gap-4 text-center">
                             <Link
                                 to="/login"
-                                className="text-xs font-bold text-slate-400 hover:text-[#5e35b1] transition-colors flex items-center gap-2"
+                                className="flex items-center gap-2 text-sm font-semibold text-[#222222] underline hover:text-black transition-colors"
                             >
-                                <Lock className="w-3 h-3" />
-                                User Portal Standard Login
+                                <Lock className="w-4 h-4" />
+                                Standard User Portal
                             </Link>
-                            <p className="text-[9px] font-black text-slate-300 uppercase tracking-[0.2em]">MzansiServe © 2026</p>
+                            <p className="text-[10px] font-bold text-[#717171] uppercase tracking-[0.2em] mt-2">
+                                MzansiServe © 2026 • Security Protocol V2
+                            </p>
                         </div>
                     </div>
-                </div>
+                </motion.div>
             </div>
         </main>
     );

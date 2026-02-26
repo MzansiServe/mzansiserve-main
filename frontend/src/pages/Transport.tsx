@@ -4,9 +4,10 @@ import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { cn } from "@/lib/utils";
 import {
   MapPin, Navigation, Car, Users, Clock, Loader2, PlaySquare, Calendar, Star,
-  CheckCircle2, AlertCircle, ChevronRight, PhoneCall, Wallet
+  CheckCircle2, AlertCircle, ChevronRight, PhoneCall, Wallet, Check, Search
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { apiFetch } from "@/lib/api";
@@ -20,11 +21,106 @@ const LIBRARIES: ("places")[] = ["places"];
 const GOOGLE_MAPS_API_KEY = "AIzaSyBtXh26PcILBqis4Ad66wPetvU_wUKMNRs";
 
 const VEHICLE_TYPES = [
-  { id: "hatchback", name: "Small Hatchback", desc: "Affordable compact rides", icon: Car, capacity: 3, multiplier: 1 },
-  { id: "sedan", name: "Sedan", desc: "Comfortable everyday rides", icon: Car, capacity: 4, multiplier: 1.2 },
-  { id: "suv", name: "SUV", desc: "Spacious for groups", icon: Users, capacity: 6, multiplier: 1.8 },
-  { id: "luxury", name: "Luxury", desc: "Travel in style", icon: Star, capacity: 4, multiplier: 2.5 },
+  { id: "hatchback", name: "Small Hatchback", desc: "Affordable compact rides", icon: Car, capacity: 3, multiplier: 1, details: "Perfect for zip city travel" },
+  { id: "sedan", name: "Sedan", desc: "Comfortable everyday rides", icon: Car, capacity: 4, multiplier: 1.2, details: "Our most popular standard ride" },
+  { id: "suv", name: "SUV", desc: "Spacious for groups", icon: Users, capacity: 6, multiplier: 1.8, details: "Plenty of room for luggage" },
+  { id: "luxury", name: "Luxury", desc: "Travel in style", icon: Star, capacity: 4, multiplier: 2.5, details: "Premium high-end vehicles" },
 ];
+
+const mapStyles = [
+  {
+    "featureType": "all",
+    "elementType": "geometry.fill",
+    "stylers": [{ "weight": "2.00" }]
+  },
+  {
+    "featureType": "all",
+    "elementType": "geometry.stroke",
+    "stylers": [{ "color": "#9c9c9c" }]
+  },
+  {
+    "featureType": "all",
+    "elementType": "labels.text",
+    "stylers": [{ "visibility": "on" }]
+  },
+  {
+    "featureType": "landscape",
+    "elementType": "all",
+    "stylers": [{ "color": "#f2f2f2" }]
+  },
+  {
+    "featureType": "landscape",
+    "elementType": "geometry.fill",
+    "stylers": [{ "color": "#ffffff" }]
+  },
+  {
+    "featureType": "landscape.man_made",
+    "elementType": "geometry.fill",
+    "stylers": [{ "color": "#ffffff" }]
+  },
+  {
+    "featureType": "poi",
+    "elementType": "all",
+    "stylers": [{ "visibility": "off" }]
+  },
+  {
+    "featureType": "road",
+    "elementType": "all",
+    "stylers": [{ "saturation": -100 }, { "lightness": 45 }]
+  },
+  {
+    "featureType": "road",
+    "elementType": "geometry.fill",
+    "stylers": [{ "color": "#eeeeee" }]
+  },
+  {
+    "featureType": "road",
+    "elementType": "labels.text.fill",
+    "stylers": [{ "color": "#7b7b7b" }]
+  },
+  {
+    "featureType": "road",
+    "elementType": "labels.text.stroke",
+    "stylers": [{ "color": "#ffffff" }]
+  },
+  {
+    "featureType": "road.highway",
+    "elementType": "all",
+    "stylers": [{ "visibility": "simplified" }]
+  },
+  {
+    "featureType": "road.arterial",
+    "elementType": "labels.icon",
+    "stylers": [{ "visibility": "off" }]
+  },
+  {
+    "featureType": "transit",
+    "elementType": "all",
+    "stylers": [{ "visibility": "off" }]
+  },
+  {
+    "featureType": "water",
+    "elementType": "all",
+    "stylers": [{ "color": "#46bcec" }, { "visibility": "on" }]
+  },
+  {
+    "featureType": "water",
+    "elementType": "geometry.fill",
+    "stylers": [{ "color": "#c8d7d4" }]
+  },
+  {
+    "featureType": "water",
+    "elementType": "labels.text.fill",
+    "stylers": [{ "color": "#070707" }]
+  },
+  {
+    "featureType": "water",
+    "elementType": "labels.text.stroke",
+    "stylers": [{ "color": "#ffffff" }]
+  }
+];
+
+const SA_CENTER = { lat: -26.2041, lng: 28.0473 }; // Johannesburg
 
 const Transport = () => {
   const { toast } = useToast();
@@ -52,7 +148,6 @@ const Transport = () => {
 
   const [quote, setQuote] = useState<{ amount: number, rate: number } | null>(null);
   const [isRequesting, setIsRequesting] = useState(false);
-  const [requestSuccess, setRequestSuccess] = useState(false);
 
   // Refs for focusing and controlling Autocomplete
   const pickupInputRef = useRef<HTMLInputElement>(null);
@@ -67,6 +162,8 @@ const Transport = () => {
     }
   }, [loadError, toast]);
 
+  const [nearbyDrivers, setNearbyDrivers] = useState<any[]>([]);
+
   const handleSetRoute = async () => {
     if (!pickup || !dropoff || !pickupCoords || !dropoffCoords) {
       toast({
@@ -78,15 +175,17 @@ const Transport = () => {
     }
     setIsCalculating(true);
 
+    // Fetch nearby drivers when pickup is set
+    try {
+      const nearbyRes = await apiFetch(`/api/public/drivers-nearby?lat=${pickupCoords.lat}&lng=${pickupCoords.lng}&radius=10`);
+      if (nearbyRes.success) {
+        setNearbyDrivers(nearbyRes.data.drivers || []);
+      }
+    } catch (err) {
+      console.error("Nearby drivers fetch error:", err);
+    }
+
     if (isLoaded && window.google) {
-      console.log("Calculating route with coords:", {
-        pickup,
-        dropoff,
-        pickupCoords,
-        dropoffCoords,
-        formattedPickup: `${pickupCoords.lat},${pickupCoords.lng}`,
-        formattedDropoff: `${dropoffCoords.lat},${dropoffCoords.lng}`
-      });
       try {
         const service = new google.maps.DistanceMatrixService();
         service.getDistanceMatrix(
@@ -97,8 +196,6 @@ const Transport = () => {
             unitSystem: google.maps.UnitSystem.METRIC,
           },
           (response, status) => {
-            console.log("DistanceMatrix Response:", response);
-            console.log("DistanceMatrix Status:", status);
             setIsCalculating(false);
             if (status === 'OK' && response && response.rows[0].elements[0].status === 'OK') {
               const distMetres = response.rows[0].elements[0].distance.value;
@@ -106,7 +203,6 @@ const Transport = () => {
               setStep(2);
             } else {
               const elementStatus = response?.rows[0]?.elements[0]?.status;
-              console.error(`DistanceMatrix Failed. Status: ${status}, Element Status: ${elementStatus}`);
               toast({
                 variant: "destructive",
                 title: "Route Error",
@@ -129,12 +225,10 @@ const Transport = () => {
     const fetchFare = async () => {
       if (distanceKm && selectedVehicle) {
         try {
-          // Fetch real fare from database using the new endpoint
           const res = await apiFetch(`/api/public/calculate-fare?distance=${distanceKm}&car_type=${selectedVehicle}`);
           if (res.success && res.data?.fare) {
             setQuote({ amount: res.data.fare, rate: res.data.fare / distanceKm });
           } else {
-            // Fallback to local calculation if API fails
             const v = VEHICLE_TYPES.find(v => v.id === selectedVehicle);
             if (v) {
               const rate = 12 * v.multiplier;
@@ -189,340 +283,396 @@ const Transport = () => {
 
       if (res.success && res.data?.redirect_url) {
         toast({ title: "Redirecting", description: "Taking you to secure checkout..." });
-        // Small delay to let toast show
         setTimeout(() => {
           window.location.href = res.data.redirect_url;
         }, 1000);
       } else {
-        toast({ 
-          variant: "destructive", 
-          title: "Request failed", 
-          description: res.message || "Could not initiate checkout." 
+        toast({
+          variant: "destructive",
+          title: "Request failed",
+          description: res.message || "Could not initiate checkout."
         });
       }
     } catch (e: any) {
-      toast({ 
-        variant: "destructive", 
-        title: "Request failed", 
-        description: e.message || "An unexpected error occurred." 
+      toast({
+        variant: "destructive",
+        title: "Request failed",
+        description: e.message || "An unexpected error occurred."
       });
     } finally {
       setIsRequesting(false);
     }
   };
 
+  const onMapLoad = (map: google.maps.Map) => {
+    console.log("Map Loaded");
+  };
+
   return (
-    <main className="min-h-screen bg-slate-50 flex flex-col">
+    <main className="min-h-screen bg-white flex flex-col">
       <Navbar />
 
-      <div className="flex-1 container mx-auto px-4 py-24 lg:px-8 max-w-4xl">
-        <div className="text-center mb-10">
-          <h1 className="text-3xl font-semibold text-slate-900 sm:text-4xl tracking-tight">Request a Ride</h1>
-          <p className="mt-3 text-lg text-slate-500">Get where you need to go safely and reliably across Mzansi.</p>
+      {/* ── Page header ── */}
+      <section className="pt-32 pb-12 bg-white relative overflow-hidden border-b border-slate-50">
+        <div className="absolute inset-0 bg-[url('data:image/svg+xml,%3Csvg width=\'6\' height=\'6\' viewBox=\'0 0 6 6\' xmlns=\'http://www.w3.org/2000/svg\'%3E%3Cg fill=\'%23EEF2FF\' fill-opacity=\'1\'%3E%3Cpath d=\'M5 0h1L0 6V5zM6 5v1H5z\'/%3E%3C/g%3E%3C/svg%3E')] opacity-70" />
+        <div className="container mx-auto px-6 max-w-5xl relative z-10 text-center">
+          <span className="inline-block mb-4 text-[10px] font-bold uppercase tracking-[0.2em] text-primary">Transport</span>
+          <h1 className="text-4xl md:text-5xl font-bold text-[#222222] tracking-tight leading-tight">
+            Where would you like to go?
+          </h1>
+          <p className="mt-4 text-xl text-slate-500 font-normal max-w-2xl mx-auto">Safe, reliable, and convenient city travel across Mzansi.</p>
         </div>
+      </section>
 
-        <div className="mb-12 relative max-w-2xl mx-auto">
-          <div className="absolute left-[10%] right-[10%] top-1/2 -translate-y-1/2 h-[2px] bg-slate-200 -z-10 rounded-full"></div>
-          <motion.div
-            initial={false}
-            animate={{ width: step === 1 ? '0%' : step === 2 ? '50%' : '100%' }}
-            className="absolute left-[10%] top-1/2 -translate-y-1/2 h-[2px] bg-primary -z-10 rounded-full transition-all duration-500 ease-in-out"
-          ></motion.div>
-
-          <div className="flex justify-between relative z-10 px-4">
-            <div className="flex flex-col items-center cursor-pointer" onClick={() => step > 1 && setStep(1)}>
-              <div className={`w-10 h-10 rounded-full flex items-center justify-center font-bold shadow-sm transition-colors duration-300 ${step >= 1 ? 'bg-primary text-primary-foreground ring-4 ring-primary/20' : 'bg-slate-200 text-slate-500'}`}>
-                {step > 1 ? <CheckCircle2 className="h-6 w-6" /> : '1'}
-              </div>
-              <span className={`mt-2 text-[13px] font-semibold ${step >= 1 ? 'text-primary' : 'text-slate-500'}`}>Route</span>
+      <div className="flex-1 bg-white">
+        <div className="container mx-auto px-6 py-12 max-w-5xl">
+          {/* Custom Wizard Step Indicators */}
+          <div className="relative mb-20 max-w-2xl mx-auto">
+            <div className="flex justify-between relative z-10 px-4">
+              {[1, 2, 3].map((s) => (
+                <div key={s} className="flex flex-col items-center gap-4">
+                  <div className={cn(
+                    "h-12 w-12 rounded-full flex items-center justify-center text-sm font-bold transition-all duration-700 border",
+                    step >= s ? "bg-[#222222] text-white border-transparent shadow-2xl shadow-slate-200 scale-110" : "bg-white text-slate-300 border-slate-100"
+                  )}>
+                    {step > s ? <Check className="h-6 w-6" strokeWidth={3} /> : s}
+                  </div>
+                  <span className={cn(
+                    "text-[10px] font-bold uppercase tracking-[0.15em] transition-colors duration-500",
+                    step >= s ? "text-[#222222]" : "text-slate-300"
+                  )}>
+                    {s === 1 ? "Route" : s === 2 ? "Ride" : "Confirm"}
+                  </span>
+                </div>
+              ))}
             </div>
-            <div className="flex flex-col items-center">
-              <div className={`w-10 h-10 rounded-full flex items-center justify-center font-bold shadow-sm transition-colors duration-300 ${step >= 2 ? 'bg-primary text-primary-foreground ring-4 ring-primary/20' : 'bg-slate-200 text-slate-500'}`}>
-                {step > 2 ? <CheckCircle2 className="h-6 w-6" /> : '2'}
-              </div>
-              <span className={`mt-2 text-[13px] font-semibold ${step >= 2 ? 'text-primary' : 'text-slate-500'}`}>Ride</span>
-            </div>
-            <div className="flex flex-col items-center">
-              <div className={`w-10 h-10 rounded-full flex items-center justify-center font-bold shadow-sm transition-colors duration-300 ${step >= 3 ? 'bg-primary text-primary-foreground ring-4 ring-primary/20' : 'bg-slate-200 text-slate-500'}`}>
-                3
-              </div>
-              <span className={`mt-2 text-[13px] font-semibold ${step >= 3 ? 'text-primary' : 'text-slate-500'}`}>Confirm</span>
+            <div className="absolute top-6 left-0 right-0 h-[1px] bg-slate-100 -z-0">
+              <motion.div
+                initial={false}
+                animate={{ width: `${((step - 1) / 2) * 100}%` }}
+                className="h-full bg-primary transition-all duration-700"
+              />
             </div>
           </div>
-        </div>
 
-        <div className="bg-white rounded-2xl shadow-sm border border-border/60 overflow-hidden relative min-h-[400px]">
-          <AnimatePresence mode="wait">
-            {step === 1 && (
-              <motion.div
-                key="step1"
-                initial={{ opacity: 0, x: -20 }}
-                animate={{ opacity: 1, x: 0 }}
-                exit={{ opacity: 0, x: 20 }}
-                className="p-6 sm:p-8"
-              >
-                <h3 className="text-xl font-bold text-slate-900 mb-6 flex items-center gap-2 border-b border-border/50 pb-4">
-                  <Navigation className="h-5 w-5 text-primary" /> Where are you going?
-                </h3>
-
-                <div className="grid lg:grid-cols-2 gap-8">
-                  <div className="space-y-6 relative">
-                    <div className="absolute left-[1.1rem] top-[2.5rem] bottom-[5rem] w-0.5 bg-slate-200 z-0 hidden sm:block"></div>
-                    <div className="relative z-10">
-                      <label className="block text-sm font-semibold text-slate-700 mb-1.5 ml-1">Pick-up Location</label>
-                      <div className="relative">
-                        <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none z-10">
-                          <div className="h-2.5 w-2.5 rounded-full bg-emerald-500 shadow-[0_0_0_4px_rgba(16,185,129,0.15)]"></div>
-                        </div>
-                        {isLoaded ? (
-                          <Autocomplete
-                            onLoad={ref => pickupAutocompleteRef.current = ref}
-                            onPlaceChanged={() => {
-                              if (pickupAutocompleteRef.current) {
-                                const place = pickupAutocompleteRef.current.getPlace();
-                                if (place && place.geometry && place.geometry.location) {
-                                  setPickup(place.formatted_address || place.name || "");
-                                  setPickupCoords({
-                                    lat: place.geometry.location.lat(),
-                                    lng: place.geometry.location.lng()
-                                  });
-                                }
-                              }
-                            }}
-                          >
-                            <Input
-                              ref={pickupInputRef}
-                              value={pickup}
-                              onChange={(e) => setPickup(e.target.value)}
-                              placeholder="e.g. 1 Nelson Mandela Sq, Sandton"
-                              className="pl-10 h-12 bg-slate-50 border-slate-200 focus:bg-white text-base shadow-sm"
-                              onKeyDown={(e) => e.key === "Enter" && dropoffInputRef.current?.focus()}
-                            />
-                          </Autocomplete>
-                        ) : (
-                          <Input placeholder="Loading maps..." className="pl-10 h-12 bg-slate-50 border-slate-200" disabled />
-                        )}
+          <div className="bg-white rounded-[3rem] shadow-2xl shadow-slate-200/60 border border-slate-50 overflow-hidden relative min-h-[500px]">
+            <AnimatePresence mode="wait">
+              {step === 1 && (
+                <motion.div
+                  key="step1"
+                  initial={{ opacity: 0, x: 20 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  exit={{ opacity: 0, x: -20 }}
+                  className="p-8 md:p-12 lg:p-16"
+                >
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-16 items-center">
+                    <div className="space-y-10">
+                      <div>
+                        <h2 className="text-3xl font-bold text-[#222222] mb-4">Select your route</h2>
+                        <p className="text-lg text-slate-500 font-normal">Pick-up and drop-off points for your journey.</p>
                       </div>
-                    </div>
-
-                    <div className="relative z-10">
-                      <label className="block text-sm font-semibold text-slate-700 mb-1.5 ml-1">Drop-off Destination</label>
-                      <div className="relative">
-                        <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none z-10">
-                          <div className="h-2.5 w-2.5 rounded-full bg-rose-500 shadow-[0_0_0_4px_rgba(244,63,94,0.15)]"></div>
+                      <div className="space-y-6">
+                        <div className="relative group">
+                          <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-2 ml-1">Pick-up Location</label>
+                          <div className="relative">
+                            <MapPin className="absolute left-6 top-1/2 -translate-y-1/2 h-5 w-5 text-slate-400 group-focus-within:text-primary transition-colors" />
+                            {isLoaded ? (
+                              <Autocomplete
+                                onLoad={ref => pickupAutocompleteRef.current = ref}
+                                onPlaceChanged={() => {
+                                  if (pickupAutocompleteRef.current) {
+                                    const place = pickupAutocompleteRef.current.getPlace();
+                                    if (place && place.geometry && place.geometry.location) {
+                                      setPickup(place.formatted_address || place.name || "");
+                                      setPickupCoords({
+                                        lat: place.geometry.location.lat(),
+                                        lng: place.geometry.location.lng()
+                                      });
+                                    }
+                                  }
+                                }}
+                              >
+                                <input
+                                  type="text"
+                                  value={pickup}
+                                  onChange={(e) => setPickup(e.target.value)}
+                                  placeholder="Enter origin address"
+                                  className="w-full h-16 pl-16 pr-6 bg-slate-50 rounded-2xl border-transparent focus:bg-white focus:border-primary/20 outline-none text-[#222222] font-medium text-lg transition-all"
+                                />
+                              </Autocomplete>
+                            ) : (
+                              <input disabled placeholder="Loading maps..." className="w-full h-16 bg-slate-50 rounded-2xl p-4 pl-16 outline-none" />
+                            )}
+                          </div>
                         </div>
-                        {isLoaded ? (
-                          <Autocomplete
-                            onLoad={ref => dropoffAutocompleteRef.current = ref}
-                            onPlaceChanged={() => {
-                              if (dropoffAutocompleteRef.current) {
-                                const place = dropoffAutocompleteRef.current.getPlace();
-                                if (place && place.geometry && place.geometry.location) {
-                                  setDropoff(place.formatted_address || place.name || "");
-                                  setDropoffCoords({
-                                    lat: place.geometry.location.lat(),
-                                    lng: place.geometry.location.lng()
-                                  });
-                                }
-                              }
-                            }}
-                          >
-                            <Input
-                              ref={dropoffInputRef}
-                              placeholder="e.g. O.R. Tambo International Airport"
-                              className="pl-10 h-12 bg-slate-50 border-slate-200 focus:bg-white text-base shadow-sm"
-                              value={dropoff}
-                              onChange={(e) => setDropoff(e.target.value)}
-                              onKeyDown={(e) => e.key === "Enter" && handleSetRoute()}
-                            />
-                          </Autocomplete>
-                        ) : (
-                          <Input placeholder="Loading maps..." className="pl-10 h-12 bg-slate-50 border-slate-200" disabled />
-                        )}
+
+                        <div className="relative group">
+                          <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-2 ml-1">Drop-off Location</label>
+                          <div className="relative">
+                            <Search className="absolute left-6 top-1/2 -translate-y-1/2 h-5 w-5 text-slate-400 group-focus-within:text-primary transition-colors" />
+                            {isLoaded ? (
+                              <Autocomplete
+                                onLoad={ref => dropoffAutocompleteRef.current = ref}
+                                onPlaceChanged={() => {
+                                  if (dropoffAutocompleteRef.current) {
+                                    const place = dropoffAutocompleteRef.current.getPlace();
+                                    if (place && place.geometry && place.geometry.location) {
+                                      setDropoff(place.formatted_address || place.name || "");
+                                      setDropoffCoords({
+                                        lat: place.geometry.location.lat(),
+                                        lng: place.geometry.location.lng()
+                                      });
+                                    }
+                                  }
+                                }}
+                              >
+                                <input
+                                  type="text"
+                                  value={dropoff}
+                                  onChange={(e) => setDropoff(e.target.value)}
+                                  placeholder="Enter destination address"
+                                  className="w-full h-16 pl-16 pr-6 bg-slate-50 rounded-2xl border-transparent focus:bg-white focus:border-primary/20 outline-none text-[#222222] font-medium text-lg transition-all"
+                                />
+                              </Autocomplete>
+                            ) : (
+                              <input disabled placeholder="Loading maps..." className="w-full h-16 bg-slate-50 rounded-2xl p-4 pl-16 outline-none" />
+                            )}
+                          </div>
+                        </div>
                       </div>
-                    </div>
 
-                    <Button
-                      className="w-full h-12 text-base font-bold shadow-md mt-2"
-                      onClick={handleSetRoute}
-                      disabled={isCalculating || !pickup || !dropoff}
-                    >
-                      {isCalculating ? (
-                        <><Loader2 className="mr-2 h-5 w-5 animate-spin" /> Calculating route...</>
-                      ) : (
-                        <><MapPin className="mr-2 h-5 w-5" /> Set Route</>
-                      )}
-                    </Button>
-                  </div>
-
-                  <div className="bg-slate-100 rounded-xl border border-slate-200 overflow-hidden flex flex-col items-center justify-center min-h-[300px] text-slate-400 relative z-0">
-                    {isLoaded && pickupCoords ? (
-                      <GoogleMap
-                        mapContainerStyle={{ width: '100%', height: '100%' }}
-                        center={dropoffCoords || pickupCoords}
-                        zoom={12}
-                        options={{ disableDefaultUI: true, zoomControl: true }}
+                      <Button
+                        className="w-full h-16 rounded-2xl bg-[#FF385C] hover:bg-[#D90B3E] text-white font-bold text-xl shadow-lg hover:shadow-xl transition-all disabled:opacity-50 active:scale-95"
+                        onClick={handleSetRoute}
+                        disabled={!pickup || !dropoff || isCalculating}
                       >
-                        <Marker position={pickupCoords} title="Pickup" />
-                        {dropoffCoords && (
-                          <Marker position={dropoffCoords} title="Drop-off" />
-                        )}
-                      </GoogleMap>
-                    ) : (
-                      <div className="flex flex-col items-center">
-                        <MapPin className="h-10 w-10 mb-2 opacity-50" />
-                        <p className="text-sm">Map preview will appear here</p>
+                        {isCalculating ? <Loader2 className="animate-spin h-6 w-6" /> : "Find Rides"}
+                      </Button>
+                    </div>
+
+                    <div className="relative h-[450px] rounded-[3rem] overflow-hidden shadow-sm border border-slate-50">
+                      {isLoaded ? (
+                        <GoogleMap
+                          mapContainerStyle={{ width: "100%", height: "100%" }}
+                          center={pickupCoords || SA_CENTER}
+                          zoom={pickupCoords ? 14 : 5}
+                          options={{ disableDefaultUI: true, styles: mapStyles }}
+                          onLoad={onMapLoad}
+                        >
+                          {pickupCoords && <Marker position={pickupCoords} />}
+                          {dropoffCoords && <Marker position={dropoffCoords} />}
+                          {nearbyDrivers.map((driver) => (
+                            <Marker
+                              key={driver.id}
+                              position={driver.location}
+                              icon={{
+                                url: "https://maps.google.com/mapfiles/kml/shapes/library_maps.png", // Generic car-like icon placeholder or custom SVG
+                                scaledSize: new google.maps.Size(30, 30),
+                              }}
+                              title={driver.name}
+                            />
+                          ))}
+                        </GoogleMap>
+                      ) : (
+                        <div className="h-full w-full flex items-center justify-center bg-slate-50">
+                          <Loader2 className="animate-spin h-10 w-10 text-slate-200" />
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                </motion.div>
+              )}
+
+              {step === 2 && (
+                <motion.div
+                  key="step2"
+                  initial={{ opacity: 0, x: 20 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  exit={{ opacity: 0, x: -20 }}
+                  className="p-8 md:p-12 lg:p-16"
+                >
+                  <div className="grid grid-cols-1 lg:grid-cols-12 gap-12">
+                    <div className="lg:col-span-8 space-y-8">
+                      <div className="flex items-center justify-between mb-2">
+                        <h2 className="text-3xl font-bold text-[#222222]">Select your ride</h2>
+                        <Button variant="ghost" onClick={() => setStep(1)} className="text-primary font-bold hover:bg-primary/5 rounded-xl">
+                          Change Route
+                        </Button>
                       </div>
-                    )}
-                  </div>
-                </div>
-              </motion.div>
-            )}
 
-            {step === 2 && (
-              <motion.div
-                key="step2"
-                initial={{ opacity: 0, x: -20 }}
-                animate={{ opacity: 1, x: 0 }}
-                exit={{ opacity: 0, x: 20 }}
-                className="p-6 sm:p-8 flex flex-col h-full"
-              >
-                <div className="flex items-center justify-between border-b border-border/50 pb-4 mb-6">
-                  <h3 className="text-xl font-bold text-slate-900 flex items-center gap-2">
-                    <Car className="h-5 w-5 text-primary" /> Choose Your Ride
-                  </h3>
-                  <div className="text-right bg-slate-50 px-3 py-1.5 rounded-lg border border-slate-100">
-                    <p className="text-xs text-slate-500 uppercase font-semibold">Est. Distance</p>
-                    <p className="font-semibold text-slate-900 text-lg">{distanceKm?.toFixed(1)} <span className="text-sm font-medium text-slate-500">km</span></p>
-                  </div>
-                </div>
-
-                <div className="grid lg:grid-cols-3 gap-8 mb-8">
-                  <div className="lg:col-span-2">
-                    <label className="block text-sm font-semibold text-slate-800 mb-3">Vehicle Type</label>
-                    <div className="grid sm:grid-cols-2 gap-3">
-                      {VEHICLE_TYPES.map((v) => {
-                        const Icon = v.icon;
-                        const isSelected = selectedVehicle === v.id;
-                        return (
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                        {VEHICLE_TYPES.map((v) => (
                           <div
                             key={v.id}
-                            className={`relative cursor-pointer rounded-xl border-2 p-4 transition-all duration-200 ${isSelected ? 'border-primary bg-primary/5 shadow-sm' : 'border-slate-200 bg-white hover:border-primary/40'}`}
                             onClick={() => setSelectedVehicle(v.id)}
+                            className={cn(
+                              "group cursor-pointer rounded-3xl p-6 border transition-all duration-500",
+                              selectedVehicle === v.id
+                                ? "bg-[#222222] border-transparent shadow-2xl shadow-slate-300"
+                                : "bg-white border-slate-50 hover:border-primary/20 hover:shadow-xl hover:shadow-slate-100"
+                            )}
                           >
-                            <div className="flex justify-between items-start mb-2">
-                              <div className={`p-2.5 rounded-lg ${isSelected ? 'bg-primary text-white shadow-md' : 'bg-slate-100 text-slate-600'}`}>
-                                <Icon className="h-6 w-6" />
+                            <div className="flex items-center justify-between mb-4">
+                              <div className={cn(
+                                "p-3 rounded-2xl transition-colors duration-500",
+                                selectedVehicle === v.id ? "bg-white/10 text-white" : "bg-slate-50 text-slate-400 group-hover:bg-primary/10 group-hover:text-primary"
+                              )}>
+                                <v.icon className="h-8 w-8" />
                               </div>
-                              {isSelected && (
-                                <motion.div initial={{ scale: 0 }} animate={{ scale: 1 }} className="text-primary">
-                                  <CheckCircle2 className="h-6 w-6" />
-                                </motion.div>
-                              )}
+                              {selectedVehicle === v.id && <CheckCircle2 className="h-6 w-6 text-primary" />}
                             </div>
-                            <h4 className="font-bold text-slate-900">{v.name}</h4>
-                            <p className="text-xs text-slate-500 mt-0.5">{v.desc}</p>
-                            <p className="text-xs font-semibold text-slate-400 mt-2 flex items-center gap-1">
-                              <Users className="h-3 w-3" /> Up to {v.capacity}
+                            <h3 className={cn("text-xl font-bold mb-1", selectedVehicle === v.id ? "text-white" : "text-[#222222]")}>
+                              {v.name}
+                            </h3>
+                            <p className={cn("text-sm font-normal mb-1", selectedVehicle === v.id ? "text-slate-400" : "text-slate-500")}>
+                              {v.capacity} seats • {v.details}
                             </p>
+                            {nearbyDrivers.some(d => d.car_types.includes(v.id)) ? (
+                              <div className="flex items-center gap-1.5 mt-2">
+                                <span className="h-2 w-2 rounded-full bg-emerald-500 animate-pulse" />
+                                <span className={cn("text-[10px] font-bold uppercase tracking-wider", selectedVehicle === v.id ? "text-emerald-400" : "text-emerald-600")}>
+                                  Available • {Math.min(...nearbyDrivers.filter(d => d.car_types.includes(v.id)).map(d => Math.round(d.distance_km * 2)))} min away
+                                </span>
+                              </div>
+                            ) : (
+                              <div className="flex items-center gap-1.5 mt-2">
+                                <span className="h-2 w-2 rounded-full bg-slate-300" />
+                                <span className={cn("text-[10px] font-bold uppercase tracking-wider", selectedVehicle === v.id ? "text-slate-500" : "text-slate-400")}>
+                                  No cars nearby
+                                </span>
+                              </div>
+                            )}
                           </div>
-                        )
-                      })}
-                    </div>
-                  </div>
-
-                  <div className="space-y-6">
-                    <div>
-                      <label className="block text-sm font-semibold text-slate-800 mb-3">Schedule</label>
-                      <div className="bg-slate-50 p-1.5 rounded-lg border border-slate-200 flex gap-1 mb-4">
-                        <button
-                          onClick={() => setScheduleType("now")}
-                          className={`flex-1 py-1.5 text-sm font-medium rounded-md transition-colors ${scheduleType === "now" ? 'bg-white shadow-sm text-slate-900' : 'text-slate-500 hover:text-slate-700'}`}
-                        >
-                          Now
-                        </button>
-                        <button
-                          onClick={() => setScheduleType("later")}
-                          className={`flex-1 py-1.5 text-sm font-medium rounded-md transition-colors ${scheduleType === "later" ? 'bg-white shadow-sm text-slate-900' : 'text-slate-500 hover:text-slate-700'}`}
-                        >
-                          Later
-                        </button>
+                        ))}
                       </div>
 
-                      <AnimatePresence>
-                        {scheduleType === "later" && (
-                          <motion.div
-                            initial={{ opacity: 0, height: 0 }}
-                            animate={{ opacity: 1, height: 'auto' }}
-                            exit={{ opacity: 0, height: 0 }}
-                            className="space-y-3"
+                      <div className="pt-8 border-t border-slate-50">
+                        <h3 className="text-sm font-bold text-slate-400 uppercase tracking-widest mb-6">Ride Options</h3>
+                        <div className="flex flex-wrap gap-4">
+                          <Button
+                            variant={scheduleType === "now" ? "default" : "outline"}
+                            className={cn("h-14 px-8 rounded-2xl font-bold", scheduleType === "now" ? "bg-[#222222]" : "border-slate-100 text-slate-500 hover:bg-slate-50")}
+                            onClick={() => setScheduleType("now")}
                           >
-                            <div className="relative">
-                              <Calendar className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400 pointer-events-none z-10" />
-                              <Input
-                                type="date"
-                                value={date}
-                                onChange={e => setDate(e.target.value)}
-                                className="pl-10 h-10 text-sm"
-                                min={new Date().toISOString().split('T')[0]}
-                              />
-                            </div>
-                            <div className="relative">
-                              <Clock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400 pointer-events-none z-10" />
-                              <Input
-                                type="time"
-                                value={time}
-                                onChange={e => setTime(e.target.value)}
-                                className="pl-10 h-10 text-sm"
-                              />
-                            </div>
+                            <Clock className="mr-2 h-5 w-5" /> Ride Now
+                          </Button>
+                          <Button
+                            variant={scheduleType === "later" ? "default" : "outline"}
+                            className={cn("h-14 px-8 rounded-2xl font-bold", scheduleType === "later" ? "bg-[#222222]" : "border-slate-100 text-slate-500 hover:bg-slate-50")}
+                            onClick={() => setScheduleType("later")}
+                          >
+                            <Calendar className="mr-2 h-5 w-5" /> Schedule for later
+                          </Button>
+                        </div>
+
+                        {scheduleType === "later" && (
+                          <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="mt-6 flex flex-wrap gap-4">
+                            <input type="date" value={date} onChange={e => setDate(e.target.value)} className="h-14 px-6 rounded-2xl bg-slate-50 border-none outline-none font-bold text-[#222222]" />
+                            <input type="time" value={time} onChange={e => setTime(e.target.value)} className="h-14 px-6 rounded-2xl bg-slate-50 border-none outline-none font-bold text-[#222222]" />
                           </motion.div>
                         )}
-                      </AnimatePresence>
+                      </div>
                     </div>
 
-                    <div>
-                      <label className="block text-sm font-semibold text-slate-800 mb-2">Driver Preference</label>
-                      <select
-                        value={driverPref}
-                        onChange={e => setDriverPref(e.target.value)}
-                        className="w-full rounded-md border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900"
-                      >
-                        <option value="">No Preference</option>
-                        <option value="male">Male</option>
-                        <option value="female">Female</option>
-                      </select>
+                    <div className="lg:col-span-4">
+                      <div className="sticky top-28 bg-white border border-slate-50 rounded-[2.5rem] p-8 shadow-2xl shadow-slate-200/50">
+                        <h3 className="text-xl font-bold text-[#222222] mb-6">Trip Summary</h3>
+                        <div className="space-y-6 mb-8">
+                          <div className="flex gap-4">
+                            <div className="h-6 w-6 mt-1 flex items-center justify-center rounded-full bg-emerald-100 text-emerald-600 font-bold text-[10px]">A</div>
+                            <div>
+                              <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest leading-none mb-1">Pickup</p>
+                              <p className="text-sm font-bold text-[#222222] line-clamp-2">{pickup}</p>
+                            </div>
+                          </div>
+                          <div className="flex gap-4">
+                            <div className="h-6 w-6 mt-1 flex items-center justify-center rounded-full bg-rose-100 text-rose-600 font-bold text-[10px]">B</div>
+                            <div>
+                              <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest leading-none mb-1">Drop-off</p>
+                              <p className="text-sm font-bold text-[#222222] line-clamp-2">{dropoff}</p>
+                            </div>
+                          </div>
+                          <div className="pt-4 border-t border-slate-50">
+                            <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest leading-none mb-1">Journey</p>
+                            <p className="text-sm font-bold text-[#222222]">{distanceKm?.toFixed(1)} km trip</p>
+                          </div>
+                        </div>
+
+                        {quote ? (
+                          <div className="space-y-6 pt-6 border-t border-slate-50">
+                            <div className="flex items-center justify-between">
+                              <span className="text-sm font-bold text-slate-500">Estimated Total</span>
+                              <span className="text-3xl font-bold text-[#222222]">R{quote.amount.toFixed(2)}</span>
+                            </div>
+                            <Button
+                              className="w-full h-16 rounded-2xl bg-[#FF385C] hover:bg-[#D90B3E] text-white font-bold text-lg shadow-lg shadow-rose-200/50 transition-all font-bold"
+                              onClick={() => setStep(3)}
+                              disabled={!selectedVehicle}
+                            >
+                              Review Request
+                            </Button>
+                          </div>
+                        ) : (
+                          <div className="p-6 bg-slate-50 rounded-2xl flex items-center justify-center">
+                            <p className="text-sm font-bold text-slate-400">Select a vehicle to see fare</p>
+                          </div>
+                        )}
+                      </div>
                     </div>
                   </div>
-                </div>
+                </motion.div>
+              )}
 
-                <div className="mt-auto">
-                  <AnimatePresence>
-                    {quote && selectedVehicle && (
-                      <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="bg-primary/5 border border-primary/20 rounded-xl p-5 flex items-center justify-between shadow-sm">
-                        <div>
-                          <p className="text-xs font-bold text-primary/60 uppercase tracking-wider">Estimated Total</p>
-                          <p className="text-3xl font-semibold text-primary">R {quote.amount.toFixed(2)}</p>
-                        </div>
-                        <Button onClick={handleRequestRide} disabled={isRequesting} className="h-12 px-8 text-base">
-                          {isRequesting ? <Loader2 className="animate-spin h-5 w-5" /> : "Request Ride"}
-                        </Button>
-                      </motion.div>
-                    )}
-                  </AnimatePresence>
-                </div>
-              </motion.div>
-            )}
+              {step === 3 && (
+                <motion.div
+                  key="step3"
+                  initial={{ opacity: 0, x: 20 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  exit={{ opacity: 0, x: -20 }}
+                  className="p-8 md:p-12 lg:p-16 max-w-2xl mx-auto"
+                >
+                  <div className="text-center mb-10">
+                    <div className="h-20 w-20 bg-emerald-50 text-emerald-500 rounded-full flex items-center justify-center mx-auto mb-6">
+                      <CheckCircle2 className="h-10 w-10" />
+                    </div>
+                    <h2 className="text-3xl font-bold text-[#222222] mb-2">Almost there!</h2>
+                    <p className="text-lg text-slate-500 font-normal">Please review your trip details before confirming.</p>
+                  </div>
 
-            {step === 3 && (
-              <motion.div key="step3" initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} className="p-12 flex flex-col items-center text-center">
-                <CheckCircle2 className="w-16 h-16 text-emerald-500 mb-6" />
-                <h2 className="text-3xl font-semibold text-slate-900 mb-2">Confirmed!</h2>
-                <p className="text-slate-500 mb-8">Your ride request has been sent successfully.</p>
-                <Button onClick={() => window.location.href = '/'}>Return Home</Button>
-              </motion.div>
-            )}
-          </AnimatePresence>
+                  <div className="bg-slate-50/50 rounded-3xl p-8 space-y-6 mb-10 text-left border border-slate-50">
+                    <div className="grid grid-cols-2 gap-8">
+                      <div>
+                        <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">Vehicle</p>
+                        <p className="font-bold text-[#222222]">{VEHICLE_TYPES.find(v => v.id === selectedVehicle)?.name}</p>
+                      </div>
+                      <div>
+                        <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">Schedule</p>
+                        <p className="font-bold text-[#222222]">{scheduleType === "now" ? "Immediate" : `${date} at ${time}`}</p>
+                      </div>
+                    </div>
+                    <div className="pt-6 border-t border-slate-200 flex items-center justify-between">
+                      <span className="text-slate-500 font-bold">Total Quote</span>
+                      <span className="text-2xl font-bold text-primary">R{quote?.amount.toFixed(2)}</span>
+                    </div>
+                  </div>
+
+                  <div className="flex flex-col gap-4">
+                    <Button
+                      className="h-16 rounded-2xl bg-primary text-white font-bold text-lg shadow-lg hover:opacity-90 transition-all font-bold"
+                      onClick={handleRequestRide}
+                      disabled={isRequesting}
+                    >
+                      {isRequesting ? <Loader2 className="h-6 w-6 animate-spin mr-2" /> : null}
+                      Confirm & Pay Now
+                    </Button>
+                    <Button variant="ghost" className="h-14 font-bold text-slate-500 rounded-2xl hover:bg-slate-50" onClick={() => setStep(2)}>
+                      Go Back
+                    </Button>
+                  </div>
+                </motion.div>
+              )}
+            </AnimatePresence>
+          </div>
         </div>
       </div>
       <Footer />

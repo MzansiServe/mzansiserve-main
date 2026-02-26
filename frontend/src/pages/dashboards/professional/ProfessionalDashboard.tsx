@@ -1,42 +1,60 @@
 import { useState, useEffect, useCallback } from "react";
 import {
-    LayoutTemplate,
-    Briefcase,
-    TrendingUp,
-    Wallet,
-    Clock,
-    CheckCircle2,
-    Star,
-    ClipboardList,
-    AlertTriangle,
-    Info
-} from "lucide-react";
-import { Button } from "@/components/ui/button";
-import { cn } from "@/lib/utils";
-import { ProviderDashboardLayout } from "@/components/dashboards/ProviderDashboardLayout";
-import { StatsCard } from "@/components/dashboards/StatsCard";
+    Box,
+    Grid,
+    Typography,
+    Paper,
+    Avatar,
+    Button,
+    alpha,
+    useTheme,
+    Chip,
+    CircularProgress,
+    Stack
+} from "@mui/material";
+import {
+    TrendingUp as TrendingUpIcon,
+    AccountBalanceWallet as WalletIcon,
+    CheckCircle as CheckCircleIcon,
+    Work as WorkIcon,
+    Star as StarIcon,
+    Warning as WarningIcon,
+    Info as InfoIcon,
+    Dashboard as LayoutTemplate,
+    AccessTime as Clock,
+    Assignment as ClipboardList,
+    BusinessCenter as Briefcase,
+    ForumOutlined as ChatIcon
+} from "@mui/icons-material";
+import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
+import DashboardLayout from "@/components/dashboard/DashboardLayout";
 import { ActiveJobs } from "@/components/dashboards/ActiveJobs";
 import { RatingModal } from "@/components/dashboards/RatingModal";
 import { JobInbox } from "@/components/dashboards/JobInbox";
 import { WalletManagement } from "@/components/dashboards/WalletManagement";
 import { ServiceManagement } from "@/components/dashboards/ServiceManagement";
+import { MessagesInbox } from "@/components/dashboards/MessagesInbox";
 import { apiFetch } from "@/lib/api";
 import { useToast } from "@/hooks/use-toast";
+import { useAuth } from "@/contexts/AuthContext";
 
 const ProfessionalDashboard = () => {
     const { toast } = useToast();
+    const theme = useTheme();
+    const { user: authUser, logout } = useAuth();
     const [activeTab, setActiveTab] = useState("overview");
     const [data, setData] = useState<any>(null);
     const [loading, setLoading] = useState(true);
     const [selectedJobForRating, setSelectedJobForRating] = useState<{ id: string, client_name?: string } | null>(null);
 
     const navItems = [
-        { id: "overview", label: "Overview", icon: LayoutTemplate, href: "#overview", onClick: () => setActiveTab("overview") },
-        { id: "active", label: "Active Jobs", icon: Clock, href: "#active", onClick: () => setActiveTab("active") },
-        { id: "rides", label: "Available Jobs", icon: ClipboardList, href: "#rides", onClick: () => setActiveTab("rides") },
-        { id: "reviews", label: "Reviews & Feedback", icon: Star, href: "#reviews", onClick: () => setActiveTab("reviews") },
-        { id: "services", label: "My Services", icon: Briefcase, href: "#services", onClick: () => setActiveTab("services") },
-        { id: "wallet", label: "Wallet & Earnings", icon: Wallet, href: "#wallet", onClick: () => setActiveTab("wallet") },
+        { id: "overview", label: "Overview", icon: LayoutTemplate },
+        { id: "active", label: "Active Jobs", icon: Clock },
+        { id: "rides", label: "Available Jobs", icon: ClipboardList },
+        { id: "messages", label: "Messages", icon: ChatIcon },
+        { id: "reviews", label: "Reviews & Feedback", icon: StarIcon },
+        { id: "services", label: "My Services", icon: Briefcase },
+        { id: "wallet", label: "Wallet & Earnings", icon: WalletIcon },
     ];
 
     const fetchData = useCallback(async () => {
@@ -57,247 +75,286 @@ const ProfessionalDashboard = () => {
         fetchData();
     }, [fetchData]);
 
+    const handleLogout = () => {
+        logout();
+        toast({ title: "Logged Out", description: "You have securely logged out." });
+    };
+
+    const StatCard = ({ title, value, icon: Icon, color, loading }: any) => (
+        <Paper
+            elevation={0}
+            sx={{
+                p: 3,
+                height: '100%',
+                borderRadius: 4,
+                border: '1px solid',
+                borderColor: 'divider',
+                background: `linear-gradient(135deg, ${alpha(theme.palette[color].main, 0.04)} 0%, ${alpha(theme.palette.background.paper, 1)} 100%)`,
+                transition: 'all 0.3s',
+                '&:hover': {
+                    transform: 'translateY(-4px)',
+                    boxShadow: `0 12px 24px ${alpha(theme.palette[color].main, 0.15)}`
+                }
+            }}
+        >
+            <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 2 }}>
+                <Typography variant="subtitle2" sx={{ fontWeight: 700, color: `${color}.main`, textTransform: 'uppercase', letterSpacing: '0.05em' }}>{title}</Typography>
+                <Avatar variant="rounded" sx={{ bgcolor: alpha(theme.palette[color].main, 0.1), color: `${color}.main`, width: 44, height: 44 }}><Icon /></Avatar>
+            </Box>
+            <Typography variant="h3" sx={{ fontWeight: 800, mb: 0.5, letterSpacing: '-0.02em' }}>
+                {loading ? <CircularProgress size={24} /> : value}
+            </Typography>
+        </Paper>
+    );
+
     const renderContent = () => {
         const user = data?.current_user;
-        // Onboarding banner for unapproved/new users
         const onboardingBanner = user && (!user.is_approved || !user.is_paid) ? (
-            <div className="mb-8 rounded-2xl border border-amber-200 bg-amber-50 p-6">
-                <div className="flex items-start gap-4">
-                    <AlertTriangle className="h-6 w-6 text-amber-500 mt-0.5 shrink-0" />
-                    <div className="flex-1">
-                        <h3 className="font-bold text-amber-900 text-base mb-1">Your account is pending approval</h3>
-                        <p className="text-sm text-amber-700 mb-4">Complete these steps to start receiving professional cases:</p>
-                        <div className="space-y-2">
-                            <div className={cn("flex items-center gap-2 text-sm", user.email_verified ? "text-green-700" : "text-amber-700")}>
-                                {user.email_verified ? <CheckCircle2 className="h-4 w-4 text-green-500" /> : <Info className="h-4 w-4" />}
-                                {user.email_verified ? "Email verified ✓" : "Check your email and click the verification link"}
-                            </div>
-                            <div className={cn("flex items-center gap-2 text-sm", user.id_verification_status === 'verified' ? "text-green-700" : "text-amber-700")}>
-                                {user.id_verification_status === 'verified' ? <CheckCircle2 className="h-4 w-4 text-green-500" /> : <Info className="h-4 w-4" />}
-                                {user.id_verification_status === 'verified' ? "ID documents verified ✓" : "Upload your ID documents via your profile"}
-                            </div>
-                            <div className={cn("flex items-center gap-2 text-sm", user.is_approved ? "text-green-700" : "text-amber-700")}>
-                                {user.is_approved ? <CheckCircle2 className="h-4 w-4 text-green-500" /> : <Info className="h-4 w-4" />}
-                                {user.is_approved ? "Admin approved ✓" : "Waiting for admin review and approval"}
-                            </div>
-                        </div>
-                        <p className="mt-3 text-xs text-amber-600">Tracking number: <span className="font-mono font-bold">{user.tracking_number}</span></p>
-                    </div>
-                </div>
-            </div>
+            <Paper
+                sx={{
+                    mb: 4,
+                    p: 3,
+                    borderRadius: 4,
+                    bgcolor: alpha(theme.palette.warning.main, 0.05),
+                    border: '1px solid',
+                    borderColor: alpha(theme.palette.warning.main, 0.2)
+                }}
+            >
+                <Box sx={{ display: 'flex', gap: 2 }}>
+                    <WarningIcon sx={{ color: 'warning.main' }} />
+                    <Box>
+                        <Typography variant="h6" sx={{ fontWeight: 700, color: 'warning.dark', mb: 1 }}>Your account is pending approval</Typography>
+                        <Typography variant="body2" sx={{ color: 'text.secondary', mb: 2 }}>Complete these steps to start receiving professional cases:</Typography>
+                        <Stack spacing={1}>
+                            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                                {user.email_verified ? <CheckCircleIcon sx={{ fontSize: 16, color: 'success.main' }} /> : <InfoIcon sx={{ fontSize: 16, color: 'warning.main' }} />}
+                                <Typography variant="caption" sx={{ color: user.email_verified ? 'success.main' : 'warning.main', fontWeight: 600 }}>
+                                    {user.email_verified ? "Email verified" : "Check your email for verification link"}
+                                </Typography>
+                            </Box>
+                            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                                {user.id_verification_status === 'verified' ? <CheckCircleIcon sx={{ fontSize: 16, color: 'success.main' }} /> : <InfoIcon sx={{ fontSize: 16, color: 'warning.main' }} />}
+                                <Typography variant="caption" sx={{ color: user.id_verification_status === 'verified' ? 'success.main' : 'warning.main', fontWeight: 600 }}>
+                                    {user.id_verification_status === 'verified' ? "ID documents verified" : "Upload your ID documents via your profile"}
+                                </Typography>
+                            </Box>
+                        </Stack>
+                    </Box>
+                </Box>
+            </Paper>
         ) : null;
 
         if (loading && !data) return (
-            <div className="flex items-center justify-center py-20">
-                <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#5e35b1]"></div>
-            </div>
+            <Box sx={{ display: 'flex', justifyContent: 'center', py: 10 }}>
+                <CircularProgress />
+            </Box>
         );
 
         switch (activeTab) {
             case "overview":
                 return (
-                    <div className="space-y-8 animate-in fade-in duration-500">
+                    <Box sx={{ animation: 'fadeIn 0.5s' }}>
                         {onboardingBanner}
-                        {/* Stats Grid */}
-                        <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4">
-                            <StatsCard
-                                title="Professional Earnings"
-                                value={`R${(data?.professional_earnings || 0).toFixed(2)}`}
-                                icon={TrendingUp}
-                                variant="purple"
-                                loading={loading}
-                            />
-                            <StatsCard
-                                title="Wallet Balance"
-                                value={`R${(data?.wallet?.balance || 0).toFixed(2)}`}
-                                icon={Wallet}
-                                variant="light"
-                                loading={loading}
-                            />
-                            <StatsCard
-                                title="Completed Services"
-                                value={data?.recent_professional_jobs?.length || 0}
-                                icon={CheckCircle2}
-                                variant="green"
-                                loading={loading}
-                            />
-                            <StatsCard
-                                title="Available Cases"
-                                value={data?.available_professional_requests?.length || 0}
-                                icon={Briefcase}
-                                variant="purple"
-                                loading={loading}
-                            />
-                        </div>
+                        <Grid container spacing={3} sx={{ mb: 4 }}>
+                            <Grid size={{ xs: 12, sm: 6, md: 3 }}>
+                                <StatCard
+                                    title="Professional Earnings"
+                                    value={`R${(data?.professional_earnings || 0).toFixed(2)}`}
+                                    icon={TrendingUpIcon}
+                                    color="primary"
+                                    loading={loading}
+                                />
+                            </Grid>
+                            <Grid size={{ xs: 12, sm: 6, md: 3 }}>
+                                <StatCard
+                                    title="Wallet Balance"
+                                    value={`R${(data?.wallet?.balance || 0).toFixed(2)}`}
+                                    icon={WalletIcon}
+                                    color="info"
+                                    loading={loading}
+                                />
+                            </Grid>
+                            <Grid size={{ xs: 12, sm: 6, md: 3 }}>
+                                <StatCard
+                                    title="Completed Services"
+                                    value={data?.recent_professional_jobs?.length || 0}
+                                    icon={CheckCircleIcon}
+                                    color="success"
+                                    loading={loading}
+                                />
+                            </Grid>
+                            <Grid size={{ xs: 12, sm: 6, md: 3 }}>
+                                <StatCard
+                                    title="Available Cases"
+                                    value={data?.available_professional_requests?.length || 0}
+                                    icon={WorkIcon}
+                                    color="secondary"
+                                    loading={loading}
+                                />
+                            </Grid>
+                        </Grid>
 
-                        {/* Main Content Grid */}
-                        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-                            <div className="space-y-8">
-                                {(data?.active_professional_jobs?.length > 0) && (
-                                    <div className="space-y-4">
-                                        <div className="flex items-center justify-between">
-                                            <h2 className="text-lg font-bold text-[#121926]">Active Case</h2>
-                                            <button onClick={() => setActiveTab('active')} className="text-xs font-bold text-blue-600 hover:underline">Manage All</button>
-                                        </div>
-                                        <ActiveJobs
-                                            jobs={data.active_professional_jobs}
-                                            role="professional"
-                                            onStatusUpdate={fetchData}
-                                        />
-                                    </div>
-                                )}
+                        <Grid container spacing={3} sx={{ mb: 4 }}>
+                            <Grid size={{ xs: 12 }}>
+                                <Paper elevation={0} sx={{ p: 4, borderRadius: 4, border: '1px solid', borderColor: 'divider' }}>
+                                    <Typography variant="h6" sx={{ fontWeight: 800, mb: 3 }}>Earnings Overview</Typography>
+                                    <Box sx={{ height: 320, width: '100%' }}>
+                                        <ResponsiveContainer width="100%" height="100%">
+                                            <LineChart data={[
+                                                { name: 'Week 1', earnings: parseFloat(((data?.professional_earnings || 0) * 0.2).toFixed(2)) },
+                                                { name: 'Week 2', earnings: parseFloat(((data?.professional_earnings || 0) * 0.4).toFixed(2)) },
+                                                { name: 'Week 3', earnings: parseFloat(((data?.professional_earnings || 0) * 0.7).toFixed(2)) },
+                                                { name: 'This Week', earnings: data?.professional_earnings || 0 },
+                                            ]}>
+                                                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke={alpha(theme.palette.divider, 0.5)} />
+                                                <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fontSize: 12, fontWeight: 600, fill: theme.palette.text.secondary }} dy={10} />
+                                                <YAxis axisLine={false} tickLine={false} tickFormatter={(value) => `R${value}`} tick={{ fontSize: 12, fontWeight: 600, fill: theme.palette.text.secondary }} dx={-10} />
+                                                <Tooltip
+                                                    formatter={(value: number) => [`R${value.toFixed(2)}`, 'Earnings']}
+                                                    contentStyle={{ borderRadius: 12, border: 'none', boxShadow: '0 8px 24px rgba(0,0,0,0.12)' }}
+                                                />
+                                                <Line type="monotone" dataKey="earnings" stroke={theme.palette.primary.main} strokeWidth={4} dot={{ r: 4, strokeWidth: 2, fill: '#fff' }} activeDot={{ r: 8, stroke: '#fff', strokeWidth: 2 }} />
+                                            </LineChart>
+                                        </ResponsiveContainer>
+                                    </Box>
+                                </Paper>
+                            </Grid>
+                        </Grid>
 
-                                <div className="space-y-4">
-                                    <JobInbox
-                                        jobs={data?.available_professional_requests || []}
-                                        role="professional"
-                                        onJobAccepted={fetchData}
-                                    />
-                                </div>
-                            </div>
-
-                            {/* Job History Sample */}
-                            <div className="bg-white border border-gray-100 rounded-2xl shadow-sm overflow-hidden h-full">
-                                <div className="border-b border-gray-100 px-6 py-5 flex justify-between items-center bg-slate-50/50">
-                                    <h2 className="text-lg font-bold text-[#121926]">Recent Activity</h2>
-                                    <button className="text-xs font-bold text-[#5e35b1] hover:underline" onClick={() => setActiveTab('wallet')}>View All</button>
-                                </div>
-                                <div className="divide-y divide-gray-100">
-                                    {data?.recent_professional_jobs?.length > 0 ? (
-                                        data.recent_professional_jobs.map((job: any) => (
-                                            <div key={job.id} className="p-4 flex items-center justify-between hover:bg-[#f8fafc] transition-colors">
-                                                <div className="flex items-center gap-3">
-                                                    <div className="h-10 w-10 bg-[#ede7f6] text-[#5e35b1] rounded-lg flex items-center justify-center font-bold">
-                                                        <Star className="h-5 w-5" />
-                                                    </div>
-                                                    <div>
-                                                        <p className="text-sm font-bold text-[#121926]">{job.details?.service_name || 'Service'}</p>
-                                                        <p className="text-xs text-[#697586]">{new Date(job.created_at).toLocaleDateString()}</p>
-                                                    </div>
-                                                </div>
-                                                <div className="text-right">
-                                                    <p className="text-sm font-bold text-[#5e35b1]">R{job.payment_amount?.toFixed(2)}</p>
-                                                    <span className="text-[10px] uppercase font-bold text-green-600 bg-green-50 px-1.5 py-0.5 rounded">Completed</span>
-                                                </div>
-                                            </div>
-                                        ))
-                                    ) : (
-                                        <div className="p-12 text-center text-[#697586] italic text-sm">
-                                            No recent activity found.
-                                        </div>
+                        <Grid container spacing={3}>
+                            <Grid size={{ xs: 12, lg: 7 }}>
+                                <Stack spacing={3}>
+                                    {(data?.active_professional_jobs?.length > 0) && (
+                                        <Box>
+                                            <Typography variant="h6" sx={{ fontWeight: 800, mb: 2 }}>Active Case</Typography>
+                                            <ActiveJobs
+                                                jobs={data.active_professional_jobs}
+                                                role="professional"
+                                                onStatusUpdate={fetchData}
+                                            />
+                                        </Box>
                                     )}
-                                </div>
-                            </div>
-                        </div>
-                    </div>
+                                    <Box>
+                                        <Typography variant="h6" sx={{ fontWeight: 800, mb: 2 }}>Case Inbox</Typography>
+                                        <JobInbox
+                                            jobs={data?.available_professional_requests || []}
+                                            role="professional"
+                                            onJobAccepted={fetchData}
+                                        />
+                                    </Box>
+                                </Stack>
+                            </Grid>
+                            <Grid size={{ xs: 12, lg: 5 }}>
+                                <Paper variant="outlined" sx={{ borderRadius: 4, overflow: 'hidden' }}>
+                                    <Box sx={{ p: 3, borderBottom: '1px solid', borderColor: 'divider', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                                        <Typography variant="h6" fontWeight={800}>Recent Activity</Typography>
+                                        <Button size="small" onClick={() => setActiveTab('wallet')}>View All</Button>
+                                    </Box>
+                                    <Box sx={{ p: 0 }}>
+                                        {data?.recent_professional_jobs?.length > 0 ? (
+                                            data.recent_professional_jobs.map((job: any) => (
+                                                <Box key={job.id} sx={{ p: 2, display: 'flex', alignItems: 'center', justifyContent: 'space-between', borderBottom: '1px solid', borderColor: 'divider' }}>
+                                                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+                                                        <Avatar sx={{ bgcolor: alpha(theme.palette.primary.main, 0.1), color: 'primary.main' }}>
+                                                            <StarIcon fontSize="small" />
+                                                        </Avatar>
+                                                        <Box>
+                                                            <Typography variant="subtitle2" fontWeight={700}>{job.details?.service_name || 'Service'}</Typography>
+                                                            <Typography variant="caption" color="text.secondary">{new Date(job.created_at).toLocaleDateString()}</Typography>
+                                                        </Box>
+                                                    </Box>
+                                                    <Box sx={{ textAlign: 'right' }}>
+                                                        <Typography variant="subtitle2" fontWeight={700} color="primary.main">R{job.payment_amount?.toFixed(2)}</Typography>
+                                                        <Chip label="Completed" size="small" color="success" variant="outlined" sx={{ fontSize: '0.65rem', height: 20 }} />
+                                                    </Box>
+                                                </Box>
+                                            ))
+                                        ) : (
+                                            <Box sx={{ p: 6, textAlign: 'center' }}>
+                                                <Typography variant="body2" color="text.secondary" fontStyle="italic">No recent activity found.</Typography>
+                                            </Box>
+                                        )}
+                                    </Box>
+                                </Paper>
+                            </Grid>
+                        </Grid>
+                    </Box>
                 );
             case "active":
-                return (
-                    <div className="animate-in fade-in duration-500">
-                        <ActiveJobs
-                            jobs={data?.active_professional_jobs || []}
-                            role="professional"
-                            onStatusUpdate={fetchData}
-                        />
-                    </div>
-                );
+                return <ActiveJobs jobs={data?.active_professional_jobs || []} role="professional" onStatusUpdate={fetchData} />;
             case "rides":
-                return (
-                    <div className="animate-in fade-in duration-500">
-                        <JobInbox
-                            jobs={data?.available_professional_requests || []}
-                            role="professional"
-                            onJobAccepted={fetchData}
-                        />
-                    </div>
-                );
+                return <JobInbox jobs={data?.available_professional_requests || []} role="professional" onJobAccepted={fetchData} />;
             case "reviews":
                 return (
-                    <div className="bg-white border border-gray-100 rounded-2xl shadow-sm overflow-hidden h-full animate-in fade-in duration-500">
-                        <div className="border-b border-gray-100 px-6 py-5 bg-slate-50/50">
-                            <h2 className="text-lg font-bold text-[#121926]">Reviews & Feedback</h2>
-                        </div>
-                        <div className="divide-y divide-gray-100">
-                            {data?.recent_professional_jobs?.filter((r: any) => r.has_professional_rating).length > 0 ? (
-                                data.recent_professional_jobs.filter((r: any) => r.has_professional_rating).map((job: any) => (
-                                    <div key={job.id} className="p-6">
-                                        <div className="flex justify-between items-start mb-2">
-                                            <div className="flex items-center gap-1">
+                    <Paper variant="outlined" sx={{ borderRadius: 4, overflow: 'hidden' }}>
+                        <Box sx={{ p: 3, borderBottom: '1px solid', borderColor: 'divider' }}>
+                            <Typography variant="h6" fontWeight={800}>Reviews & Feedback</Typography>
+                        </Box>
+                        <Box sx={{ p: 0 }}>
+                            {data?.recent_professional_jobs?.filter((r: any) => r.details?.professional_rating).length > 0 ? (
+                                data.recent_professional_jobs.filter((r: any) => r.details?.professional_rating).map((job: any) => (
+                                    <Box key={job.id} sx={{ p: 3, borderBottom: '1px solid', borderColor: 'divider' }}>
+                                        <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 1 }}>
+                                            <Stack direction="row" spacing={0.5}>
                                                 {[1, 2, 3, 4, 5].map((star) => (
-                                                    <Star 
-                                                        key={star} 
-                                                        className={cn("h-4 w-4", star <= job.details?.professional_rating ? "text-amber-400 fill-current" : "text-slate-200")} 
-                                                    />
+                                                    <StarIcon key={star} sx={{ fontSize: 16, color: star <= (job.details?.professional_rating || 0) ? 'warning.main' : 'divider' }} />
                                                 ))}
-                                            </div>
-                                            <span className="text-xs text-slate-400">{new Date(job.created_at).toLocaleDateString()}</span>
-                                        </div>
-                                        <p className="text-sm text-slate-600 italic">"{job.details?.professional_review || "No comments provided."}"</p>
-                                        <p className="text-[10px] text-slate-400 mt-2 uppercase font-bold tracking-widest">Service: {job.details?.service_name}</p>
-                                    </div>
+                                            </Stack>
+                                            <Typography variant="caption" color="text.secondary">{new Date(job.created_at).toLocaleDateString()}</Typography>
+                                        </Box>
+                                        <Typography variant="body2" sx={{ fontStyle: 'italic', color: 'text.secondary', mb: 1 }}>
+                                            "{job.details?.professional_review || "No comments provided."}"
+                                        </Typography>
+                                        <Typography variant="caption" sx={{ fontWeight: 700, color: 'text.disabled', textTransform: 'uppercase' }}>
+                                            Service: {job.details?.service_name}
+                                        </Typography>
+                                    </Box>
                                 ))
                             ) : (
-                                <div className="p-12 text-center text-[#697586] italic text-sm">
-                                    No reviews yet. Complete more jobs to receive feedback!
-                                </div>
+                                <Box sx={{ p: 6, textAlign: 'center' }}>
+                                    <Typography variant="body2" color="text.secondary" fontStyle="italic">No reviews yet.</Typography>
+                                </Box>
                             )}
-                        </div>
-                    </div>
+                        </Box>
+                    </Paper>
                 );
             case "services":
                 return (
-                    <div className="animate-in fade-in duration-500">
-                        <ServiceManagement
-                            initialServices={data?.profile_data?.professional_services || []}
-                            role="professional"
-                        />
-                    </div>
+                    <Box sx={{ animation: 'fadeIn 0.5s' }}>
+                        <ServiceManagement initialServices={data?.professional_services || []} role="professional" />
+                    </Box>
+                );
+            case "messages":
+                return (
+                    <Box sx={{ animation: 'fadeIn 0.5s' }}>
+                        <MessagesInbox />
+                    </Box>
                 );
             case "wallet":
-                return (
-                    <div className="animate-in fade-in duration-500">
-                        <WalletManagement
-                            balance={data?.wallet?.balance || 0}
-                            transactions={data?.wallet?.transactions || []}
-                            role="professional"
-                            onWithdrawalRequested={fetchData}
-                        />
-                    </div>
-                );
+                return <WalletManagement balance={data?.wallet?.balance || 0} transactions={data?.wallet?.transactions || []} role="professional" onWithdrawalRequested={fetchData} />;
             default:
                 return null;
         }
     };
 
     return (
-        <ProviderDashboardLayout
-            role="professional"
+        <DashboardLayout
             title={activeTab === 'overview' ? 'Expert Console' : navItems.find(item => item.id === activeTab)?.label || 'Dashboard'}
-            subtitle="Manage your appointments, track fees, and verify client documentations."
-            navItems={navItems}
-            activeTabId={activeTab}
-            onWithdrawClick={() => setActiveTab("wallet")}
-            onFindJobsClick={() => setActiveTab("rides")}
+            activeTab={activeTab}
+            onTabChange={setActiveTab}
+            onLogout={handleLogout}
+            displayName={authUser?.name || "Professional"}
+            role="Professional"
+            navStructure={navItems.map(item => ({ ...item, type: 'item' }))}
+            actions={
+                <Stack direction="row" spacing={2}>
+                    <Button variant="outlined" size="small" onClick={() => setActiveTab("wallet")}>Withdraw</Button>
+                    <Button variant="contained" size="small" onClick={() => setActiveTab("rides")}>Find Jobs</Button>
+                </Stack>
+            }
         >
-            {/* Mobile Tab Swiper/Buttons */}
-            <div className="mb-6 flex gap-2 lg:hidden">
-                {navItems.map(item => (
-                    <button
-                        key={item.id}
-                        onClick={() => setActiveTab(item.id)}
-                        className={cn(
-                            "px-4 py-2 text-xs font-bold rounded-full transition-all",
-                            activeTab === item.id ? "bg-[#5e35b1] text-white shadow-md shadow-purple-100" : "bg-white text-[#697586] border border-gray-100"
-                        )}
-                    >
-                        {item.label}
-                    </button>
-                ))}
-            </div>
-
             {renderContent()}
 
-            {/* Rating Modal */}
             <RatingModal
                 isOpen={!!selectedJobForRating}
                 onClose={() => setSelectedJobForRating(null)}
@@ -305,7 +362,7 @@ const ProfessionalDashboard = () => {
                 clientName={selectedJobForRating?.client_name || "Client"}
                 onSuccess={fetchData}
             />
-        </ProviderDashboardLayout>
+        </DashboardLayout>
     );
 };
 

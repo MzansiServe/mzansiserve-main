@@ -138,13 +138,18 @@ def get_dashboard():
 
 
             available_ride_requests_payload = [_ride_request_with_client(r) for r in available_ride_requests]
+            
+            driver_services = (user.data or {}).get('driver_services', [])
         
         elif user.role == 'professional':
             # Get recent professional jobs (3 most recent) - jobs professional has accepted
-            recent_professional_jobs = ServiceRequest.query.filter_by(
-                request_type='professional',
-                provider_id=user.id,
-                status='completed'
+            recent_professional_jobs = ServiceRequest.query.filter(
+                ServiceRequest.request_type == 'professional',
+                ServiceRequest.provider_id == user.id,
+                or_(
+                    ServiceRequest.status == 'completed',
+                    ServiceRequest.details['professional_rating'].is_not(None)
+                )
             ).order_by(ServiceRequest.created_at.desc()).limit(5).all()
 
             # Active professional jobs
@@ -194,13 +199,18 @@ def get_dashboard():
                 # If no gender preference, show to all professionals
                 
                 available_professional_requests.append(req)
+            
+            professional_services = (user.data or {}).get('professional_services') or []
         
         elif user.role == 'service-provider':
             # Get recent service provider jobs (3 most recent) - jobs service provider has accepted
-            recent_service_provider_jobs = ServiceRequest.query.filter_by(
-                request_type='provider',
-                provider_id=user.id,
-                status='completed'
+            recent_service_provider_jobs = ServiceRequest.query.filter(
+                ServiceRequest.request_type == 'provider',
+                ServiceRequest.provider_id == user.id,
+                or_(
+                    ServiceRequest.status == 'completed',
+                    ServiceRequest.details['provider_rating'].is_not(None)
+                )
             ).order_by(ServiceRequest.created_at.desc()).limit(5).all()
 
             # Active provider jobs
@@ -249,6 +259,8 @@ def get_dashboard():
                 # If no gender preference, show to all service providers
                 
                 available_service_provider_requests.append(req)
+            
+            provider_services = (user.data or {}).get('provider_services') or []
         
         payload = {
             'current_user': user.to_dict(),
@@ -270,10 +282,13 @@ def get_dashboard():
         }
         if driver_earnings is not None:
             payload['driver_earnings'] = driver_earnings
+            payload['driver_services'] = driver_services
         if professional_earnings is not None:
             payload['professional_earnings'] = professional_earnings
+            payload['professional_services'] = professional_services
         if service_provider_earnings is not None:
             payload['service_provider_earnings'] = service_provider_earnings
+            payload['service_provider_services'] = provider_services
             
         if user.role == 'agent':
             payload['agent_stats'] = AgentService.get_agent_stats(user.id)

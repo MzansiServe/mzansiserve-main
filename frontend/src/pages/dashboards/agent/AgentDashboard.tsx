@@ -1,35 +1,52 @@
 import { useState, useEffect, useCallback } from "react";
 import {
-    LayoutTemplate,
-    Users,
-    TrendingUp,
-    Wallet,
-    History,
-    DollarSign,
-    CheckCircle2,
-    Shield,
-    Share2,
-    Copy,
-    Award
-} from "lucide-react";
-import { cn } from "@/lib/utils";
-import { ProviderDashboardLayout } from "@/components/dashboards/ProviderDashboardLayout";
-import { StatsCard } from "@/components/dashboards/StatsCard";
+    Box,
+    Grid,
+    Typography,
+    Paper,
+    Avatar,
+    Button,
+    alpha,
+    useTheme,
+    CircularProgress,
+    Stack,
+    IconButton,
+    Table,
+    TableBody,
+    TableCell,
+    TableContainer,
+    TableHead,
+    TableRow
+} from "@mui/material";
+import {
+    TrendingUp as TrendingUpIcon,
+    AccountBalanceWallet as WalletIcon,
+    Group as GroupIcon,
+    EmojiEvents as AwardIcon,
+    ContentCopy as CopyIcon,
+    Share as ShareIcon,
+    AttachMoney as MoneyIcon,
+    Dashboard as LayoutTemplate,
+    People as Users
+} from "@mui/icons-material";
+import DashboardLayout from "@/components/dashboard/DashboardLayout";
 import { WalletManagement } from "@/components/dashboards/WalletManagement";
 import { apiFetch } from "@/lib/api";
 import { useToast } from "@/hooks/use-toast";
-import { Button } from "@/components/ui/button";
+import { useAuth } from "@/contexts/AuthContext";
 
 const AgentDashboard = () => {
     const { toast } = useToast();
+    const theme = useTheme();
+    const { user: authUser, logout } = useAuth();
     const [activeTab, setActiveTab] = useState("overview");
     const [data, setData] = useState<any>(null);
     const [loading, setLoading] = useState(true);
 
     const navItems = [
-        { id: "overview", label: "Agent Overview", icon: LayoutTemplate, href: "#overview", onClick: () => setActiveTab("overview") },
-        { id: "recruits", label: "My Recruits", icon: Users, href: "#recruits", onClick: () => setActiveTab("recruits") },
-        { id: "wallet", label: "Earnings & Wallet", icon: Wallet, href: "#wallet", onClick: () => setActiveTab("wallet") },
+        { id: "overview", label: "Agent Overview", icon: LayoutTemplate },
+        { id: "recruits", label: "My Recruits", icon: Users },
+        { id: "wallet", label: "Earnings & Wallet", icon: WalletIcon },
     ];
 
     const fetchData = useCallback(async () => {
@@ -50,6 +67,11 @@ const AgentDashboard = () => {
         fetchData();
     }, [fetchData]);
 
+    const handleLogout = () => {
+        logout();
+        toast({ title: "Logged Out", description: "You have securely logged out." });
+    };
+
     const copyAgentCode = () => {
         const code = data?.current_user?.tracking_number;
         if (code) {
@@ -58,162 +80,221 @@ const AgentDashboard = () => {
         }
     };
 
+    const StatCard = ({ title, value, icon: Icon, color, loading }: any) => (
+        <Paper
+            elevation={0}
+            sx={{
+                p: 3,
+                height: '100%',
+                borderRadius: 4,
+                border: '1px solid',
+                borderColor: 'divider',
+                background: `linear-gradient(135deg, ${alpha(theme.palette[color].main, 0.04)} 0%, ${alpha(theme.palette.background.paper, 1)} 100%)`,
+                transition: 'all 0.3s',
+                '&:hover': {
+                    transform: 'translateY(-4px)',
+                    boxShadow: `0 12px 24px ${alpha(theme.palette[color].main, 0.15)}`
+                }
+            }}
+        >
+            <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 2 }}>
+                <Typography variant="subtitle2" sx={{ fontWeight: 700, color: `${color}.main`, textTransform: 'uppercase', letterSpacing: '0.05em' }}>{title}</Typography>
+                <Avatar variant="rounded" sx={{ bgcolor: alpha(theme.palette[color].main, 0.1), color: `${color}.main`, width: 44, height: 44 }}><Icon /></Avatar>
+            </Box>
+            <Typography variant="h3" sx={{ fontWeight: 800, mb: 0.5, letterSpacing: '-0.02em' }}>
+                {loading ? <CircularProgress size={24} /> : value}
+            </Typography>
+        </Paper>
+    );
+
     const renderContent = () => {
         if (loading && !data) return (
-            <div className="flex items-center justify-center py-20">
-                <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#5e35b1]"></div>
-            </div>
+            <Box sx={{ display: 'flex', justifyContent: 'center', py: 10 }}>
+                <CircularProgress />
+            </Box>
         );
 
         switch (activeTab) {
             case "overview":
                 return (
-                    <div className="space-y-8 animate-in fade-in duration-500">
+                    <Box sx={{ animation: 'fadeIn 0.5s' }}>
                         {/* Referral Card */}
-                        <div className="bg-white border border-purple-100 rounded-3xl p-8 shadow-sm flex flex-col md:flex-row items-center justify-between gap-8 relative overflow-hidden">
-                            <div className="absolute right-0 top-0 w-32 h-32 bg-purple-50 rounded-full -translate-y-1/2 translate-x-1/2 blur-2xl" />
-                            <div className="flex-1 space-y-4">
-                                <div>
-                                    <h3 className="text-2xl font-bold text-slate-900 tracking-tight">Your Referral Code</h3>
-                                    <p className="text-slate-500 mt-1">Share this code with new users to earn rewards instantly.</p>
-                                </div>
-                                <div className="flex items-center gap-3">
-                                    <div className="h-14 px-6 bg-slate-50 border border-slate-100 rounded-xl flex items-center justify-center font-mono text-xl font-bold tracking-widest text-primary shadow-inner">
-                                        {data?.current_user?.tracking_number || "---"}
-                                    </div>
-                                    <Button onClick={copyAgentCode} size="icon" className="h-14 w-14 rounded-xl shadow-lg">
-                                        <Copy className="h-5 w-5" />
-                                    </Button>
-                                    <Button variant="outline" size="icon" className="h-14 w-14 rounded-xl">
-                                        <Share2 className="h-5 w-5" />
-                                    </Button>
-                                </div>
-                            </div>
-                            <div className="bg-[#121926] p-8 rounded-2xl text-white md:w-72 shrink-0 relative overflow-hidden group">
-                                <div className="absolute -right-10 -bottom-10 h-32 w-32 bg-primary/20 rounded-full blur-2xl transition-transform group-hover:scale-150" />
-                                <Award className="h-10 w-10 text-primary mb-4 relative z-10" />
-                                <h4 className="text-lg font-bold mb-1 relative z-10">Commission Rates</h4>
-                                <p className="text-sm text-slate-400 relative z-10">You get up to <span className="text-white font-bold">R30.00</span> for every professional you recruit.</p>
-                            </div>
-                        </div>
+                        <Paper
+                            sx={{
+                                mb: 4,
+                                p: 4,
+                                borderRadius: 6,
+                                border: '1px solid',
+                                borderColor: alpha(theme.palette.primary.main, 0.1),
+                                background: `linear-gradient(135deg, ${alpha(theme.palette.primary.main, 0.05)} 0%, #ffffff 100%)`,
+                                position: 'relative',
+                                overflow: 'hidden'
+                            }}
+                        >
+                            <Box sx={{ position: 'absolute', right: -50, top: -50, width: 200, height: 200, bgcolor: alpha(theme.palette.primary.main, 0.05), borderRadius: '50%', filter: 'blur(40px)' }} />
 
-                        {/* Stats Grid */}
-                        <div className="grid gap-6 md:grid-cols-3">
-                            <StatsCard
-                                title="Total Earned"
-                                value={`R${(data?.agent_stats?.total_earned || 0).toFixed(2)}`}
-                                icon={TrendingUp}
-                                variant="purple"
-                                loading={loading}
-                            />
-                            <StatsCard
-                                title="Total Recruits"
-                                value={data?.agent_stats?.total_recruits || 0}
-                                icon={Users}
-                                variant="light"
-                                loading={loading}
-                            />
-                            <StatsCard
-                                title="Available Balance"
-                                value={`R${(data?.wallet?.balance || 0).toFixed(2)}`}
-                                icon={Wallet}
-                                variant="green"
-                                loading={loading}
-                            />
-                        </div>
+                            <Grid container spacing={4} alignItems="center">
+                                <Grid item xs={12} md={8}>
+                                    <Typography variant="h4" sx={{ fontWeight: 800, mb: 1 }}>Your Referral Code</Typography>
+                                    <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>Share this code with new users to earn rewards instantly.</Typography>
 
-                        {/* Recent Activity */}
-                        <div className="bg-white border border-gray-100 rounded-2xl shadow-sm overflow-hidden h-full">
-                            <div className="border-b border-gray-100 px-6 py-5 flex justify-between items-center bg-slate-50/50">
-                                <h2 className="text-lg font-bold text-[#121926]">Recent Rewards</h2>
-                                <button className="text-xs font-bold text-[#5e35b1] hover:underline" onClick={() => setActiveTab('recruits')}>View All</button>
-                            </div>
-                            <div className="divide-y divide-gray-100">
+                                    <Stack direction="row" spacing={2} alignItems="center">
+                                        <Paper
+                                            variant="outlined"
+                                            sx={{
+                                                px: 4,
+                                                py: 1.5,
+                                                bgcolor: 'background.default',
+                                                borderRadius: 3,
+                                                fontFamily: 'monospace',
+                                                fontSize: '1.5rem',
+                                                fontWeight: 800,
+                                                letterSpacing: 4,
+                                                color: 'primary.main'
+                                            }}
+                                        >
+                                            {data?.current_user?.tracking_number || "---"}
+                                        </Paper>
+                                        <IconButton onClick={copyAgentCode} sx={{ bgcolor: 'primary.main', color: 'white', '&:hover': { bgcolor: 'primary.dark' }, width: 56, height: 56, borderRadius: 3 }}>
+                                            <CopyIcon />
+                                        </IconButton>
+                                        <IconButton sx={{ border: '1px solid', borderColor: 'divider', width: 56, height: 56, borderRadius: 3 }}>
+                                            <ShareIcon />
+                                        </IconButton>
+                                    </Stack>
+                                </Grid>
+                                <Grid item xs={12} md={4}>
+                                    <Paper sx={{ p: 3, borderRadius: 4, bgcolor: '#121926', color: 'white', position: 'relative', overflow: 'hidden' }}>
+                                        <AwardIcon sx={{ fontSize: 40, color: 'primary.main', mb: 2 }} />
+                                        <Typography variant="h6" sx={{ fontWeight: 800, mb: 1 }}>Commission Rates</Typography>
+                                        <Typography variant="body2" sx={{ color: alpha('#fff', 0.7) }}>
+                                            You get up to <Box component="span" sx={{ color: 'white', fontWeight: 800 }}>R30.00</Box> for every professional you recruit.
+                                        </Typography>
+                                    </Paper>
+                                </Grid>
+                            </Grid>
+                        </Paper>
+
+                        <Grid container spacing={3} sx={{ mb: 4 }}>
+                            <Grid item xs={12} md={4}>
+                                <StatCard
+                                    title="Total Earned"
+                                    value={`R${(data?.agent_stats?.total_earned || 0).toFixed(2)}`}
+                                    icon={TrendingUpIcon}
+                                    color="primary"
+                                    loading={loading}
+                                />
+                            </Grid>
+                            <Grid item xs={12} md={4}>
+                                <StatCard
+                                    title="Total Recruits"
+                                    value={data?.agent_stats?.total_recruits || 0}
+                                    icon={GroupIcon}
+                                    color="info"
+                                    loading={loading}
+                                />
+                            </Grid>
+                            <Grid item xs={12} md={4}>
+                                <StatCard
+                                    title="Available Balance"
+                                    value={`R${(data?.wallet?.balance || 0).toFixed(2)}`}
+                                    icon={WalletIcon}
+                                    color="success"
+                                    loading={loading}
+                                />
+                            </Grid>
+                        </Grid>
+
+                        <Paper variant="outlined" sx={{ borderRadius: 4, overflow: 'hidden' }}>
+                            <Box sx={{ p: 3, borderBottom: '1px solid', borderColor: 'divider', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                                <Typography variant="h6" fontWeight={800}>Recent Rewards</Typography>
+                                <Button size="small" onClick={() => setActiveTab('recruits')}>View All</Button>
+                            </Box>
+                            <Box sx={{ p: 0 }}>
                                 {data?.agent_stats?.recent_commissions?.length > 0 ? (
                                     data.agent_stats.recent_commissions.map((comm: any) => (
-                                        <div key={comm.id} className="p-4 flex items-center justify-between hover:bg-[#f8fafc] transition-colors">
-                                            <div className="flex items-center gap-3">
-                                                <div className="h-10 w-10 bg-emerald-50 text-emerald-600 rounded-lg flex items-center justify-center font-bold">
-                                                    <DollarSign className="h-5 w-5" />
-                                                </div>
-                                                <div>
-                                                    <p className="text-sm font-bold text-[#121926]">{comm.recruited_user_email}</p>
-                                                    <p className="text-xs text-[#697586] capitalize">{comm.recruited_user_role} • {new Date(comm.created_at).toLocaleDateString()}</p>
-                                                </div>
-                                            </div>
-                                            <div className="text-right">
-                                                <p className="text-sm font-bold text-emerald-600">+ R{comm.amount.toFixed(2)}</p>
-                                                <span className="text-[10px] uppercase font-bold text-slate-400 px-1.5 py-0.5 rounded">Processed</span>
-                                            </div>
-                                        </div>
+                                        <Box key={comm.id} sx={{ p: 2, display: 'flex', alignItems: 'center', justifyContent: 'space-between', borderBottom: '1px solid', borderColor: 'divider' }}>
+                                            <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+                                                <Avatar sx={{ bgcolor: alpha(theme.palette.success.main, 0.1), color: 'success.main' }}>
+                                                    <MoneyIcon fontSize="small" />
+                                                </Avatar>
+                                                <Box>
+                                                    <Typography variant="subtitle2" fontWeight={700}>{comm.recruited_user_email}</Typography>
+                                                    <Typography variant="caption" color="text.secondary" sx={{ textTransform: 'capitalize' }}>
+                                                        {comm.recruited_user_role} • {new Date(comm.created_at).toLocaleDateString()}
+                                                    </Typography>
+                                                </Box>
+                                            </Box>
+                                            <Box sx={{ textAlign: 'right' }}>
+                                                <Typography variant="subtitle2" fontWeight={700} color="success.main">+ R{comm.amount.toFixed(2)}</Typography>
+                                                <Typography variant="caption" sx={{ fontWeight: 700, color: 'text.disabled', textTransform: 'uppercase' }}>Processed</Typography>
+                                            </Box>
+                                        </Box>
                                     ))
                                 ) : (
-                                    <div className="p-12 text-center text-[#697586] italic text-sm">
-                                        No recent commissions found. Start sharing your code to earn!
-                                    </div>
+                                    <Box sx={{ p: 6, textAlign: 'center' }}>
+                                        <Typography variant="body2" color="text.secondary" fontStyle="italic">No recent commissions found.</Typography>
+                                    </Box>
                                 )}
-                            </div>
-                        </div>
-                    </div>
+                            </Box>
+                        </Paper>
+                    </Box>
                 );
             case "recruits":
                 return (
-                    <div className="bg-white border border-gray-100 rounded-2xl shadow-sm overflow-hidden h-full animate-in fade-in duration-500">
-                        <div className="border-b border-gray-100 px-8 py-6 bg-slate-50/50">
-                            <h2 className="text-lg font-bold text-[#121926]">Full Recruitment History</h2>
-                        </div>
-                        <div className="overflow-x-auto">
-                            <table className="min-w-full divide-y divide-gray-100">
-                                <thead className="bg-[#f8fafc]">
-                                    <tr>
-                                        <th className="px-8 py-4 text-left text-xs font-bold text-[#697586] uppercase tracking-wider">Recruited User</th>
-                                        <th className="px-8 py-4 text-left text-xs font-bold text-[#697586] uppercase tracking-wider">Role</th>
-                                        <th className="px-8 py-4 text-left text-xs font-bold text-[#697586] uppercase tracking-wider">Date</th>
-                                        <th className="px-8 py-4 text-right text-xs font-bold text-[#697586] uppercase tracking-wider">Commission</th>
-                                    </tr>
-                                </thead>
-                                <tbody className="divide-y divide-gray-100">
+                    <Paper variant="outlined" sx={{ borderRadius: 4, overflow: 'hidden' }}>
+                        <Box sx={{ p: 3, borderBottom: '1px solid', borderColor: 'divider' }}>
+                            <Typography variant="h6" fontWeight={800}>Full Recruitment History</Typography>
+                        </Box>
+                        <TableContainer>
+                            <Table>
+                                <TableHead sx={{ bgcolor: 'background.default' }}>
+                                    <TableRow>
+                                        <TableCell sx={{ fontWeight: 700 }}>Recruited User</TableCell>
+                                        <TableCell sx={{ fontWeight: 700 }}>Role</TableCell>
+                                        <TableCell sx={{ fontWeight: 700 }}>Date</TableCell>
+                                        <TableCell align="right" sx={{ fontWeight: 700 }}>Commission</TableCell>
+                                    </TableRow>
+                                </TableHead>
+                                <TableBody>
                                     {data?.agent_stats?.recent_commissions?.map((comm: any) => (
-                                        <tr key={comm.id} className="hover:bg-[#f8fafc] transition-colors">
-                                            <td className="px-8 py-4 text-sm font-bold text-[#121926]">{comm.recruited_user_email}</td>
-                                            <td className="px-8 py-4 text-sm text-[#697586] capitalize">{comm.recruited_user_role}</td>
-                                            <td className="px-8 py-4 text-sm text-[#697586]">{new Date(comm.created_at).toLocaleDateString()}</td>
-                                            <td className="px-8 py-4 text-sm font-bold text-emerald-600 text-right">R {comm.amount.toFixed(2)}</td>
-                                        </tr>
+                                        <TableRow key={comm.id} hover>
+                                            <TableCell sx={{ fontWeight: 600 }}>{comm.recruited_user_email}</TableCell>
+                                            <TableCell sx={{ textTransform: 'capitalize' }}>{comm.recruited_user_role}</TableCell>
+                                            <TableCell>{new Date(comm.created_at).toLocaleDateString()}</TableCell>
+                                            <TableCell align="right" sx={{ fontWeight: 800, color: 'success.main' }}>R {comm.amount.toFixed(2)}</TableCell>
+                                        </TableRow>
                                     ))}
-                                </tbody>
-                            </table>
-                        </div>
-                    </div>
+                                </TableBody>
+                            </Table>
+                        </TableContainer>
+                    </Paper>
                 );
             case "wallet":
-                return (
-                    <div className="animate-in fade-in duration-500">
-                        <WalletManagement
-                            balance={data?.wallet?.balance || 0}
-                            transactions={data?.wallet?.transactions || []}
-                            role="driver" // Using driver theme for purple
-                            onWithdrawalRequested={fetchData}
-                        />
-                    </div>
-                );
+                return <WalletManagement balance={data?.wallet?.balance || 0} transactions={data?.wallet?.transactions || []} role="agent" onWithdrawalRequested={fetchData} />;
             default:
                 return null;
         }
     };
 
     return (
-        <ProviderDashboardLayout
-            role="service-provider" // Agent uses service provider base style (purple)
+        <DashboardLayout
             title={activeTab === 'overview' ? 'Affiliate HUB' : navItems.find(item => item.id === activeTab)?.label || 'Dashboard'}
-            subtitle="Track your recruits, monitor earnings, and manage your agent account."
-            navItems={navItems}
-            activeTabId={activeTab}
-            onWithdrawClick={() => setActiveTab("wallet")}
-            onFindJobsClick={() => setActiveTab("recruits")}
+            activeTab={activeTab}
+            onTabChange={setActiveTab}
+            onLogout={handleLogout}
+            displayName={authUser?.name || "Agent"}
+            role="Agent"
+            navStructure={navItems.map(item => ({ ...item, type: 'item' }))}
+            actions={
+                <Stack direction="row" spacing={2}>
+                    <Button variant="outlined" size="small" onClick={() => setActiveTab("wallet")}>Withdraw</Button>
+                    <Button variant="contained" size="small" onClick={() => setActiveTab("recruits")}>View Recruits</Button>
+                </Stack>
+            }
         >
             {renderContent()}
-        </ProviderDashboardLayout>
+        </DashboardLayout>
     );
 };
 

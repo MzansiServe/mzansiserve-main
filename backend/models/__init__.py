@@ -31,6 +31,7 @@ from backend.models.chat import ChatMessage
 from backend.models.api_log import ExternalApiLog
 from backend.models.report import Report
 from backend.models.agent_commission import AgentCommission
+from backend.models.ad_inquiry import AdInquiry
 
 __all__ = [
     'User',
@@ -71,5 +72,6 @@ __all__ = [
     'ExternalApiLog',
     'Report',
     'AgentCommission',
+    'AdInquiry',
 ]
 

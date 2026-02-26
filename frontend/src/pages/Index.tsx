@@ -9,6 +9,7 @@ import { TopProviders } from "@/components/TopProviders";
 import TestimonialsSection from "@/components/TestimonialsSection";
 import { MobileAppPromo } from "@/components/MobileAppPromo";
 import CTABanner from "@/components/CTABanner";
+import ReachMillionsSection from "@/components/ReachMillionsSection";
 import Footer from "@/components/Footer";
 import { useEffect } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
@@ -25,30 +26,38 @@ const Index = () => {
   }, [location, navigate]);
 
   return (
-    <main className="min-h-screen bg-[#F8FAFC]">
+    <main className="min-h-screen bg-white">
       <Navbar />
       <HeroCarousel />
-      <QuickActionGrid />
 
-      {/* Credibility & Process */}
-      <HowItWorks />
-
-      {/* Trust & Discovery Sequence */}
-      <WhySection />
-
-      <div className="space-y-0">
-        <ServiceSections />
+      <div className="relative z-20 -mt-20 lg:-mt-24 mb-16 lg:mb-24 px-6">
+        <div className="container mx-auto max-w-7xl">
+          <QuickActionGrid />
+        </div>
       </div>
 
-      <FeaturedProducts />
+      <div className="space-y-32 pb-32">
+        {/* Credibility & Process */}
+        <HowItWorks />
 
-      {/* Social Proof & Professionals */}
-      <TopProviders />
-      <TestimonialsSection />
+        {/* Trust & Discovery Sequence */}
+        <WhySection />
 
-      {/* Mobile & Final CTA */}
-      <MobileAppPromo />
-      <CTABanner />
+        <ServiceSections />
+
+        <FeaturedProducts />
+
+        {/* Social Proof & Professionals */}
+        <TopProviders />
+
+        <TestimonialsSection />
+
+        {/* Mobile & Final CTA */}
+        <MobileAppPromo />
+
+        <CTABanner />
+        <ReachMillionsSection />
+      </div>
 
       <Footer />
     </main>

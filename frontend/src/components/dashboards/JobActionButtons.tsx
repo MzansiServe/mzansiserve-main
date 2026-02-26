@@ -1,13 +1,20 @@
 import { useState } from "react";
 import {
-    Navigation,
-    CheckCircle2,
-    Clock,
-    AlertCircle,
-    Play
-} from "lucide-react";
-import { Button } from "@/components/ui/button";
-import { cn } from "@/lib/utils";
+    Box,
+    Typography,
+    Button,
+    alpha,
+    useTheme,
+    Stack,
+    CircularProgress,
+    Chip
+} from "@mui/material";
+import {
+    NearMe as NavigationIcon,
+    CheckCircle as CheckCircleIcon,
+    InfoOutlined as InfoIcon,
+    Schedule as ClockIcon
+} from "@mui/icons-material";
 import { apiFetch } from "@/lib/api";
 import { useToast } from "@/hooks/use-toast";
 
@@ -19,6 +26,7 @@ interface JobActionButtonsProps {
 
 export const JobActionButtons = ({ job, role, onStatusUpdate }: JobActionButtonsProps) => {
     const { toast } = useToast();
+    const theme = useTheme();
     const [loading, setLoading] = useState(false);
 
     const handleAction = async (endpoint: string, method: string = 'PATCH') => {
@@ -42,7 +50,6 @@ export const JobActionButtons = ({ job, role, onStatusUpdate }: JobActionButtons
     const isProfessional = job.request_type === 'professional';
     const isProvider = job.request_type === 'provider';
 
-    // Status logic based on job.details and status
     const details = job.details || {};
 
     // Actions for Driver (Cab)
@@ -50,22 +57,28 @@ export const JobActionButtons = ({ job, role, onStatusUpdate }: JobActionButtons
         if (!details.cab_driver_arrived) {
             return (
                 <Button
+                    fullWidth
+                    variant="contained"
                     onClick={() => handleAction('cab-driver-arrived')}
                     disabled={loading}
-                    className="bg-blue-600 hover:bg-blue-700 w-full rounded-xl font-bold"
+                    startIcon={loading ? <CircularProgress size={20} color="inherit" /> : <NavigationIcon />}
+                    sx={{ fontWeight: 800, borderRadius: 2, bgcolor: '#3B82F6', '&:hover': { bgcolor: '#2563EB' } }}
                 >
-                    <Navigation className="mr-2 h-4 w-4" /> I have Arrived
+                    I have Arrived
                 </Button>
             );
         }
         if (!details.cab_arrived_at_location) {
             return (
                 <Button
+                    fullWidth
+                    variant="contained"
                     onClick={() => handleAction('cab-arrived-at-location')}
                     disabled={loading}
-                    className="bg-green-600 hover:bg-green-700 w-full rounded-xl font-bold"
+                    startIcon={loading ? <CircularProgress size={20} color="inherit" /> : <CheckCircleIcon />}
+                    sx={{ fontWeight: 800, borderRadius: 2, bgcolor: theme.palette.success.main, '&:hover': { bgcolor: theme.palette.success.dark } }}
                 >
-                    <CheckCircle2 className="mr-2 h-4 w-4" /> Drop off Complete
+                    Drop off Complete
                 </Button>
             );
         }
@@ -75,18 +88,24 @@ export const JobActionButtons = ({ job, role, onStatusUpdate }: JobActionButtons
     if (role === 'professional' && isProfessional) {
         if (!details.professional_has_arrived && job.status === 'accepted') {
             return (
-                <div className="flex flex-col gap-2 w-full">
-                    <p className="text-xs text-amber-600 font-medium italic mb-1 text-center">
-                        Note: Client usually marks arrival in this flow, but you can signal readiness.
-                    </p>
+                <Stack spacing={1.5} alignItems="center" sx={{ width: '100%' }}>
+                    <Stack direction="row" spacing={1} alignItems="center">
+                        <InfoIcon sx={{ fontSize: 14, color: 'warning.main' }} />
+                        <Typography variant="caption" sx={{ color: 'warning.dark', fontWeight: 700, fontStyle: 'italic' }}>
+                            Marking this will finalize the service.
+                        </Typography>
+                    </Stack>
                     <Button
+                        fullWidth
+                        variant="contained"
                         onClick={() => handleAction('professional-has-arrived')}
                         disabled={loading}
-                        className="bg-[#5e35b1] hover:bg-[#4527a0] w-full rounded-xl font-bold"
+                        startIcon={loading ? <CircularProgress size={20} color="inherit" /> : <CheckCircleIcon />}
+                        sx={{ fontWeight: 800, borderRadius: 2, bgcolor: theme.palette.success.main, '&:hover': { bgcolor: theme.palette.success.dark } }}
                     >
-                        <Clock className="mr-2 h-4 w-4" /> Mark as Arrived/Started
+                        Complete Job
                     </Button>
-                </div>
+                </Stack>
             );
         }
     }
@@ -96,11 +115,14 @@ export const JobActionButtons = ({ job, role, onStatusUpdate }: JobActionButtons
         if (!details.provider_has_arrived && job.status === 'accepted') {
             return (
                 <Button
+                    fullWidth
+                    variant="contained"
                     onClick={() => handleAction('provider-has-arrived')}
                     disabled={loading}
-                    className="bg-[#5e35b1] hover:bg-[#4527a0] w-full rounded-xl font-bold"
+                    startIcon={loading ? <CircularProgress size={20} color="inherit" /> : <CheckCircleIcon />}
+                    sx={{ fontWeight: 800, borderRadius: 2, bgcolor: theme.palette.success.main, '&:hover': { bgcolor: theme.palette.success.dark } }}
                 >
-                    <Play className="mr-2 h-4 w-4" /> Start Service
+                    Complete Job
                 </Button>
             );
         }
@@ -108,15 +130,41 @@ export const JobActionButtons = ({ job, role, onStatusUpdate }: JobActionButtons
 
     if (job.status === 'completed') {
         return (
-            <div className="flex items-center justify-center gap-2 text-green-600 font-bold py-2 bg-green-50 rounded-xl border border-green-100 w-full text-sm">
-                <CheckCircle2 className="h-4 w-4" /> Ready for Review
-            </div>
+            <Chip 
+                icon={<CheckCircleIcon sx={{ fontSize: '1rem !important' }} />}
+                label="Ready for Review" 
+                sx={{ 
+                    width: '100%', 
+                    fontWeight: 800, 
+                    borderRadius: 2, 
+                    height: 40,
+                    bgcolor: alpha(theme.palette.success.main, 0.1),
+                    color: 'success.dark',
+                    border: '1px solid',
+                    borderColor: alpha(theme.palette.success.main, 0.2)
+                }} 
+            />
         );
     }
 
     return (
-        <div className="flex items-center justify-center gap-2 text-slate-400 font-medium py-2 bg-slate-50 rounded-xl border border-slate-100 w-full text-sm italic">
-            Waiting for activity...
-        </div>
+        <Box sx={{ 
+            width: '100%', 
+            p: 1.5, 
+            textAlign: 'center', 
+            bgcolor: alpha(theme.palette.action.hover, 0.04), 
+            borderRadius: 2,
+            border: '1px dotted',
+            borderColor: 'divider'
+        }}>
+            <Stack direction="row" spacing={1} justifyContent="center" alignItems="center" sx={{ color: 'text.disabled' }}>
+                <ClockIcon sx={{ fontSize: 16 }} />
+                <Typography variant="caption" sx={{ fontWeight: 700, fontStyle: 'italic' }}>
+                    Waiting for activity...
+                </Typography>
+            </Stack>
+        </Box>
     );
 };
+
+export default JobActionButtons;

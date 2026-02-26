@@ -1,14 +1,11 @@
 import { useState } from "react";
-import { Link, useNavigate } from "react-router-dom";
-import { Eye, EyeOff, Mail, Lock, ArrowRight } from "lucide-react";
+import { Link, useNavigate, useSearchParams } from "react-router-dom";
+import { Eye, EyeOff, AlertCircle, Loader2, ShieldCheck, ArrowLeft } from "lucide-react";
 import { GoogleLogin } from "@react-oauth/google";
+import { motion, AnimatePresence } from "framer-motion";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
-import Navbar from "@/components/Navbar";
-import logo from "@/assets/logo.jpeg";
 import { apiFetch } from "@/lib/api";
 
 interface GoogleCredentialResponse {
@@ -16,6 +13,16 @@ interface GoogleCredentialResponse {
   clientId?: string;
   select_by?: string;
 }
+
+/** Safely converts the API's error field (string | object | undefined) into a plain string. */
+const resolveError = (
+  err: string | { code: string; message: string; details?: any } | undefined,
+  fallback: string
+): string => {
+  if (!err) return fallback;
+  if (typeof err === "string") return err;
+  return err.message || fallback;
+};
 
 const Login = () => {
   const [email, setEmail] = useState("");
@@ -27,6 +34,8 @@ const Login = () => {
   const { login, setUser } = useAuth();
   const navigate = useNavigate();
   const { toast } = useToast();
+  const [searchParams] = useSearchParams();
+  const redirectTo = searchParams.get("from") || null;
   const [availableRoles, setAvailableRoles] = useState<string[]>([]);
 
   const checkRoles = async (emailVal: string) => {
@@ -35,7 +44,6 @@ const Login = () => {
       const res = await apiFetch<{ roles: string[] }>(`/api/auth/roles-for-email?email=${encodeURIComponent(emailVal)}`);
       if (res.success && res.data.roles.length > 0) {
         setAvailableRoles(res.data.roles);
-        // If current role is not in available roles, auto-select the first one
         if (!res.data.roles.includes(role)) {
           setRole(res.data.roles[0]);
         }
@@ -47,36 +55,34 @@ const Login = () => {
     }
   };
 
+  const navigateByRole = (r: string) => {
+    // If we were redirected here from a protected page, go back there.
+    if (redirectTo) { navigate(redirectTo, { replace: true }); return; }
+    if (r === "driver") navigate("/dashboard/driver");
+    else if (r === "professional") navigate("/dashboard/professional");
+    else if (r === "service-provider") navigate("/dashboard/provider");
+    else navigate("/");
+  };
+
   const handleGoogleSuccess = async (credentialResponse: GoogleCredentialResponse) => {
     setLoading(true);
     setError("");
     try {
       const result = await apiFetch("/api/auth/google-login", {
         method: "POST",
-        data: {
-          token: credentialResponse.credential,
-          role: role
-        }
+        data: { token: credentialResponse.credential, role },
       });
-
       if (result.success) {
         localStorage.setItem("token", result.data.token);
         localStorage.setItem("user", JSON.stringify(result.data.user));
         if (setUser) setUser(result.data.user);
-
         toast({ title: "Welcome!", description: "Logged in via Google successfully." });
-
-        // Route based on role
-        if (role === 'driver') navigate("/dashboard/driver");
-        else if (role === 'professional') navigate("/dashboard/professional");
-        else if (role === 'service-provider') navigate("/dashboard/provider");
-        else navigate("/");
+        navigateByRole(role);
       } else {
-        setError(result.error || "Google login failed");
+        setError(resolveError(result.error, "Google login failed"));
       }
     } catch (err: unknown) {
-      const errorMessage = err instanceof Error ? err.message : "An unexpected error occurred during Google sign-in";
-      setError(errorMessage);
+      setError(err instanceof Error ? err.message : "An unexpected error occurred during Google sign-in");
     } finally {
       setLoading(false);
     }
@@ -92,159 +98,239 @@ const Login = () => {
     if (password.length < 8) { setError("Password must be at least 8 characters"); return; }
 
     setLoading(true);
-
     try {
       const result = await login(email, password, role);
       if (result.success) {
         toast({ title: "Welcome back!", description: "You've been logged in successfully." });
-
-        // Route based on role
-        if (role === 'driver') {
-          navigate("/dashboard/driver");
-        } else if (role === 'professional') {
-          navigate("/dashboard/professional");
-        } else if (role === 'service-provider') {
-          navigate("/dashboard/provider");
-        } else {
-          navigate("/");
-        }
-
+        navigateByRole(role);
       } else {
-        setError(result.error || "Login failed");
+        setError(resolveError(result.error, "Login failed"));
       }
     } catch (err: unknown) {
-      const errorMessage = err instanceof Error ? err.message : "An unexpected error occurred";
-      setError(errorMessage);
+      setError(err instanceof Error ? err.message : "An unexpected error occurred");
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <main className="min-h-screen bg-white">
-      <Navbar />
-      <div className="flex min-h-screen items-center justify-center px-6 pt-24 pb-12">
-        <div className="w-full max-w-[480px]">
-          <div className="rounded-[24px] border border-slate-200 bg-white p-10 shadow-xl transition-all duration-500 hover:shadow-2xl">
-            {/* Header */}
-            <div className="mb-10 text-center">
-              <h1 className="text-3xl font-bold text-[#222222] tracking-tighter">Welcome back</h1>
-              <p className="mt-2 text-base text-[#717171] font-medium">Continue your Mzansi journey</p>
-            </div>
+    <main className="min-h-screen bg-white font-sans relative">
+
+      <div className="flex min-h-[calc(100vh-80px)] items-center justify-center px-4 py-12">
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.5 }}
+          className="w-full max-w-[568px] border border-[#DDDDDD] rounded-xl shadow-[0_8px_28px_rgba(0,0,0,0.12)] overflow-hidden bg-white"
+        >
+          {/* Header */}
+          <div className="px-6 py-4 border-b border-[#DDDDDD] flex items-center justify-center relative">
+            <Link
+              to="/"
+              className="absolute left-6 top-1/2 -translate-y-1/2 flex items-center gap-2 text-sm font-semibold text-[#222222] hover:text-primary transition-colors group"
+            >
+              <ArrowLeft className="w-4 h-4 group-hover:-translate-x-1 transition-transform" />
+              <span>Back to website</span>
+            </Link>
+            <h1 className="text-base font-bold text-[#222222]">Log in or sign up</h1>
+          </div>
+
+          <div className="p-6">
+            <h2 className="text-[22px] font-semibold text-[#222222] mb-6">Welcome to MzansiServe</h2>
+
+            {/* Error Banner */}
+            <AnimatePresence mode="wait">
+              {error && (
+                <motion.div
+                  key="error"
+                  initial={{ opacity: 0, y: -10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: -10 }}
+                  className="mb-4 p-4 bg-red-50 border border-red-200 rounded-lg flex items-start gap-3 text-[#C13515]"
+                >
+                  <AlertCircle className="w-5 h-5 shrink-0 mt-0.5" />
+                  <p className="text-sm font-normal">{error}</p>
+                </motion.div>
+              )}
+            </AnimatePresence>
 
             <form onSubmit={handleSubmit} className="space-y-6">
-              <div className="space-y-4">
-                <div className="space-y-1.5">
-                  <Label htmlFor="role" className="text-xs font-bold text-slate-400 uppercase tracking-widest ml-1">Login as</Label>
-                  <select id="role" value={role} onChange={e => setRole(e.target.value)}
-                    className="flex h-12 w-full rounded-xl border border-slate-200 bg-white px-4 py-2 text-sm font-bold text-[#222222] focus:border-black transition-all outline-none">
+              {/* Role Selector */}
+              <div className="space-y-2">
+                <label htmlFor="role" className="text-[13px] font-bold text-[#222222] tracking-wide ml-1">
+                  Login as
+                </label>
+                <div className="relative border border-[#DDDDDD] rounded-2xl overflow-hidden focus-within:ring-4 focus-within:ring-primary/10 focus-within:border-primary/50 transition-all bg-slate-50/50">
+                  <select
+                    id="role"
+                    value={role}
+                    onChange={(e) => setRole(e.target.value)}
+                    className="w-full bg-transparent py-4 px-4 text-base text-[#222222] outline-none appearance-none cursor-pointer font-medium h-14"
+                  >
                     <option value="client">Client</option>
                     <option value="driver">Driver</option>
                     <option value="professional">Professional</option>
                     <option value="service-provider">Service Provider</option>
                     <option value="agent">Agent / Affiliate</option>
                   </select>
-                </div>
-
-                <div className="space-y-1.5">
-                  <Label htmlFor="email" className="text-xs font-bold text-slate-400 uppercase tracking-widest ml-1">Email Address</Label>
-                  <div className="relative">
-                    <Mail className="absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
-                    <Input
-                      id="email"
-                      type="email"
-                      placeholder="you@example.co.za"
-                      value={email}
-                      onChange={(e) => setEmail(e.target.value)}
-                      onBlur={(e) => checkRoles(e.target.value)}
-                      className="pl-11 h-12 rounded-xl border-slate-200 bg-white font-bold text-[#222222] focus-visible:ring-0 focus-visible:border-black transition-all"
-                      autoComplete="email"
-                    />
-                  </div>
-                  {availableRoles.length > 0 && (
-                    <p className="text-[10px] text-primary font-bold uppercase tracking-tight mt-1 ml-1">
-                      Found: {availableRoles.join(", ")}
-                    </p>
-                  )}
-                </div>
-
-                <div className="space-y-1.5">
-                  <div className="flex items-center justify-between px-1">
-                    <Label htmlFor="password" className="text-xs font-bold text-slate-400 uppercase tracking-widest">Password</Label>
-                    <button type="button" className="text-[10px] font-bold uppercase tracking-widest text-primary hover:underline">Forgot?</button>
-                  </div>
-                  <div className="relative">
-                    <Lock className="absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
-                    <Input
-                      id="password"
-                      type={showPassword ? "text" : "password"}
-                      placeholder="••••••••"
-                      value={password}
-                      onChange={(e) => setPassword(e.target.value)}
-                      className="pl-11 pr-12 h-12 rounded-xl border-slate-200 bg-white font-bold text-[#222222] focus-visible:ring-0 focus-visible:border-black transition-all"
-                      autoComplete="current-password"
-                    />
-                    <button
-                      type="button"
-                      onClick={() => setShowPassword(!showPassword)}
-                      className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 hover:text-[#222222]"
-                    >
-                      {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-                    </button>
+                  <div className="absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none text-[#717171]">
+                    <svg width="12" height="12" viewBox="0 0 12 12" fill="none" xmlns="http://www.w3.org/2000/svg">
+                      <path d="M2.5 4.5L6 8L9.5 4.5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+                    </svg>
                   </div>
                 </div>
               </div>
 
-              {error && (
-                <p className="rounded-xl bg-rose-50 border border-rose-100 p-4 text-xs font-bold text-rose-600 animate-in fade-in slide-in-from-top-1">{error}</p>
+              {/* Email */}
+              <div className="space-y-2">
+                <label htmlFor="login-email-input" className="text-[13px] font-bold text-[#222222] tracking-wide ml-1">
+                  Email Address
+                </label>
+                <div className="relative border border-[#DDDDDD] rounded-2xl overflow-hidden focus-within:ring-4 focus-within:ring-primary/10 focus-within:border-primary/50 transition-all bg-slate-50/50">
+                  <input
+                    id="login-email-input"
+                    type="email"
+                    value={email}
+                    onChange={(e) => { setEmail(e.target.value); if (error) setError(""); }}
+                    onBlur={(e) => checkRoles(e.target.value)}
+                    className="w-full bg-transparent py-4 px-4 text-base text-[#222222] outline-none placeholder:text-[#B0B0B0] font-medium h-14"
+                    placeholder="name@example.com"
+                    autoComplete="email"
+                    required
+                  />
+                </div>
+              </div>
+
+              {/* Password */}
+              <div className="space-y-2">
+                <div className="flex justify-between items-center ml-1">
+                  <label htmlFor="login-password-input" className="text-[13px] font-bold text-[#222222] tracking-wide">
+                    Password
+                  </label>
+                  <button
+                    type="button"
+                    className="text-[13px] font-bold text-primary hover:underline underline-offset-4"
+                  >
+                    Forgot password?
+                  </button>
+                </div>
+                <div className="relative border border-[#DDDDDD] rounded-2xl overflow-hidden focus-within:ring-4 focus-within:ring-primary/10 focus-within:border-primary/50 transition-all bg-slate-50/50">
+                  <input
+                    id="login-password-input"
+                    type={showPassword ? "text" : "password"}
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    className="w-full bg-transparent py-4 pl-4 pr-16 text-base text-[#222222] outline-none placeholder:text-[#B0B0B0] font-medium h-14"
+                    placeholder="Enter your password"
+                    autoComplete="current-password"
+                    required
+                  />
+                  <button
+                    id="login-show-password-button"
+                    type="button"
+                    onClick={() => setShowPassword(!showPassword)}
+                    className="absolute right-4 top-1/2 -translate-y-1/2 text-[#717171] hover:text-[#222222] transition-colors"
+                  >
+                    {showPassword ? <EyeOff size={20} /> : <Eye size={20} />}
+                  </button>
+                </div>
+              </div>
+
+              {availableRoles.length > 0 && (
+                <div className="flex items-center gap-2 px-1">
+                  <ShieldCheck className="w-4 h-4 text-emerald-500" />
+                  <p className="text-[12px] text-emerald-600 font-bold uppercase tracking-tight">
+                    Found roles: {availableRoles.join(", ")}
+                  </p>
+                </div>
               )}
 
               <Button
+                id="login-submit-button"
                 type="submit"
-                className="w-full h-14 rounded-xl bg-primary text-base font-bold text-white shadow-xl shadow-primary/20 hover:scale-[1.02] active:scale-[0.98] transition-all"
+                className="w-full bg-primary hover:bg-primary/95 text-white font-bold py-4 rounded-2xl shadow-xl shadow-primary/10 transition-all active:scale-[0.98] h-14 text-base mt-2"
                 disabled={loading}
               >
-                {loading ? "Verifying..." : "Sign In"}
-                {!loading && <ArrowRight className="ml-2 h-5 w-5" />}
+                {loading ? (
+                  <Loader2 className="w-5 h-5 animate-spin mx-auto" />
+                ) : (
+                  "Log in"
+                )}
               </Button>
             </form>
 
-            <div className="mt-8 flex items-center gap-4 text-slate-300">
-              <div className="h-px flex-1 bg-slate-100"></div>
-              <span className="text-[10px] font-bold uppercase tracking-[0.2em]">Social Sign In</span>
-              <div className="h-px flex-1 bg-slate-100"></div>
+            <div className="mt-4 flex justify-start">
+              <button
+                type="button"
+                className="text-sm font-semibold text-[#222222] underline hover:text-black transition-colors"
+              >
+                Forgot password?
+              </button>
             </div>
 
-            <div className="mt-8 flex justify-center scale-105">
-              <GoogleLogin
-                onSuccess={handleGoogleSuccess}
-                onError={() => {
-                  setError("Google sign-in was unsuccessful. Please try again.");
-                }}
-                useOneTap
-                theme="outline"
-                shape="pill"
-                width="320px"
-              />
+            {/* Divider */}
+            <div className="my-6 flex items-center gap-4">
+              <div className="h-px flex-1 bg-[#DDDDDD]" />
+              <span className="text-[12px] text-[#717171]">or</span>
+              <div className="h-px flex-1 bg-[#DDDDDD]" />
             </div>
 
-            <div className="mt-10 flex flex-col space-y-6 text-center">
-              <p className="text-sm font-medium text-[#717171]">
+            {/* Social Logins */}
+            <div className="space-y-4">
+              {/* Google Button Wrapper */}
+              <div className="relative h-[48px] border border-[#222222] rounded-lg overflow-hidden hover:bg-slate-50 transition-colors">
+                <div className="absolute inset-0 z-10 opacity-0 cursor-pointer scale-[5] origin-top-left">
+                  <GoogleLogin
+                    onSuccess={handleGoogleSuccess}
+                    onError={() => setError("Google sign-in was unsuccessful. Please try again.")}
+                    width="100%"
+                    theme="outline"
+                  />
+                </div>
+                <div className="absolute inset-0 flex items-center justify-center gap-3 pointer-events-none">
+                  {/* Google Icon Placeholder or SVG */}
+                  <svg viewBox="0 0 18 18" width="18" height="18" xmlns="http://www.w3.org/2000/svg">
+                    <path d="M17.64 9.2c0-.637-.057-1.251-.164-1.84H9v3.481h4.844c-.209 1.125-.843 2.078-1.796 2.717v2.258h2.908c1.702-1.567 2.684-3.874 2.684-6.615z" fill="#4285f4" />
+                    <path d="M9 18c2.43 0 4.467-.806 5.956-2.184l-2.908-2.259c-.806.54-1.837.86-3.048.86-2.344 0-4.328-1.584-5.036-3.711H.957v2.332A8.997 8.997 0 0 0 9 18z" fill="#34a853" />
+                    <path d="M3.964 10.706c-.18-.54-.282-1.117-.282-1.706s.102-1.166.282-1.706V4.962H.957A8.996 8.996 0 0 0 0 9c0 1.452.348 2.827.957 4.038l3.007-2.332z" fill="#fbbc05" />
+                    <path d="M9 3.58c1.321 0 2.508.454 3.44 1.345l2.582-2.58C13.463.891 11.426 0 9 0A8.997 8.997 0 0 0 .957 4.962l3.007 2.332C4.672 5.164 6.656 3.58 9 3.58z" fill="#ea4335" />
+                  </svg>
+                  <span className="text-sm font-semibold text-[#222222]">Continue with Google</span>
+                </div>
+              </div>
+
+              <button
+                onClick={() => navigate("/")}
+                className="w-full flex items-center justify-center border border-[#222222] rounded-lg py-3 px-6 hover:bg-slate-50 transition-colors relative"
+              >
+                <ShieldCheck className="absolute left-6 top-1/2 -translate-y-1/2 w-5 h-5" />
+                <span className="text-sm font-semibold text-[#222222]">Continue as Guest</span>
+              </button>
+            </div>
+
+            <div className="mt-8 pt-6 border-t border-[#DDDDDD] flex flex-col items-center gap-4 text-center">
+              <p className="text-[#222222] text-sm font-normal">
                 Don't have an account?{" "}
-                <Link to="/register" className="font-bold text-[#222222] hover:underline underline-offset-4">
-                  Create one free
+                <Link
+                  id="login-register-link"
+                  to="/register"
+                  className="font-semibold underline hover:text-black"
+                >
+                  Sign up
                 </Link>
               </p>
-              <div className="pt-6 border-t border-slate-50">
-                <Link to="/admin/login" className="text-[10px] font-bold uppercase tracking-[0.2em] text-slate-400 hover:text-primary transition-colors">
-                  System Administration
-                </Link>
-              </div>
+              <Link
+                to="/admin/login"
+                className="text-[11px] font-bold uppercase tracking-wider text-[#717171] hover:text-[#222222] transition-colors mt-2"
+              >
+                System Administration
+              </Link>
             </div>
           </div>
-        </div>
+        </motion.div>
       </div>
     </main>
+
   );
 };
 

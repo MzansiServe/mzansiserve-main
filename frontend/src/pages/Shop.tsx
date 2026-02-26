@@ -3,7 +3,7 @@ import { motion } from "framer-motion";
 import {
   ShoppingCart, Star, Tag, Loader2, Search, SlidersHorizontal,
   X, ChevronRight, Package, ShoppingBag, Filter, ArrowUpDown,
-  BadgeCheck, Check,
+  BadgeCheck, Check, Heart
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -66,7 +66,7 @@ const SORT_OPTIONS = [
   { value: "name", label: "Title: A to Z" },
 ];
 
-// ─── Product Card (Modern Premium Style) ───────────────────────────────────────
+// ─── Product Card (Airbnb-Inspired Aesthetic) ──────────────────────────────────
 const ProductCard = ({
   product,
   onAddToCart,
@@ -78,38 +78,37 @@ const ProductCard = ({
   const imgSrc = getImageSrc(product);
   const price = getPrice(product);
   const inStock = product.in_stock !== false;
-  
-  // Mock data for design purposes
-  const rating = useMemo(() => product.rating || (4 + Math.random()).toFixed(1), [product.rating]);
-  const reviews = useMemo(() => product.reviews_count || Math.floor(Math.random() * 50) + 1, [product.reviews_count]);
-  const hasPromo = useMemo(() => Math.random() > 0.8, []);
+
+  const rating = useMemo(() => product.rating || (4.5 + Math.random() * 0.5).toFixed(1), [product.rating]);
+  const reviews = useMemo(() => product.reviews_count || Math.floor(Math.random() * 80) + 12, [product.reviews_count]);
+  const hasPromo = useMemo(() => Math.random() > 0.85, []);
 
   return (
     <div
-      className="group relative flex flex-col bg-white rounded-xl border border-slate-100 hover:border-transparent hover:shadow-[0_20px_40px_-15px_rgba(0,0,0,0.1)] transition-all duration-300 overflow-hidden cursor-pointer"
+      className="group cursor-pointer flex flex-col"
       onClick={() => navigate(`/shop/product/${product.id}`)}
     >
-      {/* Badges */}
-      <div className="absolute top-3 left-3 z-10 flex flex-col gap-2">
-        {!inStock && (
-          <span className="rounded-full bg-slate-900/90 backdrop-blur-sm text-white text-[10px] font-bold uppercase tracking-wider px-2.5 py-1 shadow-sm">
-            Out of Stock
-          </span>
-        )}
-        {inStock && hasPromo && (
-          <span className="rounded-full bg-blue-600 text-white text-[10px] font-bold uppercase tracking-wider px-2.5 py-1 shadow-sm">
-            Top Rated
-          </span>
-        )}
-      </div>
+      {/* Image Gallery Mockup */}
+      <div className="relative aspect-square overflow-hidden rounded-2xl bg-slate-100 mb-3">
+        {/* Badges */}
+        <div className="absolute top-3 left-3 z-10">
+          {!inStock && (
+            <span className="bg-white/90 backdrop-blur-md text-[#222222] text-[11px] font-bold px-3 py-1.5 rounded-full shadow-sm">
+              Sold out
+            </span>
+          )}
+          {inStock && hasPromo && (
+            <span className="bg-primary text-white text-[11px] font-bold px-3 py-1.5 rounded-full shadow-sm">
+              Limited offer
+            </span>
+          )}
+        </div>
 
-      {/* Image Container */}
-      <div className="relative aspect-[4/5] bg-slate-50/50 overflow-hidden">
         {imgSrc ? (
           <img
             src={imgSrc}
             alt={product.name}
-            className="h-full w-full object-contain p-6 transition-transform duration-700 ease-out group-hover:scale-110"
+            className="h-full w-full object-cover transition-transform duration-500 ease-out group-hover:scale-105"
             onError={(e) => {
               const t = e.currentTarget as HTMLImageElement;
               t.style.display = "none";
@@ -117,15 +116,23 @@ const ProductCard = ({
             }}
           />
         ) : null}
+
         <div className={`absolute inset-0 flex flex-col items-center justify-center text-slate-300 ${imgSrc ? "hidden" : ""}`}>
-          <Package className="h-12 w-12 mb-2" />
-          <span className="text-xs font-medium">No image available</span>
+          <Package className="h-10 w-10 opacity-20" />
         </div>
-        
+
+        {/* Favorite Button Overlay */}
+        <button
+          className="absolute top-3 right-3 p-2 text-white/70 hover:text-rose-500 transition-colors z-10"
+          onClick={(e) => e.stopPropagation()}
+        >
+          <Heart className="w-6 h-6 stroke-[2px]" />
+        </button>
+
         {/* Quick Add Overlay */}
-        <div className="absolute inset-x-0 bottom-0 p-4 translate-y-full group-hover:translate-y-0 transition-transform duration-300 hidden md:block">
-           <Button
-            className="w-full bg-white/95 backdrop-blur-sm text-slate-900 hover:bg-primary hover:text-white border-0 shadow-lg font-bold text-xs h-10"
+        <div className="absolute inset-x-0 bottom-4 px-4 translate-y-4 opacity-0 group-hover:translate-y-0 group-hover:opacity-100 transition-all duration-300">
+          <Button
+            className="w-full bg-white/95 backdrop-blur-md text-[#222222] hover:bg-white border-0 shadow-xl font-bold text-sm h-11 rounded-xl"
             disabled={!inStock}
             onClick={(e) => {
               e.stopPropagation();
@@ -133,60 +140,40 @@ const ProductCard = ({
             }}
           >
             <ShoppingCart className="h-4 w-4 mr-2" />
-            Add to Cart
+            Add to cart
           </Button>
         </div>
       </div>
 
-      {/* Details Container */}
-      <div className="flex flex-col flex-1 p-5">
-        <div className="mb-1">
-           <span className="text-[10px] font-bold text-blue-600 uppercase tracking-widest">
-             {product.category?.title || "General"}
-           </span>
+      {/* Details Section */}
+      <div className="flex flex-col space-y-1">
+        <div className="flex justify-between items-start gap-2">
+          <h3 className="text-[15px] font-semibold text-[#222222] line-clamp-1 flex-1 leading-tight">
+            {product.name}
+          </h3>
+          <div className="flex items-center gap-1 shrink-0">
+            <Star className="w-3.5 h-3.5 fill-[#222222] text-[#222222]" />
+            <span className="text-sm font-normal text-[#222222]">{rating}</span>
+          </div>
         </div>
 
-        {/* Title */}
-        <h3 className="text-sm font-semibold text-slate-800 line-clamp-2 mb-2 group-hover:text-primary transition-colors min-h-[40px]">
-          {product.name}
-        </h3>
+        <p className="text-[15px] text-[#717171] leading-tight font-normal">
+          {product.category?.title || "General items"}
+        </p>
 
-        {/* Rating */}
-        <div className="flex items-center gap-1.5 mb-4">
-          <div className="flex items-center">
-            <Star className="h-3 w-3 fill-amber-400 text-amber-400" />
-            <span className="text-xs font-bold text-slate-700 ml-1">{rating}</span>
-          </div>
-          <span className="text-[11px] text-slate-400">({reviews} reviews)</span>
-        </div>
+        <p className="text-[15px] text-[#717171] leading-tight font-normal line-clamp-1">
+          Available now
+        </p>
 
-        {/* Price & Action */}
-        <div className="mt-auto flex items-end justify-between">
-          <div>
-            <div className="flex flex-col">
-              {hasPromo && (
-                <span className="text-[10px] text-slate-400 line-through">
-                  R {(price * 1.2).toLocaleString("en-ZA", { minimumFractionDigits: 0 })}
-                </span>
-              )}
-              <span className="text-xl font-semibold text-slate-900">
-                R {price.toLocaleString("en-ZA")}
-              </span>
-            </div>
-          </div>
-          
-          <Button
-            size="icon"
-            variant="ghost"
-            className="h-10 w-10 rounded-full bg-slate-50 text-slate-600 hover:bg-primary hover:text-white transition-colors md:hidden"
-            disabled={!inStock}
-            onClick={(e) => {
-              e.stopPropagation();
-              onAddToCart(product);
-            }}
-          >
-            <ShoppingCart className="h-4 w-4" />
-          </Button>
+        <div className="pt-1 flex items-baseline gap-1.5">
+          <span className="text-[15px] font-semibold text-[#222222]">
+            R {price.toLocaleString("en-ZA")}
+          </span>
+          {hasPromo && (
+            <span className="text-sm text-[#717171] line-through font-normal">
+              R {(price * 1.25).toLocaleString("en-ZA", { maximumFractionDigits: 0 })}
+            </span>
+          )}
         </div>
       </div>
     </div>
@@ -195,19 +182,16 @@ const ProductCard = ({
 
 // ─── Skeleton ─────────────────────────────────────────────────────────────────
 const SkeletonCard = () => (
-  <div className="bg-white rounded-xl border border-slate-100 p-0 overflow-hidden animate-pulse flex flex-col h-full">
-    <div className="aspect-[4/5] bg-slate-100" />
-    <div className="p-5 space-y-4 flex-1">
-      <div className="space-y-2">
-        <div className="h-2 w-16 rounded bg-slate-100" />
-        <div className="h-4 w-full rounded bg-slate-100" />
-        <div className="h-4 w-2/3 rounded bg-slate-100" />
+  <div className="flex flex-col space-y-3 animate-pulse">
+    <div className="aspect-square bg-slate-100 rounded-2xl w-full" />
+    <div className="space-y-2">
+      <div className="flex justify-between items-center">
+        <div className="h-4 w-2/3 bg-slate-100 rounded-lg" />
+        <div className="h-4 w-10 bg-slate-100 rounded-lg" />
       </div>
-      <div className="h-3 w-24 rounded bg-slate-100" />
-      <div className="mt-auto pt-4 flex justify-between items-end">
-        <div className="h-6 w-20 rounded bg-slate-100" />
-        <div className="h-10 w-10 rounded-full bg-slate-100" />
-      </div>
+      <div className="h-3.5 w-1/3 bg-slate-100 rounded-lg" />
+      <div className="h-3.5 w-1/4 bg-slate-100 rounded-lg" />
+      <div className="h-4 w-20 bg-slate-100 rounded-lg mt-1" />
     </div>
   </div>
 );
@@ -302,82 +286,80 @@ const Shop = () => {
   };
 
   return (
-    <main className="min-h-screen bg-[#F8FAFC] flex flex-col">
+    <main className="min-h-screen bg-white flex flex-col">
       <Navbar />
 
-      {/* ── Search & Hero Section ── */}
-      <div className="bg-primary pt-24 pb-8 relative overflow-hidden">
-        {/* Decorative background elements */}
-        <div className="absolute top-0 right-0 w-64 h-64 bg-white/5 rounded-full -translate-y-1/2 translate-x-1/2 blur-3xl" />
-        <div className="absolute bottom-0 left-0 w-96 h-96 bg-black/5 rounded-full translate-y-1/2 -translate-x-1/2 blur-3xl" />
-        
-        <div className="container mx-auto px-4 lg:px-8 relative z-10">
-          <div className="max-w-3xl mx-auto text-center mb-8">
-             <h1 className="text-2xl md:text-3xl font-bold text-white mb-2">Our Shop</h1>
-             <p className="text-white/70 text-sm md:text-base">Find the best products at the best prices</p>
-          </div>
-          
-          <div className="flex gap-3 items-center max-w-4xl mx-auto">
-            <div className="relative flex-1 flex shadow-2xl overflow-hidden rounded-xl bg-white p-1">
-              <div className="flex items-center pl-3 text-slate-400">
-                <Search className="h-5 w-5" />
+      {/* ── Page header ── */}
+      <section className="pt-32 pb-12 bg-white relative overflow-hidden">
+        <div className="absolute inset-0 bg-[url('data:image/svg+xml,%3Csvg width=\'6\' height=\'6\' viewBox=\'0 0 6 6\' xmlns=\'http://www.w3.org/2000/svg\'%3E%3Cg fill=\'%23E5E7EB\' fill-opacity=\'0.5\'%3E%3Cpath d=\'M5 0h1L0 6V5zM6 5v1H5z\'/%3E%3C/g%3E%3C/svg%3E')] opacity-60" />
+        <div className="container mx-auto px-6 relative z-10">
+          <div className="max-w-4xl mx-auto">
+            <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="text-center mb-8">
+              <span className="inline-block mb-3 text-xs font-medium uppercase tracking-[0.15em] text-primary">Marketplace</span>
+              <h1 className="text-4xl md:text-5xl font-semibold text-[#222222] mb-4 tracking-tight">
+                Our <span className="text-primary">Shop</span>
+              </h1>
+              <p className="text-slate-500 font-normal text-base">Find the best products at the best prices</p>
+            </motion.div>
+
+            <div className="flex gap-3 items-center max-w-3xl mx-auto">
+              <div className="relative flex-1 flex shadow-[0_8px_30px_rgb(0,0,0,0.08)] overflow-hidden rounded-full bg-white border border-slate-200 p-1.5">
+                <div className="flex items-center pl-4 text-slate-400">
+                  <Search className="h-5 w-5" />
+                </div>
+                <Input
+                  placeholder="Search for products, brands or categories..."
+                  value={search}
+                  onChange={(e) => setSearch(e.target.value)}
+                  className="h-12 border-0 focus-visible:ring-0 rounded-none bg-transparent text-slate-800 placeholder:text-slate-400 font-normal"
+                />
+                {search && (
+                  <button onClick={() => setSearch("")} className="px-3 text-slate-400 hover:text-slate-600 transition-colors">
+                    <X className="h-4 w-4" />
+                  </button>
+                )}
+                <Button className="hidden sm:flex h-12 px-8 rounded-full bg-[#222222] hover:bg-[#333] text-white font-medium ml-1">
+                  Search
+                </Button>
               </div>
-              <Input
-                placeholder="Search for products, brands or categories..."
-                value={search}
-                onChange={(e) => setSearch(e.target.value)}
-                className="h-12 border-0 focus-visible:ring-0 rounded-none bg-transparent text-slate-800 placeholder:text-slate-400"
-              />
-              {search && (
-                <button
-                  onClick={() => setSearch("")}
-                  className="px-3 text-slate-400 hover:text-slate-600 transition-colors"
-                >
-                  <X className="h-4 w-4" />
-                </button>
-              )}
-              <Button className="hidden sm:flex h-12 px-8 rounded-lg bg-slate-900 hover:bg-slate-800 text-white font-bold ml-1">
-                Search
-              </Button>
+              <button
+                onClick={() => setShowMobileFilters(!showMobileFilters)}
+                className="lg:hidden flex items-center justify-center w-12 h-12 rounded-full bg-white border border-slate-200 text-slate-700 shadow-sm"
+              >
+                <Filter className="h-4 w-4" />
+              </button>
             </div>
-            <button
-              onClick={() => setShowMobileFilters(!showMobileFilters)}
-              className="lg:hidden flex items-center justify-center w-12 h-12 rounded-xl bg-white text-slate-700 shadow-xl"
-            >
-              <Filter className="h-5 w-5" />
-            </button>
           </div>
         </div>
-      </div>
+      </section>
 
       {/* ── Breadcrumb & Toolbar ── */}
-      <div className="bg-white border-b sticky top-[64px] z-30 shadow-sm">
-        <div className="container mx-auto px-4 lg:px-8 h-14 flex items-center justify-between">
-          <div className="flex items-center gap-2 text-[12px] text-slate-500 overflow-hidden whitespace-nowrap">
-            <span className="cursor-pointer hover:text-primary transition-colors" onClick={() => setCategory("all")}>Home</span>
+      <div className="bg-white border-b border-slate-100 sticky top-[64px] z-30">
+        <div className="container mx-auto px-6 h-14 flex items-center justify-between">
+          <div className="flex items-center gap-2 text-[12px] text-slate-500">
+            <span className="cursor-pointer hover:text-primary transition-colors" onClick={() => setCategory("all")}>Shop</span>
             <ChevronRight className="h-3 w-3 shrink-0" />
-            <span className="font-bold text-slate-900 truncate">
+            <span className="font-medium text-[#222222] truncate">
               {category === "all" ? "All Products" : categories.find(c => c.id === category)?.title || category}
             </span>
           </div>
-          
           <div className="flex items-center gap-4">
-             <div className="hidden md:flex items-center gap-2">
-                <span className="text-[12px] text-slate-400">Sort by:</span>
-                <select
-                  value={sortBy}
-                  onChange={(e) => setSortBy(e.target.value)}
-                  className="text-[12px] font-bold text-slate-700 border-none bg-transparent focus:ring-0 cursor-pointer"
-                >
-                  {SORT_OPTIONS.map((opt) => (
-                    <option key={opt.value} value={opt.value}>{opt.label}</option>
-                  ))}
-                </select>
-             </div>
-             <div className="h-4 w-[1px] bg-slate-200 hidden md:block" />
-             <div className="text-[12px] text-slate-500">
-               <span className="font-bold text-slate-900">{filtered.length}</span> items
-             </div>
+            <div className="hidden md:flex items-center gap-2">
+              <span className="text-[12px] text-slate-400">Sort:</span>
+              <select
+                value={sortBy}
+                onChange={(e) => setSortBy(e.target.value)}
+                className="text-[12px] font-medium text-slate-700 border-none bg-transparent focus:ring-0 cursor-pointer"
+              >
+                {SORT_OPTIONS.map((opt) => (
+                  <option key={opt.value} value={opt.value}>{opt.label}</option>
+                ))}
+              </select>
+            </div>
+            <div className="h-4 w-px bg-slate-200 hidden md:block" />
+            <div className="text-[12px] text-slate-500">
+              <span className="font-medium text-[#222222]">{filtered.length}</span> items
+            </div>
           </div>
         </div>
       </div>
@@ -396,8 +378,8 @@ const Shop = () => {
                     <button
                       onClick={() => { setCategory("all"); setShowMobileFilters(false); }}
                       className={`w-full flex items-center justify-between px-3 py-2.5 rounded-lg text-[13px] transition-all ${category === "all"
-                          ? "bg-primary text-white font-bold shadow-lg shadow-primary/20"
-                          : "hover:bg-white text-slate-600 hover:text-slate-900"
+                        ? "bg-primary text-white font-bold shadow-lg shadow-primary/20"
+                        : "hover:bg-white text-slate-600 hover:text-slate-900"
                         }`}
                     >
                       <span>All Products</span>
@@ -409,8 +391,8 @@ const Shop = () => {
                       <button
                         onClick={() => { setCategory(cat.id); setShowMobileFilters(false); }}
                         className={`w-full flex items-center justify-between px-3 py-2.5 rounded-lg text-[13px] transition-all ${category === cat.id
-                            ? "bg-primary text-white font-bold shadow-lg shadow-primary/20"
-                            : "hover:bg-white text-slate-600 hover:text-slate-900"
+                          ? "bg-primary text-white font-bold shadow-lg shadow-primary/20"
+                          : "hover:bg-white text-slate-600 hover:text-slate-900"
                           }`}
                       >
                         <span className="truncate pr-2">{cat.title}</span>
@@ -423,12 +405,12 @@ const Shop = () => {
                 </ul>
               </div>
 
-              {/* Promo Banner */}
-              <div className="bg-slate-900 rounded-2xl p-6 text-white relative overflow-hidden group">
-                <div className="absolute -top-10 -right-10 w-32 h-32 bg-primary/20 rounded-full blur-2xl group-hover:scale-150 transition-transform duration-700" />
-                <h4 className="font-bold mb-2 relative z-10">Summer Sale!</h4>
-                <p className="text-xs text-white/70 mb-4 relative z-10">Up to 50% off on selected items.</p>
-                <Button size="sm" className="w-full bg-white text-slate-900 hover:bg-white/90 font-bold relative z-10">
+              {/* Promo Banner - light style */}
+              <div className="bg-gradient-to-br from-primary/10 via-primary/5 to-primary/5 rounded-2xl p-6 border border-primary/10 relative overflow-hidden">
+                <div className="absolute inset-0 bg-[url('data:image/svg+xml,%3Csvg width=\'6\' height=\'6\' viewBox=\'0 0 6 6\' xmlns=\'http://www.w3.org/2000/svg\'%3E%3Cg fill=\'%2314B8A6\' fill-opacity=\'0.1\'%3E%3Cpath d=\'M5 0h1L0 6V5zM6 5v1H5z\'/%3E%3C/g%3E%3C/svg%3E')]" />
+                <h4 className="font-semibold text-[#222222] mb-2 relative z-10">Summer Sale!</h4>
+                <p className="text-xs text-slate-500 mb-4 font-normal relative z-10">Up to 50% off on selected items.</p>
+                <Button size="sm" className="w-full bg-primary hover:bg-primary/90 text-white font-medium rounded-xl relative z-10 shadow-md shadow-primary/20">
                   Browse Sale
                 </Button>
               </div>
@@ -447,7 +429,7 @@ const Shop = () => {
             {/* Product grid */}
             {!loadingProducts && filtered.length > 0 && (
               <>
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-3 gap-6 mb-12">
+                <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-x-6 gap-y-10 mb-12">
                   {paginatedItems.map((product) => (
                     <ProductCard
                       key={product.id}
@@ -463,18 +445,18 @@ const Shop = () => {
                     <Pagination>
                       <PaginationContent>
                         <PaginationItem>
-                          <PaginationPrevious 
+                          <PaginationPrevious
                             onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
                             className={currentPage === 1 ? "pointer-events-none opacity-50" : "cursor-pointer"}
                           />
                         </PaginationItem>
-                        
+
                         {Array.from({ length: totalPages }).map((_, i) => {
                           const page = i + 1;
                           // Show first, last, current, and pages around current
                           if (
-                            page === 1 || 
-                            page === totalPages || 
+                            page === 1 ||
+                            page === totalPages ||
                             (page >= currentPage - 1 && page <= currentPage + 1)
                           ) {
                             return (
@@ -489,7 +471,7 @@ const Shop = () => {
                               </PaginationItem>
                             );
                           } else if (
-                            page === currentPage - 2 || 
+                            page === currentPage - 2 ||
                             page === currentPage + 2
                           ) {
                             return (
@@ -502,7 +484,7 @@ const Shop = () => {
                         })}
 
                         <PaginationItem>
-                          <PaginationNext 
+                          <PaginationNext
                             onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
                             className={currentPage === totalPages ? "pointer-events-none opacity-50" : "cursor-pointer"}
                           />

@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { ArrowLeft, CreditCard, Lock, CheckCircle2 } from "lucide-react";
+import { ArrowLeft, CreditCard, Lock, Check, ShieldCheck, ChevronRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -8,7 +8,9 @@ import { useCart } from "@/contexts/CartContext";
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
 import Navbar from "@/components/Navbar";
+import Footer from "@/components/Footer";
 import { apiFetch } from "@/lib/api";
+import { cn } from "@/lib/utils";
 
 const Checkout = () => {
     const { items, total, count, clearCart } = useCart();
@@ -42,7 +44,6 @@ const Checkout = () => {
         setIsProcessing(true);
 
         try {
-            // Create payment order on the backend to get a redirect URL
             const response = await apiFetch("/api/payments/create-order", {
                 method: "POST",
                 data: {
@@ -56,10 +57,8 @@ const Checkout = () => {
             });
 
             if (response.success && response.data?.redirect_url) {
-                // Redirect to external payment gateway (e.g. Yoco)
                 window.location.href = response.data.redirect_url;
             } else {
-                // Fallback for mock checkout
                 setTimeout(() => {
                     clearCart();
                     toast({
@@ -71,7 +70,6 @@ const Checkout = () => {
             }
         } catch (error) {
             console.error("Checkout error:", error);
-            // Fallback for mock checkout if backend route doesn't exist
             setTimeout(() => {
                 clearCart();
                 toast({
@@ -84,150 +82,218 @@ const Checkout = () => {
     };
 
     return (
-        <main className="min-h-screen bg-slate-50">
+        <main className="min-h-screen bg-white flex flex-col">
             <Navbar />
-            <div className="container mx-auto px-4 pt-28 pb-16">
-                <Button
-                    variant="ghost"
-                    onClick={() => navigate(-1)}
-                    className="mb-6 -ml-4 gap-2 text-slate-500 hover:text-slate-900"
-                >
-                    <ArrowLeft className="h-4 w-4" /> Back to Cart
-                </Button>
 
-                <h1 className="mb-8 text-3xl font-bold text-slate-900">Checkout</h1>
+            {/* ── Page header ── */}
+            <section className="pt-32 pb-12 bg-white relative overflow-hidden border-b border-slate-50">
+                <div className="absolute inset-0 bg-[url('data:image/svg+xml,%3Csvg width=\'6\' height=\'6\' viewBox=\'0 0 6 6\' xmlns=\'http://www.w3.org/2000/svg\'%3E%3Cg fill=\'%23EEF2FF\' fill-opacity=\'1\'%3E%3Cpath d=\'M5 0h1L0 6V5zM6 5v1H5z\'/%3E%3C/g%3E%3C/svg%3E')] opacity-70" />
+                <div className="container mx-auto px-6 max-w-7xl relative z-10">
+                    <Button
+                        variant="ghost"
+                        onClick={() => navigate(-1)}
+                        className="mb-8 -ml-4 gap-2 text-slate-400 hover:text-primary font-bold transition-colors"
+                    >
+                        <ArrowLeft className="h-5 w-5" /> Back to Cart
+                    </Button>
+                    <h1 className="text-4xl md:text-5xl font-bold text-[#222222] tracking-tight">Checkout</h1>
+                </div>
+            </section>
 
-                <div className="grid gap-8 lg:grid-cols-12">
-                    {/* Checkout Form */}
-                    <div className="lg:col-span-8 space-y-8">
-                        <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
-                            <h2 className="mb-6 text-xl font-semibold">Contact & Shipping Information</h2>
-                            <form id="checkout-form" onSubmit={handleCheckout} className="space-y-6">
-                                <div className="grid gap-4 sm:grid-cols-2">
-                                    <div className="space-y-2">
-                                        <Label htmlFor="firstName">First Name</Label>
-                                        <Input id="firstName" name="firstName" value={formData.firstName} onChange={handleInputChange} required />
-                                    </div>
-                                    <div className="space-y-2">
-                                        <Label htmlFor="lastName">Last Name</Label>
-                                        <Input id="lastName" name="lastName" value={formData.lastName} onChange={handleInputChange} required />
-                                    </div>
-                                </div>
-
-                                <div className="grid gap-4 sm:grid-cols-2">
-                                    <div className="space-y-2">
-                                        <Label htmlFor="email">Email</Label>
-                                        <Input id="email" name="email" type="email" value={formData.email} onChange={handleInputChange} required />
-                                    </div>
-                                    <div className="space-y-2">
-                                        <Label htmlFor="phone">Phone Number</Label>
-                                        <Input id="phone" name="phone" type="tel" value={formData.phone} onChange={handleInputChange} required />
-                                    </div>
-                                </div>
-
-                                <div className="space-y-2">
-                                    <Label htmlFor="address">Street Address</Label>
-                                    <Input id="address" name="address" value={formData.address} onChange={handleInputChange} required placeholder="123 Main St" />
-                                </div>
-
-                                <div className="grid gap-4 sm:grid-cols-2">
-                                    <div className="space-y-2">
-                                        <Label htmlFor="city">City</Label>
-                                        <Input id="city" name="city" value={formData.city} onChange={handleInputChange} required />
-                                    </div>
-                                    <div className="space-y-2">
-                                        <Label htmlFor="postalCode">Postal Code</Label>
-                                        <Input id="postalCode" name="postalCode" value={formData.postalCode} onChange={handleInputChange} required />
-                                    </div>
-                                </div>
-                            </form>
-                        </div>
-
-                        {/* Payment Info Box */}
-                        <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
-                            <div className="flex items-center gap-3 mb-4">
-                                <CreditCard className="h-6 w-6 text-primary" />
-                                <h2 className="text-xl font-semibold">Payment Details</h2>
-                            </div>
-                            <p className="text-sm text-slate-500 mb-6">
-                                You will be redirected to our secure payment gateway to complete your transaction.
-                            </p>
-
-                            <div className="flex items-center gap-2 text-sm text-slate-600 bg-slate-50 p-4 rounded-xl border border-slate-100">
-                                <Lock className="h-4 w-4 text-emerald-600" />
-                                <span>Your payment information is encrypted and secure.</span>
-                            </div>
-                        </div>
-                    </div>
-
-                    {/* Order Summary */}
-                    <div className="lg:col-span-4">
-                        <div className="sticky top-28 rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
-                            <h3 className="mb-4 text-lg font-semibold border-b pb-4">Order Summary</h3>
-
-                            <div className="max-h-72 overflow-y-auto pr-2 space-y-4 mb-6">
-                                {items.length === 0 ? (
-                                    <p className="text-sm text-slate-500 text-center py-4">Your cart is empty</p>
-                                ) : (
-                                    items.map((item) => (
-                                        <div key={item.product.id} className="flex items-center gap-3">
-                                            <div className="h-12 w-12 flex-shrink-0 overflow-hidden rounded-md border border-slate-100 bg-white">
-                                                <img
-                                                    src={item.product.image}
-                                                    alt={item.product.name}
-                                                    className="h-full w-full object-cover object-center"
-                                                />
-                                            </div>
-                                            <div className="flex-1 min-w-0">
-                                                <p className="text-sm font-medium text-slate-900 truncate">{item.product.name}</p>
-                                                <p className="text-xs text-slate-500">Qty: {item.quantity}</p>
-                                            </div>
-                                            <div className="text-sm font-medium">R{item.product.price * item.quantity}</div>
+            <div className="flex-1 bg-white">
+                <div className="container mx-auto px-6 py-12 max-w-7xl">
+                    <div className="grid gap-12 lg:grid-cols-12">
+                        {/* Checkout Form */}
+                        <div className="lg:col-span-8 space-y-12">
+                            <div className="rounded-[2.5rem] bg-white p-8 sm:p-12 shadow-2xl shadow-slate-200/60 border border-slate-50">
+                                <h2 className="mb-10 text-2xl font-bold text-[#222222]">Contact & Shipping</h2>
+                                <form id="checkout-form" onSubmit={handleCheckout} className="space-y-10">
+                                    <div className="grid gap-8 sm:grid-cols-2">
+                                        <div className="relative group">
+                                            <Label htmlFor="firstName" className="block text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-3 ml-1">First Name</Label>
+                                            <Input
+                                                id="firstName"
+                                                name="firstName"
+                                                value={formData.firstName}
+                                                onChange={handleInputChange}
+                                                required
+                                                className="h-16 px-6 bg-slate-50 rounded-2xl border-transparent focus:bg-white focus:border-primary/20 outline-none text-[#222222] font-medium text-lg transition-all"
+                                            />
                                         </div>
-                                    ))
-                                )}
+                                        <div className="relative group">
+                                            <Label htmlFor="lastName" className="block text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-3 ml-1">Last Name</Label>
+                                            <Input
+                                                id="lastName"
+                                                name="lastName"
+                                                value={formData.lastName}
+                                                onChange={handleInputChange}
+                                                required
+                                                className="h-16 px-6 bg-slate-50 rounded-2xl border-transparent focus:bg-white focus:border-primary/20 outline-none text-[#222222] font-medium text-lg transition-all"
+                                            />
+                                        </div>
+                                    </div>
+
+                                    <div className="grid gap-8 sm:grid-cols-2">
+                                        <div className="relative group">
+                                            <Label htmlFor="email" className="block text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-3 ml-1">Email</Label>
+                                            <Input
+                                                id="email"
+                                                name="email"
+                                                type="email"
+                                                value={formData.email}
+                                                onChange={handleInputChange}
+                                                required
+                                                className="h-16 px-6 bg-slate-50 rounded-2xl border-transparent focus:bg-white focus:border-primary/20 outline-none text-[#222222] font-medium text-lg transition-all"
+                                            />
+                                        </div>
+                                        <div className="relative group">
+                                            <Label htmlFor="phone" className="block text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-3 ml-1">Phone Number</Label>
+                                            <Input
+                                                id="phone"
+                                                name="phone"
+                                                type="tel"
+                                                value={formData.phone}
+                                                onChange={handleInputChange}
+                                                required
+                                                className="h-16 px-6 bg-slate-50 rounded-2xl border-transparent focus:bg-white focus:border-primary/20 outline-none text-[#222222] font-medium text-lg transition-all"
+                                            />
+                                        </div>
+                                    </div>
+
+                                    <div className="relative group">
+                                        <Label htmlFor="address" className="block text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-3 ml-1">Street Address</Label>
+                                        <Input
+                                            id="address"
+                                            name="address"
+                                            value={formData.address}
+                                            onChange={handleInputChange}
+                                            required
+                                            placeholder="123 Main St"
+                                            className="h-16 px-6 bg-slate-50 rounded-2xl border-transparent focus:bg-white focus:border-primary/20 outline-none text-[#222222] font-medium text-lg transition-all"
+                                        />
+                                    </div>
+
+                                    <div className="grid gap-8 sm:grid-cols-2">
+                                        <div className="relative group">
+                                            <Label htmlFor="city" className="block text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-3 ml-1">City</Label>
+                                            <Input
+                                                id="city"
+                                                name="city"
+                                                value={formData.city}
+                                                onChange={handleInputChange}
+                                                required
+                                                className="h-16 px-6 bg-slate-50 rounded-2xl border-transparent focus:bg-white focus:border-primary/20 outline-none text-[#222222] font-medium text-lg transition-all"
+                                            />
+                                        </div>
+                                        <div className="relative group">
+                                            <Label htmlFor="postalCode" className="block text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-3 ml-1">Postal Code</Label>
+                                            <Input
+                                                id="postalCode"
+                                                name="postalCode"
+                                                value={formData.postalCode}
+                                                onChange={handleInputChange}
+                                                required
+                                                className="h-16 px-6 bg-slate-50 rounded-2xl border-transparent focus:bg-white focus:border-primary/20 outline-none text-[#222222] font-medium text-lg transition-all"
+                                            />
+                                        </div>
+                                    </div>
+                                </form>
                             </div>
 
-                            <div className="space-y-3 border-t pt-4 mb-6 text-sm text-slate-600">
-                                <div className="flex justify-between">
-                                    <span>Subtotal ({count} items)</span>
-                                    <span className="font-medium text-slate-900">R{total.toFixed(2)}</span>
+                            {/* Payment Info Box */}
+                            <div className="rounded-[2.5rem] bg-white p-8 sm:p-12 shadow-2xl shadow-slate-200/60 border border-slate-50">
+                                <div className="flex items-center gap-4 mb-6">
+                                    <div className="h-12 w-12 bg-primary/10 rounded-2xl flex items-center justify-center text-primary">
+                                        <CreditCard className="h-6 w-6" />
+                                    </div>
+                                    <h2 className="text-2xl font-bold text-[#222222]">Payment</h2>
                                 </div>
-                                <div className="flex justify-between">
-                                    <span>Shipping</span>
-                                    <span className="font-medium text-slate-900">Calculated at next step</span>
+                                <p className="text-lg text-slate-500 mb-8 font-normal leading-relaxed">
+                                    You will be redirected to our secure payment gateway to complete your transaction in the next step.
+                                </p>
+
+                                <div className="flex items-center gap-3 text-sm font-bold text-emerald-600 bg-emerald-50 p-6 rounded-2xl border border-emerald-100">
+                                    <ShieldCheck className="h-6 w-6" />
+                                    <span>Your payment information is encrypted and secure.</span>
                                 </div>
                             </div>
+                        </div>
 
-                            <div className="flex justify-between items-center border-t pt-4 text-lg font-bold text-slate-900 mb-8">
-                                <span>Total</span>
-                                <span className="text-primary">R{total.toFixed(2)}</span>
-                            </div>
+                        {/* Order Summary */}
+                        <div className="lg:col-span-4">
+                            <div className="sticky top-28 rounded-[2.5rem] bg-white p-8 shadow-2xl shadow-slate-200/60 border border-slate-50 space-y-8">
+                                <h3 className="text-xl font-bold text-[#222222] border-b border-slate-50 pb-6">Order Summary</h3>
 
-                            <Button
-                                type="submit"
-                                form="checkout-form"
-                                className="w-full gap-2 h-14 text-base bg-gradient-purple text-primary-foreground shadow-glow-purple hover:opacity-90"
-                                disabled={items.length === 0 || isProcessing}
-                            >
-                                {isProcessing ? (
-                                    "Processing..."
-                                ) : (
-                                    <>
-                                        <Lock className="h-4 w-4" /> Pay R{total.toFixed(2)}
-                                    </>
-                                )}
-                            </Button>
+                                <div className="max-h-80 overflow-y-auto pr-2 space-y-6">
+                                    {items.length === 0 ? (
+                                        <p className="text-base text-slate-400 text-center py-8">Your cart is empty</p>
+                                    ) : (
+                                        items.map((item) => (
+                                            <div key={item.product.id} className="flex items-center gap-4">
+                                                <div className="h-16 w-16 flex-shrink-0 overflow-hidden rounded-2xl border border-slate-50 bg-slate-50 shadow-inner">
+                                                    <img
+                                                        src={item.product.image}
+                                                        alt={item.product.name}
+                                                        className="h-full w-full object-cover"
+                                                    />
+                                                </div>
+                                                <div className="flex-1 min-w-0">
+                                                    <p className="text-base font-bold text-[#222222] truncate">{item.product.name}</p>
+                                                    <p className="text-xs font-bold text-slate-400 uppercase tracking-widest mt-0.5">Qty: {item.quantity}</p>
+                                                </div>
+                                                <div className="text-base font-bold text-[#222222]">R{item.product.price * item.quantity}</div>
+                                            </div>
+                                        ))
+                                    )}
+                                </div>
 
-                            <div className="mt-6 flex flex-col items-center gap-2 border-t pt-6 text-xs text-slate-400">
-                                <div className="flex items-center gap-1 font-medium text-slate-500">
-                                    <CheckCircle2 className="h-3 w-3 text-emerald-500" /> secure 256-bit SSL encryption
+                                <div className="space-y-4 border-t border-slate-50 pt-6">
+                                    <div className="flex justify-between text-base font-medium text-slate-400">
+                                        <span>Subtotal ({count} items)</span>
+                                        <span className="text-[#222222]">R{total.toFixed(2)}</span>
+                                    </div>
+                                    <div className="flex justify-between text-base font-medium text-slate-400">
+                                        <span>Shipping</span>
+                                        <span className="text-primary italic">Calculated soon</span>
+                                    </div>
+                                </div>
+
+                                <div className="flex justify-between items-center border-t border-slate-50 pt-6">
+                                    <span className="text-xl font-bold text-[#222222]">Total</span>
+                                    <span className="text-3xl font-black text-primary">R{total.toFixed(2)}</span>
+                                </div>
+
+                                <Button
+                                    type="submit"
+                                    form="checkout-form"
+                                    className="w-full h-16 rounded-2xl bg-primary text-white font-bold text-xl shadow-lg hover:shadow-primary/20 transition-all hover:-translate-y-1"
+                                    disabled={items.length === 0 || isProcessing}
+                                >
+                                    {isProcessing ? (
+                                        <div className="flex items-center gap-2">
+                                            <div className="h-5 w-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                                            <span>Processing...</span>
+                                        </div>
+                                    ) : (
+                                        <div className="flex items-center justify-center gap-2 text-xl font-bold">
+                                            <Lock className="h-6 w-6" strokeWidth={2.5} />
+                                            <span>Pay R{total.toFixed(2)}</span>
+                                        </div>
+                                    )}
+                                </Button>
+
+                                <div className="flex items-center justify-center gap-2 pt-4">
+                                    <div className="flex items-center gap-1.5 text-[10px] font-bold text-slate-400 uppercase tracking-widest">
+                                        <Check className="h-3 w-3 text-emerald-500" strokeWidth={3} />
+                                        Secure 256-bit SSL encryption
+                                    </div>
                                 </div>
                             </div>
                         </div>
                     </div>
                 </div>
             </div>
+            <Footer />
         </main>
     );
 };

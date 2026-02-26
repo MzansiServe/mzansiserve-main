@@ -1,16 +1,33 @@
 import { useState } from "react";
 import {
-    Plus,
-    Trash2,
-    Save,
-    Info,
-    Car,
-    Hash,
-    Calendar,
-    Settings
-} from "lucide-react";
-import { Button } from "@/components/ui/button";
-import { cn } from "@/lib/utils";
+    Box,
+    Typography,
+    Paper,
+    Button,
+    Grid,
+    TextField,
+    IconButton,
+    InputAdornment,
+    Divider,
+    alpha,
+    useTheme,
+    Card,
+    CardContent,
+    Stack,
+    Alert,
+    CircularProgress,
+    Avatar,
+    MenuItem
+} from "@mui/material";
+import {
+    Add as PlusIcon,
+    DeleteOutline as TrashIcon,
+    Save as SaveIcon,
+    DirectionsCar as CarIcon,
+    CalendarMonth as CalendarIcon,
+    Pin as HashIcon,
+    Settings as SettingsIcon
+} from "@mui/icons-material";
 import { apiFetch } from "@/lib/api";
 import { useToast } from "@/hooks/use-toast";
 
@@ -28,6 +45,7 @@ interface VehicleManagementProps {
 
 export const VehicleManagement = ({ initialVehicles }: VehicleManagementProps) => {
     const { toast } = useToast();
+    const theme = useTheme();
     const [vehicles, setVehicles] = useState<Vehicle[]>(initialVehicles || []);
     const [saving, setSaving] = useState(false);
 
@@ -75,132 +93,169 @@ export const VehicleManagement = ({ initialVehicles }: VehicleManagementProps) =
     };
 
     return (
-        <div className="bg-white border border-gray-100 rounded-2xl shadow-sm overflow-hidden">
-            <div className="border-b border-gray-100 px-6 py-5 flex justify-between items-center bg-slate-50/50">
-                <div className="flex items-center gap-3">
-                    <div className="p-2 rounded-lg bg-[#e3f2fd] text-[#1e88e5]">
-                        <Car className="h-5 w-5" />
-                    </div>
-                    <div>
-                        <h2 className="text-lg font-bold text-[#121926]">My Vehicles</h2>
-                        <p className="text-xs text-[#697586] font-medium mt-0.5">Manage your registered vehicles and ride types.</p>
-                    </div>
-                </div>
+        <Paper variant="outlined" sx={{ borderRadius: 3, overflow: 'hidden', borderColor: alpha(theme.palette.divider, 0.08) }}>
+            <Box sx={{ p: 3, bgcolor: alpha(theme.palette.background.default, 0.5), borderBottom: '1px solid', borderColor: alpha(theme.palette.divider, 0.08), display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <Stack direction="row" spacing={2} alignItems="center">
+                    <Avatar sx={{ bgcolor: alpha(theme.palette.primary.main, 0.1), color: 'primary.main', width: 40, height: 40, borderRadius: 2 }}>
+                        <CarIcon fontSize="small" />
+                    </Avatar>
+                    <Box>
+                        <Typography variant="subtitle1" sx={{ fontWeight: 800 }}>My Vehicles</Typography>
+                        <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 600 }}>Manage your registered fleet and categories.</Typography>
+                    </Box>
+                </Stack>
                 <Button
+                    variant="outlined"
+                    startIcon={<PlusIcon />}
                     onClick={addVehicle}
-                    variant="outline"
-                    size="sm"
-                    className="rounded-xl font-bold gap-2"
+                    sx={{ fontWeight: 700, borderRadius: 2 }}
                 >
-                    <Plus className="h-4 w-4" /> Add Vehicle
+                    Add Vehicle
                 </Button>
-            </div>
+            </Box>
 
-            <div className="p-6 space-y-6">
+            <Box sx={{ p: 3 }}>
                 {vehicles.length > 0 ? (
-                    <div className="space-y-4">
+                    <Stack spacing={3}>
                         {vehicles.map((vehicle, index) => (
-                            <div key={index} className="p-5 border border-gray-100 rounded-xl bg-slate-50/30 hover:border-blue-100 transition-colors">
-                                <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-                                    <div className="space-y-1.5">
-                                        <label className="text-[10px] font-black uppercase tracking-widest text-[#697586]">Make & Model</label>
-                                        <div className="flex gap-2">
-                                            <input
-                                                type="text"
+                            <Card key={index} variant="outlined" sx={{ borderRadius: 2, position: 'relative', overflow: 'visible' }}>
+                                <CardContent sx={{ p: 3, '&:last-child': { pb: 3 } }}>
+                                    <Box sx={{ position: 'absolute', right: -12, top: -12 }}>
+                                        <IconButton
+                                            size="small"
+                                            onClick={() => removeVehicle(index)}
+                                            sx={{
+                                                bgcolor: 'background.paper',
+                                                border: '1px solid',
+                                                borderColor: 'divider',
+                                                color: 'error.main',
+                                                '&:hover': { bgcolor: 'error.main', color: 'white' },
+                                                zIndex: 1
+                                            }}
+                                        >
+                                            <TrashIcon fontSize="small" />
+                                        </IconButton>
+                                    </Box>
+
+                                    <Grid container spacing={2}>
+                                        <Grid size={{ xs: 12, md: 4 }}>
+                                            <TextField
+                                                fullWidth
+                                                label="Car Make"
+                                                placeholder="e.g. Toyota"
+                                                variant="outlined"
+                                                size="small"
                                                 value={vehicle.car_make}
                                                 onChange={(e) => updateVehicle(index, 'car_make', e.target.value)}
-                                                placeholder="Make (e.g., Toyota)"
-                                                className="w-1/2 bg-white border border-gray-100 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500/20 outline-none transition-all"
+                                                sx={{ '& .MuiInputBase-input': { fontWeight: 700 } }}
                                             />
-                                            <input
-                                                type="text"
+                                        </Grid>
+                                        <Grid size={{ xs: 12, md: 4 }}>
+                                            <TextField
+                                                fullWidth
+                                                label="Car Model"
+                                                placeholder="e.g. Corolla"
+                                                variant="outlined"
+                                                size="small"
                                                 value={vehicle.car_model}
                                                 onChange={(e) => updateVehicle(index, 'car_model', e.target.value)}
-                                                placeholder="Model (e.g., Corolla)"
-                                                className="w-1/2 bg-white border border-gray-100 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500/20 outline-none transition-all"
+                                                sx={{ '& .MuiInputBase-input': { fontWeight: 700 } }}
                                             />
-                                        </div>
-                                    </div>
-
-                                    <div className="space-y-1.5">
-                                        <label className="text-[10px] font-black uppercase tracking-widest text-[#697586]">Year & Registration</label>
-                                        <div className="flex gap-2">
-                                            <div className="relative w-1/3">
-                                                <Calendar className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-[#697586]" />
-                                                <input
-                                                    type="number"
-                                                    value={vehicle.car_year}
-                                                    onChange={(e) => updateVehicle(index, 'car_year', parseInt(e.target.value))}
-                                                    className="w-full bg-white border border-gray-100 rounded-lg pl-8 pr-2 py-2 text-sm focus:ring-2 focus:ring-blue-500/20 outline-none transition-all"
-                                                />
-                                            </div>
-                                            <div className="relative w-2/3">
-                                                <Hash className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-[#697586]" />
-                                                <input
-                                                    type="text"
-                                                    value={vehicle.registration_number}
-                                                    onChange={(e) => updateVehicle(index, 'registration_number', e.target.value)}
-                                                    placeholder="Plate #"
-                                                    className="w-full bg-white border border-gray-100 rounded-lg pl-8 pr-3 py-2 text-sm focus:ring-2 focus:ring-blue-500/20 outline-none transition-all"
-                                                />
-                                            </div>
-                                        </div>
-                                    </div>
-
-                                    <div className="space-y-1.5">
-                                        <div className="flex justify-between items-center">
-                                            <label className="text-[10px] font-black uppercase tracking-widest text-[#697586]">Ride Category</label>
-                                            <Button
-                                                variant="ghost"
-                                                size="icon"
-                                                onClick={() => removeVehicle(index)}
-                                                className="h-6 w-6 text-[#697586] hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors"
+                                        </Grid>
+                                        <Grid size={{ xs: 12, md: 4 }}>
+                                            <TextField
+                                                fullWidth
+                                                label="Category"
+                                                select
+                                                size="small"
+                                                value={vehicle.car_type}
+                                                onChange={(e) => updateVehicle(index, 'car_type', e.target.value)}
                                             >
-                                                <Trash2 className="h-3.5 w-3.5" />
-                                            </Button>
-                                        </div>
-                                        <select
-                                            value={vehicle.car_type}
-                                            onChange={(e) => updateVehicle(index, 'car_type', e.target.value)}
-                                            className="w-full bg-white border border-gray-100 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500/20 outline-none transition-all appearance-none cursor-pointer"
-                                        >
-                                            <option value="standard">Standard Ride</option>
-                                            <option value="premium">Premium Ride</option>
-                                            <option value="suv">SUV / Large</option>
-                                        </select>
-                                    </div>
-                                </div>
-                            </div>
+                                                <MenuItem value="standard">Standard Ride</MenuItem>
+                                                <MenuItem value="premium">Premium Ride</MenuItem>
+                                                <MenuItem value="suv">SUV / Large</MenuItem>
+                                            </TextField>
+                                        </Grid>
+                                        <Grid size={{ xs: 12, md: 4 }}>
+                                            <TextField
+                                                fullWidth
+                                                label="Year"
+                                                type="number"
+                                                variant="outlined"
+                                                size="small"
+                                                value={vehicle.car_year ?? new Date().getFullYear()}
+                                                onChange={(e) => {
+                                                    const val = parseInt(e.target.value);
+                                                    updateVehicle(index, 'car_year', isNaN(val) ? new Date().getFullYear() : val);
+                                                }}
+                                                slotProps={{
+                                                    input: {
+                                                        startAdornment: <InputAdornment position="start"><CalendarIcon sx={{ fontSize: 18, color: 'text.disabled' }} /></InputAdornment>,
+                                                        sx: { fontWeight: 700 }
+                                                    }
+                                                }}
+                                            />
+                                        </Grid>
+                                        <Grid size={{ xs: 12, md: 8 }}>
+                                            <TextField
+                                                fullWidth
+                                                label="Registration Number"
+                                                placeholder="Plate #"
+                                                variant="outlined"
+                                                size="small"
+                                                value={vehicle.registration_number}
+                                                onChange={(e) => updateVehicle(index, 'registration_number', e.target.value)}
+                                                slotProps={{
+                                                    input: {
+                                                        startAdornment: <InputAdornment position="start"><HashIcon sx={{ fontSize: 18, color: 'text.disabled' }} /></InputAdornment>,
+                                                        sx: { fontWeight: 800, fontFamily: 'monospace' }
+                                                    }
+                                                }}
+                                            />
+                                        </Grid>
+                                    </Grid>
+                                </CardContent>
+                            </Card>
                         ))}
-                    </div>
+                    </Stack>
                 ) : (
-                    <div className="py-12 text-center">
-                        <div className="h-16 w-16 bg-slate-50 rounded-full flex items-center justify-center mx-auto mb-4">
-                            <Car className="h-8 w-8 text-slate-300" />
-                        </div>
-                        <h3 className="text-base font-bold text-[#121926]">No vehicles registered</h3>
-                        <p className="text-sm text-[#697586] mt-1 italic">Click "Add Vehicle" to register your first car.</p>
-                    </div>
+                    <Box sx={{ py: 8, textAlign: 'center' }}>
+                        <CarIcon sx={{ fontSize: 48, color: 'text.disabled', opacity: 0.2, mb: 2 }} />
+                        <Typography variant="subtitle2" color="text.secondary" sx={{ fontWeight: 700 }}>No vehicles registered.</Typography>
+                        <Typography variant="caption" color="text.disabled">Click "Add Vehicle" to start.</Typography>
+                    </Box>
                 )}
 
-                <div className="mt-8 p-4 bg-blue-50/50 rounded-xl border border-blue-100 flex gap-3">
-                    <Settings className="h-5 w-5 text-blue-600 shrink-0 mt-0.5" />
-                    <p className="text-xs text-blue-800 leading-relaxed">
-                        <strong>Category Note:</strong> Standard rides are for everyday transport. Premium rides require luxury sedans. SUV category is for vehicles seating 6 or more passengers.
-                    </p>
-                </div>
-            </div>
-
-            <div className="p-6 bg-slate-50/50 border-t border-gray-100 flex justify-end">
-                <Button
-                    onClick={handleSave}
-                    disabled={saving}
-                    className="bg-[#1e88e5] hover:bg-[#1565c0] rounded-xl px-10 font-bold shadow-lg shadow-blue-100 gap-2"
+                <Alert
+                    severity="info"
+                    icon={<SettingsIcon fontSize="small" />}
+                    sx={{ mt: 4, borderRadius: 2, bgcolor: alpha(theme.palette.info.main, 0.05), border: '1px solid', borderColor: alpha(theme.palette.info.main, 0.1) }}
                 >
-                    {saving ? "Processing..." : "Submit for Approval"}
-                    {!saving && <Save className="h-4 w-4" />}
+                    <Typography variant="caption" sx={{ fontWeight: 600, color: 'info.dark' }}>
+                        Standard: Every day. Premium: Luxury. SUV: 6+ passengers. All verified by admin.
+                    </Typography>
+                </Alert>
+            </Box>
+
+            <Box sx={{ p: 3, borderTop: '1px solid', borderColor: alpha(theme.palette.divider, 0.08), display: 'flex', justifyContent: 'flex-end', bgcolor: alpha(theme.palette.background.default, 0.3) }}>
+                <Button
+                    variant="contained"
+                    size="large"
+                    disabled={saving}
+                    onClick={handleSave}
+                    startIcon={saving ? <CircularProgress size={20} color="inherit" /> : <SaveIcon />}
+                    sx={{
+                        fontWeight: 800,
+                        borderRadius: 2,
+                        px: 4,
+                        boxShadow: `0 8px 16px ${alpha(theme.palette.primary.main, 0.2)}`
+                    }}
+                >
+                    {saving ? "Saving changes..." : "Submit for Approval"}
                 </Button>
-            </div>
-        </div>
+            </Box>
+        </Paper>
     );
 };
+
+export default VehicleManagement;

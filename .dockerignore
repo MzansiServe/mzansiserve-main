@@ -1,0 +1,15 @@
+**/__pycache__
+**/*.pyc
+**/*.pyo
+**/*.pyd
+.venv
+venv
+ENV
+env
+.env
+.git
+.gitignore
+frontend/node_modules
+dist
+build
+.DS_Store

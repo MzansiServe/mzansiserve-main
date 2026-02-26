@@ -165,7 +165,7 @@ def order_payment_callback():
         current_app.logger.info(f"Order payment callback received: status={callback_status}, external_id={external_id}, order_id={order_id}")
         
         if not external_id or not order_id:
-            frontend_url = current_app.config.get('FRONTEND_URL', 'http://localhost:8080')
+            frontend_url = request.host_url.rstrip('/')
             return current_app.make_response((
                 f'<html><body><script>window.location.href="{frontend_url}/shopping-history?payment=error";</script></body></html>',
                 302
@@ -176,7 +176,7 @@ def order_payment_callback():
         payment = Payment.query.filter_by(external_id=external_id).first()
         
         if not order:
-            frontend_url = current_app.config.get('FRONTEND_URL', 'http://localhost:8080')
+            frontend_url = request.host_url.rstrip('/')
             current_app.logger.error(f"Order not found: {order_id}")
             return current_app.make_response((
                 f'<html><body><script>window.location.href="{frontend_url}/shopping-history?payment=error";</script></body></html>',
@@ -261,14 +261,14 @@ def wallet_topup_callback():
         
         # Only process success callbacks
         if callback_status != 'success':
-            frontend_url = current_app.config.get('FRONTEND_URL', 'http://localhost:8080')
+            frontend_url = request.host_url.rstrip('/')
             return current_app.make_response((
                 f'<html><body><script>window.location.href="{frontend_url}/wallet?payment=error";</script></body></html>',
                 302
             ))
         
         if not external_id:
-            frontend_url = current_app.config.get('FRONTEND_URL', 'http://localhost:8080')
+            frontend_url = request.host_url.rstrip('/')
             return current_app.make_response((
                 f'<html><body><script>window.location.href="{frontend_url}/wallet?payment=error";</script></body></html>',
                 302
@@ -277,7 +277,7 @@ def wallet_topup_callback():
         # Find payment by external_id
         payment = Payment.query.filter_by(external_id=external_id).first()
         if not payment:
-            frontend_url = current_app.config.get('FRONTEND_URL', 'http://localhost:8080')
+            frontend_url = request.host_url.rstrip('/')
             current_app.logger.error(f"Payment not found for external_id: {external_id}")
             return current_app.make_response((
                 f'<html><body><script>window.location.href="{frontend_url}/wallet?payment=error";</script></body></html>',
@@ -337,7 +337,7 @@ def wallet_topup_callback():
                     current_app.logger.error(f"Error parsing user_id from external_id: {e}")
         
         # Redirect to wallet with error message
-        frontend_url = current_app.config.get('FRONTEND_URL', 'http://localhost:8080')
+        frontend_url = request.host_url.rstrip('/')
         return current_app.make_response((
             f'<html><body><script>window.location.href="{frontend_url}/wallet?payment=error";</script></body></html>',
             302
@@ -371,10 +371,10 @@ def request_payment_callback():
         )
 
         if not external_id or not request_id:
-            frontend_url = current_app.config.get('FRONTEND_URL', 'http://localhost:8080')
+            frontend_url = request.host_url.rstrip('/')
             # Missing data – redirect to requested-services with error
             return current_app.make_response((
-                f'<html><body><script>window.location.href="{frontend_url}/requested-services?payment=error";</script></body></html>',
+                f'<html><body><script>window.location.href="{frontend_url}/my-bookings?payment=error";</script></body></html>',
                 302
             ))
 
@@ -382,12 +382,12 @@ def request_payment_callback():
         payment = Payment.query.filter_by(external_id=external_id).first()
 
         if not service_request or not payment:
-            frontend_url = current_app.config.get('FRONTEND_URL', 'http://localhost:8080')
+            frontend_url = request.host_url.rstrip('/')
             current_app.logger.error(
                 f"Request or payment not found for request_id={request_id}, external_id={external_id}"
             )
             return current_app.make_response((
-                f'<html><body><script>window.location.href="{frontend_url}/requested-services?payment=error";</script></body></html>',
+                f'<html><body><script>window.location.href="{frontend_url}/my-bookings?payment=error";</script></body></html>',
                 302
             ))
 
@@ -446,7 +446,7 @@ def request_payment_callback():
                     <script>
                       setTimeout(function () {
                         var frontend_url = "%s";
-                        window.location.href = frontend_url + "/requested-services";
+                        window.location.href = frontend_url + "/my-bookings";
                       }, 3000);
                     </script>
                   </head>
@@ -455,27 +455,27 @@ def request_payment_callback():
                       <div class="card">
                         <h1>Payment Successful</h1>
                         <p>Your service request has been created and paid successfully.</p>
-                        <p>You will be redirected to your requested services in a moment...</p>
+                        <p>You will be redirected to your booked services in a moment...</p>
                       </div>
                     </div>
                   </body>
                 </html>
             """
-            frontend_url = current_app.config.get('FRONTEND_URL', 'http://localhost:8080')
+            frontend_url = request.host_url.rstrip('/')
             return current_app.make_response((html % frontend_url, 200))
 
         # Cancel or failure - just redirect back with an error flag
-        frontend_url = current_app.config.get('FRONTEND_URL', 'http://localhost:8080')
+        frontend_url = request.host_url.rstrip('/')
         return current_app.make_response((
-            f'<html><body><script>window.location.href="{frontend_url}/requested-services?payment=error";</script></body></html>',
+            f'<html><body><script>window.location.href="{frontend_url}/my-bookings?payment=error";</script></body></html>',
             302
         ))
 
     except Exception as e:
-        frontend_url = current_app.config.get('FRONTEND_URL', 'http://localhost:8080')
+        frontend_url = request.host_url.rstrip('/')
         current_app.logger.error(f"Request payment callback error: {str(e)}")
         return current_app.make_response((
-            f'<html><body><script>window.location.href="{frontend_url}/requested-services?payment=error";</script></body></html>',
+            f'<html><body><script>window.location.href="{frontend_url}/my-bookings?payment=error";</script></body></html>',
             302
         ))
 

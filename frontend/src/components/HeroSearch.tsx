@@ -45,37 +45,37 @@ const HeroSearch = () => {
 
       <div className="container mx-auto px-6 relative z-10">
         <div className="max-w-4xl mx-auto text-center mb-12">
-          <motion.h1 
+          <motion.h1
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.6 }}
-            className="text-5xl md:text-7xl font-black text-[#222222] tracking-tighter leading-tight mb-6"
+            className="text-5xl md:text-7xl font-semibold text-[#222222] tracking-tight leading-[1.1] mb-6"
           >
             Find exactly <br className="hidden md:block" />
-            <span className="text-transparent bg-clip-text bg-gradient-to-r from-[#5e35b1] to-[#1e88e5]">
+            <span className="text-primary">
               what you need.
             </span>
           </motion.h1>
-          <motion.p 
+          <motion.p
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.6, delay: 0.1 }}
-            className="text-lg md:text-xl text-[#717171] font-medium max-w-2xl mx-auto leading-relaxed"
+            className="text-xl md:text-2xl text-slate-500 font-normal max-w-2xl mx-auto leading-relaxed"
           >
-            The all-in-one marketplace for South Africa. Book rides, hire professionals, find local services, and shop online.
+            The all-in-one marketplace for South Africa. Book rides, hire experts, and shop local brands.
           </motion.p>
         </div>
 
         {/* Search Interface */}
-        <motion.div 
+        <motion.div
           initial={{ opacity: 0, y: 30 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.6, delay: 0.2 }}
-          className="max-w-3xl mx-auto"
+          className="max-w-4xl mx-auto"
         >
-          <div className="bg-white rounded-[32px] shadow-2xl shadow-black/10 border border-slate-100 p-2">
+          <div className="bg-white rounded-[3rem] shadow-2xl shadow-slate-200/60 border border-slate-50 p-2 lg:p-3">
             {/* Tabs */}
-            <div className="flex p-1 gap-1 mb-2 overflow-x-auto no-scrollbar">
+            <div className="flex p-1 gap-1 mb-3 overflow-x-auto no-scrollbar border-b border-slate-50">
               {TABS.map((tab) => {
                 const Icon = tab.icon;
                 const isActive = activeTab === tab.id;
@@ -84,66 +84,69 @@ const HeroSearch = () => {
                     key={tab.id}
                     onClick={() => setActiveTab(tab.id)}
                     className={cn(
-                      "flex-1 flex items-center justify-center gap-2 py-3 px-4 rounded-full text-sm font-bold transition-all duration-300 min-w-[100px]",
-                      isActive 
-                        ? "bg-black text-white shadow-lg scale-100" 
-                        : "bg-white text-[#717171] hover:bg-slate-50 hover:text-black"
+                      "flex-1 flex flex-col md:flex-row items-center justify-center gap-2 py-4 px-6 rounded-2xl text-sm font-semibold transition-all duration-300 min-w-[120px] relative",
+                      isActive
+                        ? "text-[#222222]"
+                        : "text-slate-400 hover:text-slate-600 hover:bg-slate-50/50"
                     )}
                   >
-                    <Icon className={cn("h-4 w-4", isActive ? "text-white" : "text-[#717171]")} />
-                    {tab.label}
+                    <Icon className={cn("h-5 w-5", isActive ? "text-primary" : "text-slate-400")} />
+                    <span>{tab.label}</span>
+                    {isActive && (
+                      <motion.div
+                        layoutId="activeTab"
+                        className="absolute bottom-0 left-1/4 right-1/4 h-1 bg-primary rounded-full"
+                      />
+                    )}
                   </button>
                 );
               })}
             </div>
 
             {/* Input Area */}
-            <div className="bg-slate-50 rounded-[24px] p-2 flex flex-col md:flex-row gap-2 relative">
-              <div className="flex-1 relative group">
-                <div className="absolute top-1/2 -translate-y-1/2 left-4 text-[#717171] group-focus-within:text-black transition-colors">
+            <div className="rounded-[2.5rem] p-2 flex flex-col md:flex-row gap-2 relative">
+              <div className="flex-[1.5] relative group">
+                <div className="absolute top-1/2 -translate-y-1/2 left-6 text-slate-400 group-focus-within:text-primary transition-colors">
                   <Search className="h-5 w-5" />
                 </div>
-                <input 
-                  type="text" 
+                <input
+                  type="text"
                   placeholder={
                     activeTab === 'transport' ? "Where to? e.g. Sandton City" :
-                    activeTab === 'services' ? "What help do you need? e.g. Cleaning" :
-                    activeTab === 'professionals' ? "Who are you looking for? e.g. Accountant" :
-                    "Search products..."
+                      activeTab === 'services' ? "What help do you need? e.g. Cleaning" :
+                        activeTab === 'professionals' ? "Who are you looking for? e.g. Accountant" :
+                          "Search products..."
                   }
-                  className="w-full h-14 bg-white rounded-2xl pl-12 pr-4 text-base font-bold text-[#222222] placeholder:text-[#717171] outline-none border border-transparent focus:border-black/5 transition-all shadow-sm group-hover:shadow-md"
+                  className="w-full h-16 bg-slate-50/50 rounded-3xl pl-16 pr-6 text-lg font-medium text-[#222222] placeholder:text-slate-400 outline-none border border-transparent focus:bg-white focus:border-primary/20 transition-all"
                 />
               </div>
-              
+
               {activeTab === 'transport' && (
-                <div className="flex-1 relative group">
-                   <div className="absolute top-1/2 -translate-y-1/2 left-4 text-[#717171] group-focus-within:text-black transition-colors">
+                <motion.div initial={{ opacity: 0, x: -10 }} animate={{ opacity: 1, x: 0 }} className="flex-1 relative group">
+                  <div className="absolute top-1/2 -translate-y-1/2 left-6 text-slate-400 group-focus-within:text-primary transition-colors">
                     <MapPin className="h-5 w-5" />
                   </div>
-                  <input 
-                    type="text" 
+                  <input
+                    type="text"
                     placeholder="Pick-up Location"
-                    className="w-full h-14 bg-white rounded-2xl pl-12 pr-4 text-base font-bold text-[#222222] placeholder:text-[#717171] outline-none border border-transparent focus:border-black/5 transition-all shadow-sm group-hover:shadow-md"
+                    className="w-full h-16 bg-slate-50/50 rounded-3xl pl-16 pr-6 text-lg font-medium text-[#222222] placeholder:text-slate-400 outline-none border border-transparent focus:bg-white focus:border-primary/20 transition-all"
                   />
-                </div>
+                </motion.div>
               )}
 
-              <Button 
-                size="icon" 
-                className="h-14 w-14 md:w-auto md:px-8 rounded-2xl bg-[#FF385C] hover:bg-[#D90B3E] text-white shadow-lg hover:shadow-xl transition-all active:scale-95 shrink-0"
+              <Button
+                className="h-16 px-10 rounded-3xl bg-[#FF385C] hover:bg-[#D90B3E] text-white shadow-lg hover:shadow-xl transition-all active:scale-95 shrink-0 font-bold text-lg"
                 onClick={handleSearch}
               >
-                <Search className="h-5 w-5 md:hidden" />
-                <span className="hidden md:flex items-center gap-2 font-bold">
-                  Search <ArrowRight className="h-4 w-4" />
-                </span>
+                <Search className="h-5 w-5 md:mr-2" />
+                <span className="hidden md:inline">Search</span>
               </Button>
             </div>
           </div>
         </motion.div>
 
         {/* Quick Tags */}
-        <motion.div 
+        <motion.div
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           transition={{ duration: 0.6, delay: 0.4 }}
@@ -151,12 +154,12 @@ const HeroSearch = () => {
         >
           <span className="text-sm font-bold text-[#717171] py-2">Popular:</span>
           {["Plumber", "Driver", "Web Designer", "Electrician", "House Cleaner"].map((tag) => (
-            <button 
+            <button
               key={tag}
               className="px-4 py-2 bg-white border border-slate-200 rounded-full text-xs font-bold text-[#222222] hover:border-black hover:scale-105 transition-all shadow-sm"
               onClick={() => {
                 // In a real app, this would pre-fill search
-                navigate('/services'); 
+                navigate('/services');
               }}
             >
               {tag}

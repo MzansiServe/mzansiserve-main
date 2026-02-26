@@ -1,17 +1,30 @@
 import { useState, useEffect } from "react";
 import {
-    User as UserIcon,
-    MapPin,
-    Clock,
-    MessageSquare,
-    Phone,
-    Star,
-    MoreVertical
-} from "lucide-react";
-import { cn } from "@/lib/utils";
+    Box,
+    Typography,
+    Paper,
+    Button,
+    Avatar,
+    Stack,
+    Divider,
+    IconButton,
+    Chip,
+    alpha,
+    useTheme,
+    Grid,
+    Skeleton
+} from "@mui/material";
+import {
+    Person as UserIcon,
+    LocationOnOutlined as MapPinIcon,
+    AccessTime as ClockIcon,
+    ChatBubbleOutline as MessageIcon,
+    PhoneOutlined as PhoneIcon,
+    Star as StarIcon,
+    MoreVert as MoreIcon
+} from "@mui/icons-material";
 import { JobActionButtons } from "./JobActionButtons";
 import { apiFetch } from "@/lib/api";
-import { Button } from "@/components/ui/button";
 import { ChatOverlay } from "../ChatOverlay";
 
 interface ActiveJobsProps {
@@ -21,8 +34,17 @@ interface ActiveJobsProps {
 }
 
 export const ActiveJobs = ({ jobs, role, onStatusUpdate }: ActiveJobsProps) => {
+    const theme = useTheme();
     const [clientInfos, setClientInfos] = useState<Record<string, any>>({});
     const [chatJob, setChatJob] = useState<{ id: string, name: string } | null>(null);
+
+    const renderLocation = (locationData: any) => {
+        if (!locationData) return "Address not specified";
+        const loc = locationData.location || locationData.pickup || locationData;
+        if (typeof loc === 'string') return loc;
+        if (typeof loc === 'object' && loc.address) return loc.address;
+        return "Address details available";
+    };
 
     useEffect(() => {
         const fetchInfos = async () => {
@@ -49,98 +71,121 @@ export const ActiveJobs = ({ jobs, role, onStatusUpdate }: ActiveJobsProps) => {
 
     if (jobs.length === 0) {
         return (
-            <div className="bg-white border border-gray-100 rounded-2xl shadow-sm p-12 text-center h-full flex flex-col items-center justify-center">
-                <div className="h-16 w-16 bg-slate-50 rounded-full flex items-center justify-center mb-4">
-                    <Clock className="h-8 w-8 text-slate-300" />
-                </div>
-                <h3 className="text-lg font-bold text-[#121926]">No Active Jobs</h3>
-                <p className="text-sm text-[#697586] mt-2 max-w-[240px] mx-auto leading-relaxed italic">
-                    You don't have any jobs currently in progress. Accept a job from your inbox to get started!
-                </p>
-            </div>
+            <Paper variant="outlined" sx={{ p: 8, textAlign: 'center', borderRadius: 3, borderColor: alpha(theme.palette.divider, 0.08) }}>
+                <ClockIcon sx={{ fontSize: 48, color: 'text.disabled', opacity: 0.2, mb: 2 }} />
+                <Typography variant="h6" sx={{ fontWeight: 800 }}>No Active Jobs</Typography>
+                <Typography variant="body2" color="text.secondary" sx={{ mt: 1, maxWidth: 300, mx: 'auto' }}>
+                    Accept a request from your inbox to begin your next service.
+                </Typography>
+            </Paper>
         );
     }
 
-    const themeColor = role === 'driver' ? 'text-[#1e88e5]' : 'text-[#5e35b1]';
-    const themeBg = role === 'driver' ? 'bg-[#e3f2fd]' : 'bg-[#ede7f6]';
-
     return (
-        <div className="grid gap-6">
+        <Stack spacing={3}>
             {jobs.map((job) => {
                 const client = clientInfos[job.id];
-                const location = job.location_data?.location || job.location_data?.pickup || "Address not specified";
+                const location = renderLocation(job.location_data);
 
                 return (
-                    <div key={job.id} className="bg-white border border-gray-100 rounded-2xl shadow-sm overflow-hidden animate-in fade-in slide-in-from-bottom-2 duration-300">
-                        <div className="p-6">
+                    <Paper
+                        key={job.id}
+                        variant="outlined"
+                        sx={{
+                            borderRadius: 3,
+                            overflow: 'hidden',
+                            borderColor: alpha(theme.palette.divider, 0.08),
+                            transition: 'all 0.2s',
+                            '&:hover': { borderColor: alpha(theme.palette.primary.main, 0.2) }
+                        }}
+                    >                        <Box sx={{ p: 3 }}>
                             {/* Client Header */}
-                            <div className="flex items-center justify-between mb-6">
-                                <div className="flex items-center gap-4">
-                                    <div className={cn("h-14 w-14 rounded-2xl flex items-center justify-center overflow-hidden shrink-0", themeBg)}>
-                                        {client?.profile_image_url ? (
-                                            <img src={client.profile_image_url} alt={client.name} className="h-full w-full object-cover" />
-                                        ) : (
-                                            <UserIcon className={cn("h-6 w-6", themeColor)} />
-                                        )}
-                                    </div>
-                                    <div>
-                                        <h4 className="font-bold text-[#121926] text-lg">{client?.name || "Loading client..."}</h4>
-                                        <div className="flex items-center gap-1.5 mt-0.5">
-                                            <span className="flex items-center text-amber-500 font-bold text-sm">
-                                                <Star className="h-3.5 w-3.5 fill-current mr-1" />
-                                                {client?.average_rating ? client.average_rating.toFixed(1) : "N/A"}
-                                            </span>
-                                            <span className="text-xs text-[#697586] font-medium">• {client?.reviews_count || 0} reviews</span>
-                                        </div>
-                                    </div>
-                                </div>
-                                <div className="flex gap-2">
-                                    <Button 
-                                        variant="ghost" 
-                                        size="icon" 
-                                        className="rounded-xl h-10 w-10 text-[#5e35b1] bg-purple-50 hover:bg-purple-100"
-                                        onClick={() => setChatJob({ id: job.id, name: client?.name || "Client" })}
+                            <Stack direction="row" justifyContent="space-between" alignItems="center" sx={{ mb: 3 }}>
+                                <Stack direction="row" spacing={2} alignItems="center">
+                                    <Avatar
+                                        src={client?.profile_image_url}
+                                        sx={{
+                                            width: 52,
+                                            height: 52,
+                                            borderRadius: 2,
+                                            bgcolor: alpha(theme.palette.primary.main, 0.1),
+                                            color: 'primary.main'
+                                        }}
                                     >
-                                        <MessageSquare className="h-5 w-5" />
-                                    </Button>
-                                    <Button variant="ghost" size="icon" className="rounded-xl h-10 w-10 text-[#697586]">
-                                        <Phone className="h-5 w-5" />
-                                    </Button>
-                                </div>
-                            </div>
+                                        <UserIcon />
+                                    </Avatar>
+                                    <Box>
+                                        <Typography variant="subtitle1" sx={{ fontWeight: 800 }}>
+                                            {client?.name || <Skeleton width={120} />}
+                                        </Typography>
+                                        <Stack direction="row" spacing={1} alignItems="center">
+                                            <StarIcon sx={{ fontSize: 14, color: '#F59E0B' }} />
+                                            <Typography variant="caption" sx={{ fontWeight: 700 }}>
+                                                {client?.average_rating?.toFixed(1) || "New"}
+                                            </Typography>
+                                            <Typography variant="caption" color="text.disabled">• {client?.reviews_count || 0} reviews</Typography>
+                                        </Stack>
+                                    </Box>
+                                </Stack>
+                                <Stack direction="row" spacing={1}>
+                                    <IconButton
+                                        onClick={() => setChatJob({ id: job.id, name: client?.name || "Client" })}
+                                        sx={{ bgcolor: alpha(theme.palette.primary.main, 0.05), color: 'primary.main', '&:hover': { bgcolor: alpha(theme.palette.primary.main, 0.1) } }}
+                                    >
+                                        <MessageIcon fontSize="small" />
+                                    </IconButton>
+                                    <IconButton sx={{ bgcolor: alpha(theme.palette.action.hover, 0.04) }}>
+                                        <PhoneIcon fontSize="small" />
+                                    </IconButton>
+                                </Stack>
+                            </Stack>
 
-                            {/* Job Details */}
-                            <div className="space-y-4 mb-6 py-4 border-y border-gray-50">
-                                <div className="flex items-start gap-3">
-                                    <MapPin className="h-4 w-4 text-[#697586] mt-0.5" />
-                                    <div>
-                                        <p className="text-xs font-black uppercase tracking-widest text-[#697586] mb-1">Location</p>
-                                        <p className="text-sm font-bold text-[#364152] leading-tight">{location}</p>
-                                    </div>
-                                </div>
-                                <div className="grid grid-cols-2 gap-4">
-                                    <div className="flex items-start gap-3">
-                                        <Clock className="h-4 w-4 text-[#697586] mt-0.5" />
-                                        <div>
-                                            <p className="text-xs font-black uppercase tracking-widest text-[#697586] mb-1">Time</p>
-                                            <p className="text-sm font-bold text-[#364152]">{job.scheduled_time}</p>
-                                        </div>
-                                    </div>
-                                    <div className="text-right">
-                                        <p className="text-xs font-black uppercase tracking-widest text-[#697586] mb-1">Est. Payout</p>
-                                        <p className={cn("text-lg font-black", themeColor)}>R{job.payment_amount.toFixed(2)}</p>
-                                    </div>
-                                </div>
-                            </div>
+                            <Divider sx={{ mb: 3, opacity: 0.5 }} />
 
-                            {/* Action Buttons */}
-                            <JobActionButtons
-                                job={job}
-                                role={role}
-                                onStatusUpdate={onStatusUpdate}
-                            />
-                        </div>
-                    </div>
+                            {/* Job Info Grid */}
+                            <Grid container spacing={3} sx={{ mb: 3 }}>
+                                <Grid size={{ xs: 12, md: 7 }}>
+                                    <Stack spacing={2}>
+                                        <Stack direction="row" spacing={1.5} alignItems="flex-start">
+                                            <MapPinIcon sx={{ fontSize: 18, color: 'text.secondary', mt: 0.3 }} />
+                                            <Box>
+                                                <Typography variant="caption" sx={{ fontWeight: 700, textTransform: 'uppercase', color: 'text.disabled', letterSpacing: '0.05em' }}>Location</Typography>
+                                                <Typography variant="body2" sx={{ fontWeight: 600 }}>{location}</Typography>
+                                            </Box>
+                                        </Stack>
+                                        <Stack direction="row" spacing={1.5} alignItems="flex-start">
+                                            <ClockIcon sx={{ fontSize: 18, color: 'text.secondary', mt: 0.3 }} />
+                                            <Box>
+                                                <Typography variant="caption" sx={{ fontWeight: 700, textTransform: 'uppercase', color: 'text.disabled', letterSpacing: '0.05em' }}>Scheduled Time</Typography>
+                                                <Typography variant="body2" sx={{ fontWeight: 600 }}>{job.scheduled_time || 'Immediate'}</Typography>
+                                            </Box>
+                                        </Stack>
+                                    </Stack>
+                                </Grid>
+                                <Grid size={{ xs: 12, md: 5 }} sx={{ textAlign: { md: 'right' } }}>
+                                    <Typography variant="caption" sx={{ fontWeight: 700, textTransform: 'uppercase', color: 'text.disabled', letterSpacing: '0.05em' }}>Est. Payout</Typography>
+                                    <Typography variant="h5" sx={{ fontWeight: 900, color: 'primary.main' }}>
+                                        R {Number(job.payment_amount).toFixed(2)}
+                                    </Typography>
+                                </Grid>
+                            </Grid>
+
+                            {/* Actions Wrapper */}
+                            <Box sx={{
+                                p: 2,
+                                bgcolor: alpha(theme.palette.background.default, 0.5),
+                                borderRadius: 2,
+                                border: '1px solid',
+                                borderColor: alpha(theme.palette.divider, 0.05)
+                            }}>
+                                <JobActionButtons
+                                    job={job}
+                                    role={role}
+                                    onStatusUpdate={onStatusUpdate}
+                                />
+                            </Box>
+                        </Box>
+                    </Paper>
                 );
             })}
 
@@ -152,6 +197,8 @@ export const ActiveJobs = ({ jobs, role, onStatusUpdate }: ActiveJobsProps) => {
                     onClose={() => setChatJob(null)}
                 />
             )}
-        </div>
+        </Stack>
     );
 };
+
+export default ActiveJobs;
