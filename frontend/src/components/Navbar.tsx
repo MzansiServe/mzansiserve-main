@@ -65,7 +65,7 @@ const Navbar = () => {
         "fixed top-0 left-0 right-0 z-50 transition-all duration-300",
         scrolled || !isHome
           ? "bg-white border-b border-slate-100 py-3 shadow-sm"
-          : "bg-transparent py-5"
+          : "bg-slate-900/40 backdrop-blur-md py-4 border-b border-white/10"
       )}
     >
       <nav className="container mx-auto flex items-center justify-between px-6">

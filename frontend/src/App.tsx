@@ -27,6 +27,7 @@ import DriverDashboard from "./pages/dashboards/driver/DriverDashboard";
 import ProfessionalDashboard from "./pages/dashboards/professional/ProfessionalDashboard";
 import ServiceProviderDashboard from "./pages/dashboards/service-provider/ServiceProviderDashboard";
 import AgentDashboard from "./pages/dashboards/agent/AgentDashboard";
+import AdvertiserDashboard from "./pages/dashboards/advertiser/AdvertiserDashboard";
 import PaymentStatus from "./pages/PaymentStatus";
 import PaymentError from "./pages/PaymentError";
 import Checkout from "./pages/Checkout";
@@ -112,6 +113,11 @@ const App = () => (
               <Route path="/dashboard/agent" element={
                 <PrivateRoute roles={["agent", "admin"]}>
                   <AgentDashboard />
+                </PrivateRoute>
+              } />
+              <Route path="/dashboard/advertiser" element={
+                <PrivateRoute>
+                  <AdvertiserDashboard />
                 </PrivateRoute>
               } />
               <Route path="/admin" element={

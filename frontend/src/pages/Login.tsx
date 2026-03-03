@@ -27,7 +27,7 @@ const resolveError = (
 const Login = () => {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [role, setRole] = useState("client");
+  const [role, setRole] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
@@ -96,6 +96,7 @@ const Login = () => {
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) { setError("Please enter a valid email"); return; }
     if (!password) { setError("Password is required"); return; }
     if (password.length < 8) { setError("Password must be at least 8 characters"); return; }
+    if (!role) { setError("Please select a role to login as"); return; }
 
     setLoading(true);
     try {
@@ -164,9 +165,10 @@ const Login = () => {
                   <select
                     id="role"
                     value={role}
-                    onChange={(e) => setRole(e.target.value)}
+                    onChange={(e) => { setRole(e.target.value); if (error && error.includes("role")) setError(""); }}
                     className="w-full bg-transparent py-4 px-4 text-base text-[#222222] outline-none appearance-none cursor-pointer font-medium h-14"
                   >
+                    <option value="" disabled>Select Role...</option>
                     <option value="client">Client</option>
                     <option value="driver">Driver</option>
                     <option value="professional">Professional</option>

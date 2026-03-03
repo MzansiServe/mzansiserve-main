@@ -11,6 +11,7 @@ import { MobileAppPromo } from "@/components/MobileAppPromo";
 import CTABanner from "@/components/CTABanner";
 import ReachMillionsSection from "@/components/ReachMillionsSection";
 import Footer from "@/components/Footer";
+import { AdBanner } from "@/components/AdBanner";
 import { useEffect } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 
@@ -33,6 +34,10 @@ const Index = () => {
       <div className="relative z-20 -mt-20 lg:-mt-24 mb-16 lg:mb-24 px-6">
         <div className="container mx-auto max-w-7xl">
           <QuickActionGrid />
+
+          <div className="mt-12 md:mt-16 max-w-5xl mx-auto">
+            <AdBanner placementSection="homepage_hero" className="aspect-[21/9] md:aspect-[4/1] w-full" />
+          </div>
         </div>
       </div>
 

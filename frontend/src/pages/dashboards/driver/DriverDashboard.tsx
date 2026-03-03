@@ -22,9 +22,11 @@ import {
     Dashboard as LayoutTemplate,
     AccessTime as Clock,
     Assignment as ClipboardList,
-    ForumOutlined as ChatIcon
+    ForumOutlined as ChatIcon,
+    Settings as SettingsIcon
 } from "@mui/icons-material";
 import { MessagesInbox } from "@/components/dashboards/MessagesInbox";
+import { ProfileSettings } from "@/components/dashboards/ProfileSettings";
 import DashboardLayout from "@/components/dashboard/DashboardLayout";
 import { ActiveJobs } from "@/components/dashboards/ActiveJobs";
 import { RatingModal } from "@/components/dashboards/RatingModal";
@@ -293,6 +295,12 @@ const DriverDashboard = () => {
                 return (
                     <Box sx={{ animation: 'fadeIn 0.5s' }}>
                         <MessagesInbox />
+                    </Box>
+                );
+            case "settings":
+                return (
+                    <Box sx={{ animation: 'fadeIn 0.5s' }}>
+                        <ProfileSettings />
                     </Box>
                 );
             case "wallet":

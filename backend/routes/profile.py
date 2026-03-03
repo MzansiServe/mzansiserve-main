@@ -24,11 +24,11 @@ REGISTRATION_FEE_AMOUNT = 10000  # R100.00
 # After approval, only these profile fields may be changed (and require admin approval to apply)
 ALLOWED_AFTER_APPROVAL_COMMON = {'phone', 'next_of_kin'}
 ALLOWED_AFTER_APPROVAL_BY_ROLE = {
-    'driver': {'driver_services', 'proof_of_residence_url', 'driver_license_url'},
-    'service-provider': {'provider_services', 'proof_of_residence_url', 'driver_license_url'},
+    'driver': {'driver_services', 'proof_of_residence_url', 'driver_license_url', 'operating_areas', 'availability'},
+    'service-provider': {'provider_services', 'proof_of_residence_url', 'driver_license_url', 'operating_areas', 'availability'},
     'professional': {
         'professional_services', 'proof_of_residence_url', 'highest_qualification',
-        'professional_body', 'qualification_urls'
+        'professional_body', 'qualification_urls', 'operating_areas', 'availability'
     },
     'client': set(),
 }
@@ -69,6 +69,8 @@ class UpdateProfileSchema(Schema):
     # Professional metadata
     highest_qualification = fields.Str(allow_none=True, load_default=None)
     professional_body = fields.Str(allow_none=True, load_default=None)
+    operating_areas = fields.List(fields.Str(), allow_none=True, load_default=None)
+    availability = fields.Dict(allow_none=True, load_default=None)
     # Role-specific fields
     professional_services = fields.List(fields.Nested(ServiceSchema), allow_none=True, load_default=None)
     provider_services = fields.List(fields.Nested(ServiceSchema), allow_none=True, load_default=None)
@@ -154,16 +156,17 @@ def update_profile():
             else:
                 request_data['sa_citizen'] = False
             
-            # Handle next_of_kin from form data (JSON string)
-            if 'next_of_kin' in request.form:
-                try:
-                    next_of_kin_str = request.form['next_of_kin']
-                    if next_of_kin_str:
-                        request_data['next_of_kin'] = json.loads(next_of_kin_str)
-                    else:
-                        request_data['next_of_kin'] = None
-                except (json.JSONDecodeError, ValueError):
-                    request_data['next_of_kin'] = None
+            # Handle JSON objects from form data
+            for json_key in ['next_of_kin', 'operating_areas', 'availability']:
+                if json_key in request.form:
+                    try:
+                        val_str = request.form[json_key]
+                        if val_str:
+                            request_data[json_key] = json.loads(val_str)
+                        else:
+                            request_data[json_key] = None
+                    except (json.JSONDecodeError, ValueError):
+                        request_data[json_key] = None
             
             # Handle role-specific services from form data (JSON strings)
             for service_key in ['professional_services', 'provider_services', 'driver_services']:
@@ -194,6 +197,11 @@ def update_profile():
                 request_data['next_of_kin'] = None
         
         data = schema.load(request_data)
+
+        # Enforce max 5 operating areas
+        if data.get('operating_areas') and len(data['operating_areas']) > 5:
+            return error_response('VALIDATION_ERROR', 'A maximum of 5 operating areas can be selected.', None, 400)
+
         current_app.logger.info(f"Profile update data: {data}")
 
         # After approval: only allowed fields may be changed; changes go to pending (shadow) until admin approves
@@ -223,7 +231,7 @@ def update_profile():
             payload['phone'] = data['phone']
         if 'next_of_kin' in data:
             payload['next_of_kin'] = data['next_of_kin']
-        for key in ('driver_services', 'professional_services', 'provider_services', 'highest_qualification', 'professional_body'):
+        for key in ('driver_services', 'professional_services', 'provider_services', 'highest_qualification', 'professional_body', 'operating_areas', 'availability'):
             if key in allowed_keys and key in data and data[key] is not None:
                 payload[key] = data[key]
         if 'qualification_urls' in allowed_keys and data.get('qualification_urls') is not None:

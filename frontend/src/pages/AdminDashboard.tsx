@@ -107,7 +107,7 @@ const NAV_STRUCTURE = [
         label: "Service Ops",
         icon: Briefcase,
         children: [
-            { id: "requests", label: "Requests", icon: ClipboardList },
+            { id: "requests", label: "Request Management", icon: ClipboardList },
             { id: "services", label: "Services", icon: Briefcase },
             { id: "withdrawals", label: "Withdrawals", icon: CreditCard },
             { id: "agents", label: "Agents", icon: UserSquare2 },
@@ -195,10 +195,10 @@ const AdminDashboard = () => {
         switch (activeTab) {
             case "overview":
                 return (
-                    <Overview 
-                        stats={stats} 
-                        recentOrders={recentOrders} 
-                        recentRequests={recentRequests} 
+                    <Overview
+                        stats={stats}
+                        recentOrders={recentOrders}
+                        recentRequests={recentRequests}
                         loading={loadingStats}
                         onRefresh={fetchDashboardData}
                     />

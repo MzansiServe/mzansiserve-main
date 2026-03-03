@@ -605,6 +605,24 @@ def create_product():
                 quantity = int(quantity_raw)
             except (TypeError, ValueError):
                 quantity = 0
+
+            product_type = form.get('product_type', 'simple')
+            import json
+            try:
+                attributes = json.loads(form.get('attributes', '[]'))
+            except Exception:
+                attributes = []
+            try:
+                variations = json.loads(form.get('variations', '[]'))
+            except Exception:
+                variations = []
+            try:
+                grouped_products = json.loads(form.get('grouped_products', '[]'))
+            except Exception:
+                grouped_products = []
+            external_url = form.get('external_url', '').strip() or None
+            button_text = form.get('button_text', 'Buy Product').strip() or 'Buy Product'
+
             image_files = request.files.getlist('image_files')
         else:
             data = request.get_json(silent=True) or {}
@@ -614,6 +632,14 @@ def create_product():
             category_id = data.get('category_id', '').strip() or None
             subcategory_id = data.get('subcategory_id', '').strip() or None
             quantity = data.get('quantity', 0)  # Initial inventory quantity
+            
+            product_type = data.get('product_type', 'simple')
+            attributes = data.get('attributes', [])
+            variations = data.get('variations', [])
+            grouped_products = data.get('grouped_products', [])
+            external_url = data.get('external_url', '').strip() or None
+            button_text = data.get('button_text', 'Buy Product').strip() or 'Buy Product'
+
             image_files = []
         
         if not name or not price:
@@ -657,6 +683,12 @@ def create_product():
             price=price,
             category_id=category_id,
             subcategory_id=subcategory_id,
+            product_type=product_type,
+            attributes=attributes,
+            variations=variations,
+            grouped_products=grouped_products,
+            external_url=external_url,
+            button_text=button_text,
             image_url=image_url,  # Legacy field, kept for backward compatibility
             status='active',
             in_stock=True
@@ -735,6 +767,31 @@ def update_product(product_id):
             if 'subcategory_id' in form:
                 subcategory_id_val = form.get('subcategory_id', '').strip()
                 product.subcategory_id = subcategory_id_val if subcategory_id_val else None
+
+            if 'product_type' in form:
+                product.product_type = form.get('product_type', 'simple')
+            if 'attributes' in form:
+                import json
+                try:
+                    product.attributes = json.loads(form.get('attributes', '[]'))
+                except Exception:
+                    pass
+            if 'variations' in form:
+                import json
+                try:
+                    product.variations = json.loads(form.get('variations', '[]'))
+                except Exception:
+                    pass
+            if 'grouped_products' in form:
+                import json
+                try:
+                    product.grouped_products = json.loads(form.get('grouped_products', '[]'))
+                except Exception:
+                    pass
+            if 'external_url' in form:
+                product.external_url = form.get('external_url', '').strip() or None
+            if 'button_text' in form:
+                product.button_text = form.get('button_text', 'Buy Product').strip() or 'Buy Product'
             
             # Handle multiple image files
             image_files = request.files.getlist('image_files')
@@ -831,6 +888,20 @@ def update_product(product_id):
                 product.category_id = data.get('category_id')
             if 'subcategory_id' in data:
                 product.subcategory_id = data.get('subcategory_id')
+                
+            if 'product_type' in data:
+                product.product_type = data['product_type']
+            if 'attributes' in data:
+                product.attributes = data['attributes']
+            if 'variations' in data:
+                product.variations = data['variations']
+            if 'grouped_products' in data:
+                product.grouped_products = data['grouped_products']
+            if 'external_url' in data:
+                product.external_url = data.get('external_url', '').strip() or None
+            if 'button_text' in data:
+                product.button_text = data.get('button_text', 'Buy Product').strip() or 'Buy Product'
+
             if 'quantity' in data:
                 inventory = Inventory.query.filter_by(product_id=product_id).first()
                 if inventory:
@@ -2047,7 +2118,7 @@ def approve_pending_profile_update(pending_id):
         updated_data = dict(user.data) if user.data else {}
         for key, value in payload.items():
             if key in ('phone', 'next_of_kin', 'driver_services', 'professional_services', 'provider_services',
-                       'highest_qualification', 'professional_body', 'proof_of_residence_url', 'driver_license_url', 'qualification_urls'):
+                       'highest_qualification', 'professional_body', 'proof_of_residence_url', 'driver_license_url', 'qualification_urls', 'operating_areas', 'availability'):
                 if value is None and key in updated_data:
                     del updated_data[key]
                 else:

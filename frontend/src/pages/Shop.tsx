@@ -13,6 +13,7 @@ import { useCart } from "@/contexts/CartContext";
 import { useToast } from "@/hooks/use-toast";
 import { useQuery } from "@tanstack/react-query";
 import { apiFetch, API_BASE_URL } from "@/lib/api";
+import { AdBanner } from "@/components/AdBanner";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import {
   Pagination,
@@ -39,6 +40,12 @@ interface ApiProduct {
   seller_name?: string;
   rating?: number;
   reviews_count?: number;
+  product_type?: 'simple' | 'variable' | 'grouped' | 'external';
+  attributes?: any;
+  variations?: any;
+  grouped_products?: any;
+  external_url?: string;
+  button_text?: string;
 }
 
 interface ApiCategory {
@@ -133,14 +140,26 @@ const ProductCard = ({
         <div className="absolute inset-x-0 bottom-4 px-4 translate-y-4 opacity-0 group-hover:translate-y-0 group-hover:opacity-100 transition-all duration-300">
           <Button
             className="w-full bg-white/95 backdrop-blur-md text-[#222222] hover:bg-white border-0 shadow-xl font-bold text-sm h-11 rounded-xl"
-            disabled={!inStock}
+            disabled={!inStock && product.product_type !== 'external'}
             onClick={(e) => {
               e.stopPropagation();
-              onAddToCart(product);
+              if (product.product_type === 'external') {
+                if (product.external_url) { window.open(product.external_url, "_blank"); }
+              } else if (product.product_type === 'variable' || product.product_type === 'grouped') {
+                navigate(`/shop/product/${product.id}`);
+              } else {
+                onAddToCart(product);
+              }
             }}
           >
-            <ShoppingCart className="h-4 w-4 mr-2" />
-            Add to cart
+            {product.product_type === 'external' ? (product.button_text || "Buy Now") :
+              (product.product_type === 'variable' || product.product_type === 'grouped') ? "View Options" :
+                (
+                  <>
+                    <ShoppingCart className="h-4 w-4 mr-2" />
+                    Add to cart
+                  </>
+                )}
           </Button>
         </div>
       </div>
@@ -419,6 +438,8 @@ const Shop = () => {
 
           {/* ── Main Content ── */}
           <div className="flex-1 min-w-0">
+            <AdBanner placementSection="shop_directory" className="aspect-[4/1] w-full mb-8" />
+
             {/* Loading skeletons */}
             {loadingProducts && (
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-3 gap-6">

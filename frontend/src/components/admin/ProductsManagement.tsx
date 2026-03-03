@@ -44,6 +44,12 @@ interface Product {
     status: string;
     category_id?: string;
     subcategory_id?: string;
+    product_type?: 'simple' | 'variable' | 'grouped' | 'external';
+    attributes?: any;
+    variations?: any;
+    grouped_products?: any;
+    external_url?: string;
+    button_text?: string;
     inventory?: {
         quantity: number;
     };
@@ -91,7 +97,13 @@ export const ProductsManagement = () => {
         price: "",
         category_id: "",
         subcategory_id: "",
-        quantity: 0
+        quantity: 0,
+        product_type: "simple",
+        external_url: "",
+        button_text: "Buy Product",
+        attributes: "[]",
+        variations: "[]",
+        grouped_products: "[]"
     });
     const [formLoading, setFormLoading] = useState(false);
 
@@ -211,7 +223,13 @@ export const ProductsManagement = () => {
                 price: String(product.price),
                 category_id: product.category_id || "",
                 subcategory_id: product.subcategory_id || "",
-                quantity: product.inventory?.quantity || 0
+                quantity: product.inventory?.quantity || 0,
+                product_type: product.product_type || "simple",
+                external_url: product.external_url || "",
+                button_text: product.button_text || "Buy Product",
+                attributes: product.attributes ? JSON.stringify(product.attributes) : "[]",
+                variations: product.variations ? JSON.stringify(product.variations) : "[]",
+                grouped_products: product.grouped_products ? JSON.stringify(product.grouped_products) : "[]"
             });
             setExistingImages(product.images ? product.images.map(img => ({ id: img.id, url: img.image_url })) : []);
         } else {
@@ -221,7 +239,13 @@ export const ProductsManagement = () => {
                 price: "",
                 category_id: "",
                 subcategory_id: "",
-                quantity: 0
+                quantity: 0,
+                product_type: "simple",
+                external_url: "",
+                button_text: "Buy Product",
+                attributes: "[]",
+                variations: "[]",
+                grouped_products: "[]"
             });
             setExistingImages([]);
         }
@@ -308,6 +332,12 @@ export const ProductsManagement = () => {
             if (finalCategoryId) formDataPayload.append("category_id", finalCategoryId);
             if (finalSubcategoryId) formDataPayload.append("subcategory_id", finalSubcategoryId);
             formDataPayload.append("quantity", String(formData.quantity));
+            formDataPayload.append("product_type", formData.product_type);
+            formDataPayload.append("external_url", formData.external_url);
+            formDataPayload.append("button_text", formData.button_text);
+            formDataPayload.append("attributes", formData.attributes);
+            formDataPayload.append("variations", formData.variations);
+            formDataPayload.append("grouped_products", formData.grouped_products);
 
             imageFiles.forEach(file => {
                 formDataPayload.append("image_files", file);
@@ -617,6 +647,24 @@ export const ProductsManagement = () => {
                     <div className="py-6 space-y-6">
                         <div className="grid grid-cols-2 gap-6">
                             <div className="col-span-2 space-y-2">
+                                <label className="text-[11px] font-black text-slate-400 uppercase tracking-widest ml-1">Product Type</label>
+                                <Select
+                                    value={formData.product_type}
+                                    onValueChange={(val) => setFormData({ ...formData, product_type: val })}
+                                >
+                                    <SelectTrigger className="h-12 border-gray-300 bg-white font-bold focus:ring-[#673ab7]">
+                                        <SelectValue placeholder="Select Product Type" />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        <SelectItem value="simple">Simple Product</SelectItem>
+                                        <SelectItem value="variable">Variable Product</SelectItem>
+                                        <SelectItem value="grouped">Grouped Product</SelectItem>
+                                        <SelectItem value="external">External / Affiliate Product</SelectItem>
+                                    </SelectContent>
+                                </Select>
+                            </div>
+
+                            <div className="col-span-2 space-y-2">
                                 <label className="text-[11px] font-black text-slate-400 uppercase tracking-widest ml-1">Product Name</label>
                                 <Input
                                     placeholder="e.g. Premium Wireless Headphones"
@@ -650,16 +698,77 @@ export const ProductsManagement = () => {
                                 </div>
                             </div>
 
-                            <div className="space-y-2">
-                                <label className="text-[11px] font-black text-slate-400 uppercase tracking-widest ml-1">Initial Stock</label>
-                                <Input
-                                    type="number"
-                                    placeholder="0"
-                                    className="font-black text-[#5e35b1]"
-                                    value={formData.quantity}
-                                    onChange={(e) => setFormData({ ...formData, quantity: parseInt(e.target.value) || 0 })}
-                                />
-                            </div>
+                            {formData.product_type !== 'external' && (
+                                <div className="space-y-2">
+                                    <label className="text-[11px] font-black text-slate-400 uppercase tracking-widest ml-1">Initial Stock</label>
+                                    <Input
+                                        type="number"
+                                        placeholder="0"
+                                        className="font-black text-[#5e35b1]"
+                                        value={formData.quantity}
+                                        onChange={(e) => setFormData({ ...formData, quantity: parseInt(e.target.value) || 0 })}
+                                    />
+                                </div>
+                            )}
+
+                            {formData.product_type === 'external' && (
+                                <>
+                                    <div className="space-y-2">
+                                        <label className="text-[11px] font-black text-slate-400 uppercase tracking-widest ml-1">External URL</label>
+                                        <Input
+                                            type="url"
+                                            placeholder="https://..."
+                                            className="font-black text-[#5e35b1] h-11"
+                                            value={formData.external_url}
+                                            onChange={(e) => setFormData({ ...formData, external_url: e.target.value })}
+                                        />
+                                    </div>
+                                    <div className="space-y-2">
+                                        <label className="text-[11px] font-black text-slate-400 uppercase tracking-widest ml-1">Button Text</label>
+                                        <Input
+                                            placeholder="Buy Product"
+                                            className="font-black text-slate-700 h-11"
+                                            value={formData.button_text}
+                                            onChange={(e) => setFormData({ ...formData, button_text: e.target.value })}
+                                        />
+                                    </div>
+                                </>
+                            )}
+
+                            {formData.product_type === 'variable' && (
+                                <>
+                                    <div className="col-span-2 space-y-2">
+                                        <label className="text-[11px] font-black text-slate-400 uppercase tracking-widest ml-1">Attributes (JSON)</label>
+                                        <Textarea
+                                            placeholder={'e.g. [{"name": "Size", "options": ["S", "M", "L"]}]'}
+                                            className="font-mono text-xs"
+                                            value={formData.attributes}
+                                            onChange={(e) => setFormData({ ...formData, attributes: e.target.value })}
+                                        />
+                                    </div>
+                                    <div className="col-span-2 space-y-2">
+                                        <label className="text-[11px] font-black text-slate-400 uppercase tracking-widest ml-1">Variations (JSON)</label>
+                                        <Textarea
+                                            placeholder={'e.g. [{"id": "v1", "attributes": {"Size": "S"}, "price": 100, "stock": 10}]'}
+                                            className="font-mono text-xs"
+                                            value={formData.variations}
+                                            onChange={(e) => setFormData({ ...formData, variations: e.target.value })}
+                                        />
+                                    </div>
+                                </>
+                            )}
+
+                            {formData.product_type === 'grouped' && (
+                                <div className="col-span-2 space-y-2">
+                                    <label className="text-[11px] font-black text-slate-400 uppercase tracking-widest ml-1">Grouped Product IDs (JSON Array)</label>
+                                    <Input
+                                        placeholder={'e.g. ["PROD-123", "PROD-456"]'}
+                                        className="font-mono text-xs h-11"
+                                        value={formData.grouped_products}
+                                        onChange={(e) => setFormData({ ...formData, grouped_products: e.target.value })}
+                                    />
+                                </div>
+                            )}
 
                             <div className="space-y-2">
                                 <div className="flex justify-between items-center ml-1">

@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { Link, useNavigate } from "react-router-dom";
+import { Autocomplete, TextField } from "@mui/material";
 import {
   Eye, EyeOff, Mail, Lock, Phone, ChevronRight, Check, AlertTriangle,
   UploadCloud, X, FileText, ShieldCheck, AlertCircle, Loader2, UserCircle, ArrowLeft
@@ -25,7 +26,7 @@ const sectionLabel = "text-[11px] font-bold text-primary uppercase tracking-[0.2
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 type FormFields = {
-  name: string; surname: string; email: string; phone: string;
+  name: string; surname: string; email: string; confirmEmail: string; phone: string;
   password: string; confirmPassword: string; gender: string;
   nationality: string; id_number: string; role: string;
   nokName: string; nokPhone: string; nokEmail: string;
@@ -42,14 +43,43 @@ const validators: Partial<Record<keyof FormFields, (v: string, form?: FormFields
   name: (v) => !v.trim() ? "First name is required" : "",
   surname: (v) => !v.trim() ? "Surname is required" : "",
   email: (v) => !v.trim() ? "Email is required" : !emailRegex.test(v) ? "Enter a valid email address" : "",
+  confirmEmail: (v, f) => !v.trim() ? "Please confirm your email" : v !== f?.email ? "Emails do not match" : "",
   password: (v) => !v ? "Password is required" : v.length < 8 ? "Password must be at least 8 characters" : "",
   confirmPassword: (v, f) => !v ? "Please confirm your password" : v !== f?.password ? "Passwords do not match" : "",
   phone: (v) => !v.trim() ? "Phone number is required" : !phoneRegex.test(v) ? "Use only digits, spaces or +" : "",
   id_number: (v) => !v.trim() ? "ID / Passport number is required" : "",
   gender: (v) => !v ? "Please select your gender" : "",
   nokName: (v) => !v.trim() ? "Next of Kin full name is required" : "",
-  nokPhone: (v, f) => v.trim() && !phoneRegex.test(v) ? "Use only digits, spaces or +" : "",
+  nokPhone: (v) => v.trim() && !phoneRegex.test(v) ? "Use only digits, spaces or +" : "",
+  role: (v) => !v ? "Please select a role to register as" : "",
 };
+
+// ─── Country List ─────────────────────────────────────────────────────────────
+const countries = [
+  "South Africa", "Afghanistan", "Albania", "Algeria", "Andorra", "Angola", "Antigua & Deps", "Argentina",
+  "Armenia", "Australia", "Austria", "Azerbaijan", "Bahamas", "Bahrain", "Bangladesh", "Barbados", "Belarus",
+  "Belgium", "Belize", "Benin", "Bhutan", "Bolivia", "Bosnia Herzegovina", "Botswana", "Brazil", "Brunei",
+  "Bulgaria", "Burkina", "Burundi", "Cambodia", "Cameroon", "Canada", "Cape Verde", "Central African Rep",
+  "Chad", "Chile", "China", "Colombia", "Comoros", "Congo", "Congo {Democratic Rep}", "Costa Rica", "Croatia",
+  "Cuba", "Cyprus", "Czech Republic", "Denmark", "Djibouti", "Dominica", "Dominican Republic", "East Timor",
+  "Ecuador", "Egypt", "El Salvador", "Equatorial Guinea", "Eritrea", "Estonia", "Ethiopia", "Fiji", "Finland",
+  "France", "Gabon", "Gambia", "Georgia", "Germany", "Ghana", "Greece", "Grenada", "Guatemala", "Guinea",
+  "Guinea-Bissau", "Guyana", "Haiti", "Honduras", "Hungary", "Iceland", "India", "Indonesia", "Iran", "Iraq",
+  "Ireland {Republic}", "Israel", "Italy", "Ivory Coast", "Jamaica", "Japan", "Jordan", "Kazakhstan", "Kenya",
+  "Kiribati", "Korea North", "Korea South", "Kosovo", "Kuwait", "Kyrgyzstan", "Laos", "Latvia", "Lebanon",
+  "Lesotho", "Liberia", "Libya", "Liechtenstein", "Lithuania", "Luxembourg", "Macedonia", "Madagascar",
+  "Malawi", "Malaysia", "Maldives", "Mali", "Malta", "Marshall Islands", "Mauritania", "Mauritius", "Mexico",
+  "Micronesia", "Moldova", "Monaco", "Mongolia", "Montenegro", "Morocco", "Mozambique", "Myanmar, {Burma}",
+  "Namibia", "Nauru", "Nepal", "Netherlands", "New Zealand", "Nicaragua", "Niger", "Nigeria", "Norway",
+  "Oman", "Pakistan", "Palau", "Panama", "Papua New Guinea", "Paraguay", "Peru", "Philippines", "Poland",
+  "Portugal", "Qatar", "Romania", "Russian Federation", "Rwanda", "St Kitts & Nevis", "St Lucia",
+  "Saint Vincent & the Grenadines", "Samoa", "San Marino", "Sao Tome & Principe", "Saudi Arabia", "Senegal",
+  "Serbia", "Seychelles", "Sierra Leone", "Singapore", "Slovakia", "Slovenia", "Solomon Islands", "Somalia",
+  "South Sudan", "Spain", "Sri Lanka", "Sudan", "Suriname", "Swaziland", "Sweden", "Switzerland", "Syria",
+  "Taiwan", "Tajikistan", "Tanzania", "Thailand", "Togo", "Tonga", "Trinidad & Tobago", "Tunisia", "Turkey",
+  "Turkmenistan", "Tuvalu", "Uganda", "Ukraine", "United Arab Emirates", "United Kingdom", "United States",
+  "Uruguay", "Uzbekistan", "Vanuatu", "Vatican City", "Venezuela", "Vietnam", "Yemen", "Zambia", "Zimbabwe"
+];
 
 // ─── Inline error helper ──────────────────────────────────────────────────────
 const FieldError = ({ msg }: { msg?: string }) => (
@@ -82,8 +112,8 @@ const RequiredLegend = () => (
 
 const Register = () => {
   const [form, setForm] = useState<FormFields>({
-    name: "", surname: "", email: "", phone: "", password: "", confirmPassword: "",
-    gender: "", nationality: "South Africa", id_number: "", role: "client",
+    name: "", surname: "", email: "", confirmEmail: "", phone: "", password: "", confirmPassword: "",
+    gender: "", nationality: "", id_number: "", role: "",
     nokName: "", nokPhone: "", nokEmail: "",
     highestQualification: "", professionalBody: "", agent_id: ""
   });
@@ -221,7 +251,7 @@ const Register = () => {
     }
 
     // File-level checks (shown in top banner — not per-field)
-    if (!files.profile_photo) { setServerError("Profile photo is required"); return; }
+    if (!form.role) { setServerError("Please select a role to register as"); return; }
     if (!files.id_document) { setServerError("ID document is required"); return; }
     if (form.role === "driver" && (!files.proof_of_residence || !files.drivers_license)) {
       setServerError("Drivers need Proof of Residence and Driver's License"); return;
@@ -454,16 +484,18 @@ const Register = () => {
                   <div className="grid gap-5 sm:grid-cols-2">
 
                     {/* Role */}
-                    <div className="space-y-1">
-                      <label className={fieldLabel}>Register as</label>
+                    <div className="space-y-1 sm:col-span-2">
+                      <label className={fieldLabel}>Register as<Req /></label>
                       <select id="role" value={form.role}
                         onChange={(e) => update("role", e.target.value)}
-                        className={validSelect}>
+                        className={fieldErrors.role ? errorSelect : validSelect}>
+                        <option value="" disabled>Select Role...</option>
                         <option value="client">Client</option>
                         <option value="driver">Driver</option>
                         <option value="professional">Professional</option>
                         <option value="service-provider">Service Provider</option>
                       </select>
+                      <FieldError msg={fieldErrors.role} />
                     </div>
 
                     {/* Email */}
@@ -479,6 +511,21 @@ const Register = () => {
                           autoComplete="email" />
                       </div>
                       <FieldError msg={fieldErrors.email} />
+                    </div>
+
+                    {/* Confirm Email */}
+                    <div className="space-y-1">
+                      <label className={fieldLabel}>Confirm Email Address<Req /></label>
+                      <div className="relative">
+                        <Mail className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400 pointer-events-none" />
+                        <input id="confirm-email" type="email" placeholder="Re-enter email"
+                          value={form.confirmEmail}
+                          onChange={(e) => update("confirmEmail", e.target.value)}
+                          onBlur={() => handleBlur("confirmEmail")}
+                          className={ic("confirmEmail", true)}
+                          autoComplete="email" />
+                      </div>
+                      <FieldError msg={fieldErrors.confirmEmail} />
                     </div>
 
                     {/* Password */}
@@ -579,12 +626,23 @@ const Register = () => {
 
                     <div className="space-y-1">
                       <label className={fieldLabel}>Nationality<Req /></label>
-                      <select value={form.nationality}
-                        onChange={(e) => update("nationality", e.target.value)}
-                        className={validSelect}>
-                        <option value="South Africa">South Africa</option>
-                        <option value="Other">Other</option>
-                      </select>
+                      <Autocomplete
+                        options={countries}
+                        value={form.nationality}
+                        onChange={(_, newValue) => {
+                          update("nationality", newValue || "");
+                        }}
+                        renderInput={(params) => (
+                          <div ref={params.InputProps.ref} className="w-full">
+                            <input
+                              {...params.inputProps}
+                              placeholder="Search country..."
+                              className={ic("nationality")}
+                            />
+                          </div>
+                        )}
+                      />
+                      <FieldError msg={fieldErrors.nationality} />
                     </div>
 
                     <div className="space-y-1">
@@ -680,7 +738,7 @@ const Register = () => {
                 <section className="space-y-5 pt-6 border-t border-slate-50">
                   <p className={sectionLabel}><ShieldCheck className="w-4 h-4" /> Verification Documents</p>
                   <div className="grid gap-6 sm:grid-cols-2">
-                    <FileUploadArea label="Profile Photo" field="profile_photo" accept="image/*" required />
+                    <FileUploadArea label="Profile Photo (Optional)" field="profile_photo" accept="image/*" />
                     <FileUploadArea label="ID Document / Passport" field="id_document" accept=".pdf,.jpg,.jpeg,.png" required />
                     {(form.role === "driver" || form.role === "professional" || form.role === "service-provider") && (
                       <FileUploadArea label="Proof of Residence" field="proof_of_residence" accept=".pdf,.jpg,.jpeg,.png" required />
@@ -704,9 +762,9 @@ const Register = () => {
                       className="mt-1 border-slate-300 data-[state=checked]:bg-primary data-[state=checked]:border-primary" />
                     <label htmlFor="terms" className="text-sm font-medium text-slate-600 leading-relaxed cursor-pointer">
                       I agree to the{" "}
-                      <a href="#" className="font-bold text-[#222222] underline underline-offset-4 hover:text-primary transition-colors">Terms of Service</a>
+                      <Link to="/terms" className="font-bold text-[#222222] underline underline-offset-4 hover:text-primary transition-colors">Terms of Service</Link>
                       {" "}and{" "}
-                      <a href="#" className="font-bold text-[#222222] underline underline-offset-4 hover:text-primary transition-colors">Privacy Policy</a>
+                      <Link to="/privacy" className="font-bold text-[#222222] underline underline-offset-4 hover:text-primary transition-colors">Privacy Policy</Link>
                       <Req />
                     </label>
                   </div>

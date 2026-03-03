@@ -60,6 +60,8 @@ const Advertise = () => {
         setFormData(prev => ({ ...prev, [e.target.id]: e.target.value }));
     };
 
+    const { isAuthenticated } = require("@/contexts/AuthContext").useAuth();
+
     return (
         <div className="min-h-screen bg-slate-50 flex flex-col">
             <Navbar />
@@ -202,6 +204,22 @@ const Advertise = () => {
                                             </span>
                                         )}
                                     </Button>
+
+                                    {isAuthenticated && (
+                                        <div className="mt-8 pt-6 border-t border-slate-100 text-center">
+                                            <p className="text-sm font-medium text-slate-500 mb-4">Already have campaigns?</p>
+                                            <Button
+                                                variant="outline"
+                                                className="w-full rounded-xl"
+                                                onClick={(e) => {
+                                                    e.preventDefault();
+                                                    window.location.href = "/dashboard/advertiser";
+                                                }}
+                                            >
+                                                Go to Advertiser Dashboard
+                                            </Button>
+                                        </div>
+                                    )}
                                 </form>
                             )}
                         </motion.div>

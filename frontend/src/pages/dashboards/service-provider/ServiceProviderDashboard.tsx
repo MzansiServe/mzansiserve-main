@@ -33,6 +33,7 @@ import { JobInbox } from "@/components/dashboards/JobInbox";
 import { WalletManagement } from "@/components/dashboards/WalletManagement";
 import { ServiceManagement } from "@/components/dashboards/ServiceManagement";
 import { MessagesInbox } from "@/components/dashboards/MessagesInbox";
+import { ProfileSettings } from "@/components/dashboards/ProfileSettings";
 import { apiFetch } from "@/lib/api";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/contexts/AuthContext";
@@ -327,6 +328,12 @@ const ServiceProviderDashboard = () => {
                 return (
                     <Box sx={{ animation: 'fadeIn 0.5s' }}>
                         <MessagesInbox />
+                    </Box>
+                );
+            case "settings":
+                return (
+                    <Box sx={{ animation: 'fadeIn 0.5s' }}>
+                        <ProfileSettings />
                     </Box>
                 );
             case "wallet":

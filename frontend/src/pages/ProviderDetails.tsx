@@ -5,7 +5,7 @@ import { motion } from "framer-motion";
 import {
     MapPin, Star, ShieldCheck, Mail, Phone, Globe,
     Briefcase, GraduationCap, Award, Clock, ArrowLeft, Loader2,
-    MessageSquare, CalendarCheck, Package, Quote
+    MessageSquare, CalendarCheck, Package, Quote, Calendar, Map
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import Navbar from "@/components/Navbar";
@@ -249,6 +249,50 @@ const ProviderDetails = () => {
                             </div>
                         )}
 
+                        {/* Setup for Operating Areas & Availability extracted from data */}
+                        {(data.operating_areas?.length > 0 || data.availability) && (
+                            <div className="grid sm:grid-cols-2 gap-8">
+                                {/* Operating Areas */}
+                                {data.operating_areas?.length > 0 && (
+                                    <div className="bg-white rounded-[2.5rem] p-8 border border-slate-50 shadow-sm relative overflow-hidden">
+                                        <div className="absolute top-0 right-0 p-8 opacity-5 pointer-events-none"><Map className="w-32 h-32" /></div>
+                                        <h2 className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400 mb-6 flex items-center gap-2"><MapPin className="w-4 h-4" /> Service Areas</h2>
+                                        <div className="flex flex-wrap gap-2 relative z-10">
+                                            {data.operating_areas.map((area: string, idx: number) => (
+                                                <div key={idx} className="px-4 py-2 rounded-xl bg-slate-50 border border-slate-100 text-slate-700 font-bold text-sm shadow-sm">{area}</div>
+                                            ))}
+                                        </div>
+                                    </div>
+                                )}
+
+                                {/* Availability / Schedule */}
+                                {data.availability?.regular_hours && (
+                                    <div className="bg-white rounded-[2.5rem] p-8 border border-slate-50 shadow-sm relative overflow-hidden">
+                                        <div className="absolute top-0 right-0 p-8 opacity-5 pointer-events-none"><Calendar className="w-32 h-32" /></div>
+                                        <h2 className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400 mb-6 flex items-center gap-2"><Clock className="w-4 h-4" /> Standard Hours</h2>
+                                        <div className="space-y-3 relative z-10">
+                                            {['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'].map((day) => {
+                                                const schedule = data.availability.regular_hours[day];
+                                                if (!schedule) return null;
+                                                return (
+                                                    <div key={day} className="flex justify-between items-center border-b border-slate-50 pb-2 last:border-0 last:pb-0">
+                                                        <span className="capitalize text-slate-500 font-bold text-sm w-24">{day}</span>
+                                                        {schedule.enabled ? (
+                                                            <span className="text-slate-700 font-bold bg-slate-50 px-3 py-1 rounded-lg text-xs border border-slate-100 shadow-sm">
+                                                                {schedule.start} - {schedule.end}
+                                                            </span>
+                                                        ) : (
+                                                            <span className="text-rose-400 font-bold text-xs uppercase tracking-widest bg-rose-50 px-3 py-1 rounded-lg">Closed</span>
+                                                        )}
+                                                    </div>
+                                                );
+                                            })}
+                                        </div>
+                                    </div>
+                                )}
+                            </div>
+                        )}
+
                         {/* Services Offered */}
                         <div className="bg-white rounded-[2.5rem] p-8 sm:p-10 border border-slate-50">
                             <h2 className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400 mb-6">Services Offered</h2>
@@ -292,7 +336,7 @@ const ProviderDetails = () => {
                                         <div key={rev.id} className="p-6 rounded-3xl border border-slate-100 bg-slate-50/50">
                                             <div className="flex items-center justify-between mb-3">
                                                 <div className="flex gap-1">
-                                                    {[1,2,3,4,5].map(s => (
+                                                    {[1, 2, 3, 4, 5].map(s => (
                                                         <Star key={s} className={cn(
                                                             "h-4 w-4",
                                                             s <= rev.rating ? "fill-amber-400 text-amber-400" : "fill-slate-200 text-slate-200"
@@ -300,7 +344,7 @@ const ProviderDetails = () => {
                                                     ))}
                                                 </div>
                                                 <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">
-                                                    {rev.created_at ? new Date(rev.created_at).toLocaleDateString('en-ZA', { month:'short', year:'numeric'}) : ''}
+                                                    {rev.created_at ? new Date(rev.created_at).toLocaleDateString('en-ZA', { month: 'short', year: 'numeric' }) : ''}
                                                 </span>
                                             </div>
                                             {rev.review_text && (

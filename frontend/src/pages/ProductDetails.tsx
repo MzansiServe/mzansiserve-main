@@ -43,6 +43,12 @@ interface ApiProduct {
   seller_name?: string;
   rating?: number;
   reviews_count?: number;
+  product_type?: 'simple' | 'variable' | 'grouped' | 'external';
+  attributes?: any;
+  variations?: any;
+  grouped_products?: any;
+  external_url?: string;
+  button_text?: string;
 }
 
 const ProductDetails = () => {
@@ -281,33 +287,50 @@ const ProductDetails = () => {
                   </div>
                 </div>
 
-                {/* Add to Cart Controls */}
+                {/* Add to Cart / External Button Controls */}
                 <div className="flex flex-col gap-5 mb-12">
                   <div className="flex flex-col sm:flex-row items-center gap-4">
-                    <div className="flex items-center bg-slate-50 rounded-2xl h-16 px-2 w-full sm:w-auto border border-transparent focus-within:border-primary/20 transition-all">
-                      <button
-                        onClick={() => setQuantity((q) => Math.max(1, q - 1))}
-                        className="w-12 h-12 flex items-center justify-center text-slate-400 hover:text-primary transition-all active:scale-90"
+                    {product.product_type === 'external' ? (
+                      <Button
+                        onClick={() => {
+                          if (product.external_url) {
+                            window.open(product.external_url, "_blank");
+                          } else {
+                            toast({ title: "Link unavailable", variant: "destructive" });
+                          }
+                        }}
+                        className="w-full h-16 rounded-2xl bg-primary hover:bg-primary text-white font-bold text-xl shadow-xl shadow-primary/20 transition-all hover:-translate-y-1 active:scale-95 flex-1"
                       >
-                        <Minus className="h-5 w-5" strokeWidth={3} />
-                      </button>
-                      <span className="w-12 text-center text-xl font-black text-[#222222]">{quantity}</span>
-                      <button
-                        onClick={() => setQuantity((q) => q + 1)}
-                        className="w-12 h-12 flex items-center justify-center text-slate-400 hover:text-primary transition-all active:scale-90"
-                      >
-                        <Plus className="h-5 w-5" strokeWidth={3} />
-                      </button>
-                    </div>
+                        {product.button_text || "Buy on External Site"}
+                      </Button>
+                    ) : (
+                      <>
+                        <div className="flex items-center bg-slate-50 rounded-2xl h-16 px-2 w-full sm:w-auto border border-transparent focus-within:border-primary/20 transition-all">
+                          <button
+                            onClick={() => setQuantity((q) => Math.max(1, q - 1))}
+                            className="w-12 h-12 flex items-center justify-center text-slate-400 hover:text-primary transition-all active:scale-90"
+                          >
+                            <Minus className="h-5 w-5" strokeWidth={3} />
+                          </button>
+                          <span className="w-12 text-center text-xl font-black text-[#222222]">{quantity}</span>
+                          <button
+                            onClick={() => setQuantity((q) => q + 1)}
+                            className="w-12 h-12 flex items-center justify-center text-slate-400 hover:text-primary transition-all active:scale-90"
+                          >
+                            <Plus className="h-5 w-5" strokeWidth={3} />
+                          </button>
+                        </div>
 
-                    <Button
-                      disabled={!inStock}
-                      onClick={handleAddToCart}
-                      className="w-full h-16 rounded-2xl bg-primary hover:bg-primary text-white font-bold text-xl shadow-xl shadow-primary/20 transition-all hover:-translate-y-1 active:scale-95 flex-1"
-                    >
-                      <ShoppingCart className="h-6 w-6 mr-3" strokeWidth={2.5} />
-                      Add to Bag
-                    </Button>
+                        <Button
+                          disabled={!inStock}
+                          onClick={handleAddToCart}
+                          className="w-full h-16 rounded-2xl bg-primary hover:bg-primary text-white font-bold text-xl shadow-xl shadow-primary/20 transition-all hover:-translate-y-1 active:scale-95 flex-1"
+                        >
+                          <ShoppingCart className="h-6 w-6 mr-3" strokeWidth={2.5} />
+                          Add to Bag
+                        </Button>
+                      </>
+                    )}
                   </div>
                 </div>
 
