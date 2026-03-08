@@ -5,7 +5,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import {
     MapPin, Clock, Tag, User, Phone, Mail,
     Share2, Flag, Heart, ArrowLeft, ChevronLeft,
-    ChevronRight, ShieldCheck, MessageSquare, ExternalLink
+    ChevronRight, ShieldCheck, MessageSquare, ExternalLink, Loader2
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -18,6 +18,7 @@ import { useAuth } from "@/contexts/AuthContext";
 
 interface Ad {
     id: string;
+    user_id: string;
     title: string;
     description: string;
     price: number | null;
