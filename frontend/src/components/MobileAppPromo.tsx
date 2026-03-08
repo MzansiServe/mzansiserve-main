@@ -50,6 +50,17 @@ export const MobileAppPromo = () => {
                                 </div>
                             </button>
 
+                            <button
+                                onClick={() => window.location.href = '/mzansiserve.apk'}
+                                className="flex items-center gap-3 bg-primary hover:bg-primary/90 text-white rounded-xl px-5 py-3 transition-all hover:scale-105 shadow-lg"
+                            >
+                                <Smartphone className="w-7 h-7" />
+                                <div className="text-left">
+                                    <div className="text-[10px] uppercase font-semibold text-white/60 leading-none">Download</div>
+                                    <div className="text-lg font-bold leading-tight">Android APK</div>
+                                </div>
+                            </button>
+
                             <button className="flex items-center gap-3 bg-[#222222] hover:bg-black text-white rounded-xl px-5 py-3 transition-all hover:scale-105 shadow-lg">
                                 <svg className="w-7 h-7" viewBox="0 0 512 512">
                                     <path fill="#4285F4" d="M464 256c0-13.3-1.2-26.2-3.5-38.7H256v73.2h116.5c-5 26.9-20.2 49.6-43.1 64.9l69 53.5C438.7 373.1 464 320.1 464 256z" />

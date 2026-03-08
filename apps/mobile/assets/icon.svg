@@ -1,0 +1,31 @@
+<svg width="1024" height="1024" viewBox="0 0 1024 1024" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <!-- Background -->
+  <rect width="1024" height="1024" fill="url(#paint0_linear)"/>
+  
+  <!-- Outer Glow/Drop Shadow -->
+  <path d="M260 740V440L512 600L764 440V740" stroke="rgba(0,0,0,0.15)" stroke-width="40" stroke-linecap="round" stroke-linejoin="round" transform="translate(0, 15)"/>
+  <path d="M260 320L512 480L764 320V740H804V280L512 440L220 280V740H260V320Z" fill="rgba(0,0,0,0.15)" transform="translate(0, 15)"/>
+
+  <!-- Logo Mark (M shape based on connected nodes/paths representing services) -->
+  <!-- Left Pillar -->
+  <path d="M220 740V300C220 260 260 240 290 260L512 400L734 260C764 240 804 260 804 300V740" fill="none" stroke="url(#paint1_linear)" stroke-width="80" stroke-linecap="round" stroke-linejoin="round"/>
+  
+  <!-- Center Intersection Accent -->
+  <circle cx="512" cy="400" r="40" fill="#10B981"/>
+  
+  <!-- Gradient Definitions -->
+  <defs>
+    <!-- Background Gradient: Deep Blue to Dark Navy -->
+    <linearGradient id="paint0_linear" x1="0" y1="0" x2="1024" y2="1024" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#1E3A8A"/> <!-- Blue 900 -->
+      <stop offset="1" stop-color="#0F172A"/> <!-- Slate 900 -->
+    </linearGradient>
+    
+    <!-- Logo Stroke Gradient: Emerald Green to Teal -->
+    <linearGradient id="paint1_linear" x1="220" y1="240" x2="804" y2="740" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#34D399"/> <!-- Emerald 400 -->
+      <stop offset="0.5" stop-color="#10B981"/> <!-- Emerald 500 -->
+      <stop offset="1" stop-color="#059669"/> <!-- Emerald 600 -->
+    </linearGradient>
+  </defs>
+</svg>
