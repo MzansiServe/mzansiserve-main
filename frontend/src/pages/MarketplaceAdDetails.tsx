@@ -13,6 +13,8 @@ import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
 import { apiFetch } from "@/lib/api";
 import { useToast } from "@/hooks/use-toast";
+import { ChatOverlay } from "@/components/ChatOverlay";
+import { useAuth } from "@/contexts/AuthContext";
 
 interface Ad {
     id: string;
@@ -39,8 +41,15 @@ const MarketplaceAdDetails = () => {
     const { id } = useParams();
     const navigate = useNavigate();
     const { toast } = useToast();
+    const { user: currentUser } = useAuth();
     const [activeImageIndex, setActiveImageIndex] = useState(0);
     const [showContact, setShowContact] = useState(false);
+
+    // Chat state
+    const [chatOpen, setChatOpen] = useState(false);
+    const [chatRequestId, setChatRequestId] = useState<string | null>(null);
+    const [chatRecipientName, setChatRecipientName] = useState("");
+    const [initializingChat, setInitializingChat] = useState(false);
 
     const { data: adRes, isLoading, error } = useQuery({
         queryKey: ["marketplace-ad", id],
@@ -69,6 +78,50 @@ const MarketplaceAdDetails = () => {
             title: "Link copied",
             description: "Ad link copied to clipboard"
         });
+    };
+
+    const handleSendMessage = async () => {
+        if (!id) return;
+        if (!currentUser) {
+            toast({
+                title: "Login Required",
+                description: "Please login to message the seller",
+                variant: "destructive"
+            });
+            navigate("/login", { state: { from: `/marketplace/ad/${id}` } });
+            return;
+        }
+
+        if (currentUser.id === ad.user_id) {
+            toast({
+                title: "Invalid Action",
+                description: "You cannot message yourself",
+                variant: "destructive"
+            });
+            return;
+        }
+
+        setInitializingChat(true);
+        try {
+            const res = await apiFetch("/api/chat/initialize-ad-chat", {
+                method: "POST",
+                data: { ad_id: id }
+            });
+
+            if (res.success) {
+                setChatRequestId(res.data.request_id);
+                setChatRecipientName(res.data.recipient_name);
+                setChatOpen(true);
+            }
+        } catch (error: any) {
+            toast({
+                title: "Error",
+                description: error.message || "Failed to start chat",
+                variant: "destructive"
+            });
+        } finally {
+            setInitializingChat(false);
+        }
     };
 
     return (
@@ -227,8 +280,18 @@ const MarketplaceAdDetails = () => {
                                             </div>
                                         </div>
                                     )}
-                                    <Button variant="outline" className="w-full h-16 rounded-2xl border-slate-200 text-slate-700 font-bold text-lg gap-2">
-                                        <MessageSquare size={20} /> Send Message
+                                    <Button
+                                        variant="outline"
+                                        className="w-full h-16 rounded-2xl border-slate-200 text-slate-700 font-bold text-lg gap-2"
+                                        onClick={handleSendMessage}
+                                        disabled={initializingChat}
+                                    >
+                                        {initializingChat ? (
+                                            <Loader2 className="h-5 w-5 animate-spin" />
+                                        ) : (
+                                            <MessageSquare size={20} />
+                                        )}
+                                        Send Message
                                     </Button>
                                 </div>
 
@@ -247,6 +310,15 @@ const MarketplaceAdDetails = () => {
             </main>
 
             <Footer />
+
+            {chatRequestId && (
+                <ChatOverlay
+                    requestId={chatRequestId}
+                    recipientName={chatRecipientName}
+                    isOpen={chatOpen}
+                    onClose={() => setChatOpen(false)}
+                />
+            )}
         </div>
     );
 };

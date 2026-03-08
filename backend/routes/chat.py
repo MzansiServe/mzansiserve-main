@@ -163,3 +163,69 @@ def mark_read(request_id):
         db.session.rollback()
         current_app.logger.error(f"Mark read error: {str(e)}")
         return error_response('INTERNAL_ERROR', 'Failed to update messages', None, 500)
+@bp.route('/initialize-ad-chat', methods=['POST'])
+@require_auth
+def initialize_ad_chat():
+    """Find or create a ServiceRequest context for a marketplace ad chat"""
+    try:
+        user_id = get_jwt_identity()
+        data = request.json
+        ad_id = data.get('ad_id')
+        
+        if not ad_id:
+            return error_response('INVALID_REQUEST', 'Ad ID is required', None, 400)
+            
+        from backend.models import MarketplaceAd, ServiceRequest
+        ad = MarketplaceAd.query.get(ad_id)
+        if not ad:
+            return error_response('NOT_FOUND', 'Ad not found', None, 404)
+            
+        if str(ad.user_id) == user_id:
+            return error_response('INVALID_REQUEST', 'You cannot message yourself', None, 400)
+            
+        # Check if an inquiry already exists between these two for this ad
+        # We store ad_id in details to differentiate chats for different ads between same users
+        existing_request = ServiceRequest.query.filter(
+            ServiceRequest.requester_id == user_id,
+            ServiceRequest.provider_id == ad.user_id,
+            ServiceRequest.details['ad_id'].astext == ad.id
+        ).first()
+        
+        if existing_request:
+            return success_response({
+                'request_id': existing_request.id,
+                'recipient_name': ad.user.data.get('full_name', 'Seller') if ad.user and ad.user.data else 'Seller'
+            })
+            
+        # Create a new inquiry (using 'professional' type as it has few constraints and no wallet deduction)
+        import secrets
+        request_id = f"REQ-CHAT-{secrets.token_hex(6).upper()}"
+        
+        new_request = ServiceRequest(
+            id=request_id,
+            request_type='professional',
+            status='pending',
+            requester_id=user_id,
+            provider_id=ad.user_id,
+            details={
+                'notes': 'Chat Inquiry',
+                'ad_id': ad.id,
+                'ad_title': ad.title,
+                'is_marketplace_chat': True
+            },
+            payment_status='paid', # Marked as paid to avoid blocking the chat
+            payment_amount=0
+        )
+        
+        db.session.add(new_request)
+        db.session.commit()
+        
+        return success_response({
+            'request_id': request_id,
+            'recipient_name': ad.user.data.get('full_name', 'Seller') if ad.user and ad.user.data else 'Seller'
+        }, 'Chat initialized successfully', 201)
+        
+    except Exception as e:
+        db.session.rollback()
+        current_app.logger.error(f"Initialize ad chat error: {str(e)}")
+        return error_response('INTERNAL_ERROR', 'Failed to initialize chat', None, 500)
