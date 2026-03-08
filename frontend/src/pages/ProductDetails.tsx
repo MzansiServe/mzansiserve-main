@@ -23,7 +23,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { useCart } from "@/contexts/CartContext";
 import { useToast } from "@/hooks/use-toast";
-import { apiFetch, API_BASE_URL } from "@/lib/api";
+import { apiFetch, API_BASE_URL, getImageUrl } from "@/lib/api";
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
 import { cn } from "@/lib/utils";

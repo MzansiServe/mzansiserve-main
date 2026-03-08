@@ -46,7 +46,7 @@ const WhySection = () => {
     <section
       id="about"
       ref={ref}
-      className="py-24 bg-gradient-to-br from-primary/10 via-primary/5 to-primary/5 relative"
+      className="py-12 bg-gradient-to-br from-primary/10 via-primary/5 to-primary/5 relative"
     >
       {/* Subtle dot pattern */}
       <div className="absolute inset-0 bg-[url('data:image/svg+xml,%3Csvg width=\'6\' height=\'6\' viewBox=\'0 0 6 6\' xmlns=\'http://www.w3.org/2000/svg\'%3E%3Cg fill=\'%2314B8A6\' fill-opacity=\'0.05\'%3E%3Cpath d=\'M5 0h1L0 6V5zM6 5v1H5z\'/%3E%3C/g%3E%3C/svg%3E')] opacity-50" />
@@ -57,12 +57,12 @@ const WhySection = () => {
           initial={{ opacity: 0, y: 20 }}
           animate={isInView ? { opacity: 1, y: 0 } : {}}
           transition={{ duration: 0.6 }}
-          className="text-center mb-16"
+          className="text-center mb-8"
         >
-          <h2 className="text-4xl md:text-5xl lg:text-6xl font-semibold text-[#222222] mb-4">
+          <h2 className="text-3xl md:text-4xl lg:text-5xl font-semibold text-[#222222] mb-3">
             Why <span className="text-primary">MzansiServe</span>?
           </h2>
-          <p className="text-lg md:text-xl text-slate-600 font-normal max-w-xl mx-auto">
+          <p className="text-base md:text-lg text-slate-600 font-normal max-w-xl mx-auto">
             Built by South Africans, for South Africans. We go beyond connecting — we verify, validate, and protect.
           </p>
         </motion.div>

@@ -22,7 +22,7 @@ bp = Blueprint('profile', __name__)
 REGISTRATION_FEE_AMOUNT = 10000  # R100.00
 
 # After approval, only these profile fields may be changed (and require admin approval to apply)
-ALLOWED_AFTER_APPROVAL_COMMON = {'phone', 'next_of_kin'}
+ALLOWED_AFTER_APPROVAL_COMMON = {'phone', 'next_of_kin', 'full_name', 'surname', 'gender'}
 ALLOWED_AFTER_APPROVAL_BY_ROLE = {
     'driver': {'driver_services', 'proof_of_residence_url', 'driver_license_url', 'operating_areas', 'availability'},
     'service-provider': {'provider_services', 'proof_of_residence_url', 'driver_license_url', 'operating_areas', 'availability'},
@@ -30,7 +30,7 @@ ALLOWED_AFTER_APPROVAL_BY_ROLE = {
         'professional_services', 'proof_of_residence_url', 'highest_qualification',
         'professional_body', 'qualification_urls', 'operating_areas', 'availability'
     },
-    'client': set(),
+    'client': {'full_name', 'surname', 'phone', 'gender', 'next_of_kin'},
 }
 
 class NextOfKinSchema(Schema):
@@ -132,7 +132,7 @@ def update_profile():
         user = User.query.get(user_id)
         if not user:
             return error_response('USER_NOT_FOUND', 'User not found', None, 404)
-        if not user.is_approved:
+        if not user.is_approved and user.role != 'client':
             return error_response(
                 'NOT_APPROVED',
                 'Your account is pending approval. You can view your profile but cannot make changes or upload documents until your account is approved.',
@@ -267,6 +267,21 @@ def update_profile():
                 payload['qualification_urls'] = qual_urls
         if not payload:
             return error_response('NO_CHANGES', 'No allowed changes provided.', None, 400)
+            
+        # If client, update directly
+        if user.role == 'client':
+            user_data = user.data or {}
+            for k, v in payload.items():
+                if k == 'next_of_kin':
+                    user_data['next_of_kin'] = v
+                else:
+                    user_data[k] = v
+                    
+            # Update top-level data as well if needed
+            user.data = user_data
+            db.session.commit()
+            return success_response(user.to_dict(), 'Profile updated successfully.')
+
         pending = PendingProfileUpdate(user_id=user.id, payload=payload, status='pending')
         db.session.add(pending)
         db.session.commit()
@@ -281,6 +296,48 @@ def update_profile():
     except Exception as e:
         current_app.logger.error(f"Update profile error: {str(e)}")
         return error_response('INTERNAL_ERROR', 'Failed to update profile', None, 500)
+
+
+@bp.route('/upload-photo', methods=['POST'])
+@require_auth
+def upload_profile_photo():
+    """Upload or update profile photo directly (no admin approval needed for photo)"""
+    try:
+        user_id = get_jwt_identity()
+        user = User.query.get(user_id)
+        if not user:
+            return error_response('USER_NOT_FOUND', 'User not found', None, 404)
+
+        if 'photo' not in request.files:
+            return error_response('MISSING_FILES', 'No photo provided', None, 400)
+
+        file = request.files['photo']
+        if not file or not file.filename:
+            return error_response('INVALID_FILE', 'Invalid file', None, 400)
+
+        if not allowed_image_file(file.filename):
+            return error_response('INVALID_TYPE', 'Only JPG, JPEG and PNG images are allowed', None, 400)
+
+        upload_folder = current_app.config.get('UPLOAD_FOLDER')
+        if not os.path.exists(upload_folder):
+            os.makedirs(upload_folder)
+
+        file_ext = file.filename.rsplit('.', 1)[1].lower()
+        unique_filename = f"profile_{user.id.hex}_{uuid.uuid4().hex[:8]}.{file_ext}"
+        filepath = os.path.join(upload_folder, unique_filename)
+        file.save(filepath)
+
+        # Update user profile image URL
+        user.profile_image_url = f"/uploads/{unique_filename}"
+        db.session.commit()
+
+        return success_response({
+            'profile_image_url': user.profile_image_url
+        }, 'Profile photo updated successfully')
+
+    except Exception as e:
+        current_app.logger.error(f"Upload photo error: {str(e)}")
+        return error_response('INTERNAL_ERROR', 'Failed to upload photo', None, 500)
 
 
 @bp.route('/professionals', methods=['GET'])

@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import {
     Box,
     Typography,
@@ -16,7 +16,8 @@ import {
     Stack,
     Alert,
     CircularProgress,
-    Avatar
+    Avatar,
+    Autocomplete
 } from "@mui/material";
 import {
     Add as PlusIcon,
@@ -44,6 +45,21 @@ export const ServiceManagement = ({ initialServices, role }: ServiceManagementPr
     const theme = useTheme();
     const [services, setServices] = useState<Service[]>(initialServices || []);
     const [saving, setSaving] = useState(false);
+    const [serviceOptions, setServiceOptions] = useState<any[]>([]);
+
+    useEffect(() => {
+        const fetchOptions = async () => {
+            try {
+                const res = await apiFetch(`/api/public/service-options?category=${role}`);
+                if (res.success && res.data?.services) {
+                    setServiceOptions(res.data.services);
+                }
+            } catch (err) {
+                console.error("Failed to load service options", err);
+            }
+        };
+        fetchOptions();
+    }, [role]);
 
     const addService = () => {
         setServices([...services, { name: "", description: "", hourly_rate: 0 }]);
@@ -136,15 +152,32 @@ export const ServiceManagement = ({ initialServices, role }: ServiceManagementPr
 
                                     <Grid container spacing={2}>
                                         <Grid size={{ xs: 12, md: role === 'professional' ? 8 : 12 }}>
-                                            <TextField
-                                                fullWidth
-                                                label="Service Name"
-                                                placeholder="e.g. Electrical Maintenance"
-                                                variant="outlined"
-                                                size="small"
+                                            <Autocomplete
+                                                freeSolo
+                                                options={serviceOptions.map((option) => option.name)}
                                                 value={service.name}
-                                                onChange={(e) => updateService(index, 'name', e.target.value)}
-                                                sx={{ '& .MuiInputBase-input': { fontWeight: 700 } }}
+                                                onChange={(_, newValue) => {
+                                                    updateService(index, 'name', newValue || '');
+                                                    // Auto-fill description if matched
+                                                    const matched = serviceOptions.find(o => o.name === newValue);
+                                                    if (matched && matched.description && !service.description) {
+                                                        updateService(index, 'description', matched.description);
+                                                    }
+                                                }}
+                                                onInputChange={(_, newInputValue) => {
+                                                    updateService(index, 'name', newInputValue);
+                                                }}
+                                                renderInput={(params) => (
+                                                    <TextField
+                                                        {...params}
+                                                        fullWidth
+                                                        label="Service Name"
+                                                        placeholder="Select or type a custom service..."
+                                                        variant="outlined"
+                                                        size="small"
+                                                        sx={{ '& .MuiInputBase-input': { fontWeight: 700 } }}
+                                                    />
+                                                )}
                                             />
                                         </Grid>
                                         {role === 'professional' && (

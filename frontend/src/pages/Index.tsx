@@ -31,17 +31,17 @@ const Index = () => {
       <Navbar />
       <HeroCarousel />
 
-      <div className="relative z-20 -mt-20 lg:-mt-24 mb-16 lg:mb-24 px-6">
+      <div className="relative z-20 -mt-20 lg:-mt-24 mb-10 lg:mb-12 px-6">
         <div className="container mx-auto max-w-7xl">
           <QuickActionGrid />
 
-          <div className="mt-12 md:mt-16 max-w-5xl mx-auto">
+          <div className="mt-8 md:mt-10 max-w-5xl mx-auto">
             <AdBanner placementSection="homepage_hero" className="aspect-[21/9] md:aspect-[4/1] w-full" />
           </div>
         </div>
       </div>
 
-      <div className="space-y-32 pb-32">
+      <div className="space-y-8 pb-8">
         {/* Credibility & Process */}
         <HowItWorks />
 

@@ -124,17 +124,17 @@ const Services = () => {
       <Navbar />
 
       {/* ── Page header ── */}
-      <section className="pt-40 pb-16 bg-white relative overflow-hidden border-b border-slate-50">
+      <section className="pt-28 pb-10 bg-white relative overflow-hidden border-b border-slate-50">
         <div className="absolute inset-x-0 bottom-0 h-px bg-gradient-to-r from-transparent via-slate-200 to-transparent" />
         <div className="container mx-auto px-6 relative z-10">
           <div className="flex flex-col md:flex-row md:items-end justify-between gap-8 max-w-6xl mx-auto">
             <div className="flex-1">
-              <span className="inline-block mb-4 text-[10px] font-black uppercase tracking-[0.2em] text-primary bg-primary/5 px-3 py-1 rounded-full border border-primary/10">The Marketplace</span>
-              <h1 className="text-5xl md:text-6xl font-bold text-[#222222] mb-6 tracking-tighter leading-tight">
+              <span className="inline-block mb-3 text-[10px] font-black uppercase tracking-[0.2em] text-primary bg-primary/5 px-3 py-1 rounded-full border border-primary/10">The Marketplace</span>
+              <h1 className="text-4xl md:text-5xl font-bold text-[#222222] mb-4 tracking-tighter leading-tight">
                 Find exactly <br />
                 <span className="text-primary">what you need.</span>
               </h1>
-              <p className="text-xl text-slate-500 font-normal max-w-lg leading-relaxed">
+              <p className="text-lg text-slate-500 font-normal max-w-lg leading-relaxed">
                 Browse through hundreds of verified experts and service providers across South Africa.
               </p>
             </div>
@@ -164,9 +164,9 @@ const Services = () => {
       </section>
 
       {/* ── Filters + Grid ── */}
-      <section className="bg-white min-h-[60vh]">
-        <div className="container mx-auto px-6 py-12 max-w-7xl">
-          <div className="mb-12">
+      <section className="bg-white min-h-[50vh]">
+        <div className="container mx-auto px-6 py-10 max-w-7xl">
+          <div className="mb-8">
             <SearchFilter
               searchPlaceholder="Search by provider, service, or skills..."
               categories={categories}
@@ -185,15 +185,15 @@ const Services = () => {
           </div>
 
           {isLoading && (
-            <div className="py-32 flex flex-col items-center justify-center gap-6 text-slate-400">
-              <div className="h-12 w-12 rounded-full border-4 border-primary border-t-transparent animate-spin" />
-              <p className="text-sm font-bold uppercase tracking-widest">Searching Marketplace...</p>
+            <div className="py-16 flex flex-col items-center justify-center gap-6 text-slate-400">
+              <div className="h-10 w-10 rounded-full border-4 border-primary border-t-transparent animate-spin" />
+              <p className="text-xs font-bold uppercase tracking-widest">Searching Marketplace...</p>
             </div>
           )}
 
           {error && (
-            <div className="py-32 text-center max-w-sm mx-auto">
-              <div className="w-16 h-16 bg-rose-50 rounded-2xl flex items-center justify-center mx-auto mb-6">
+            <div className="py-16 text-center max-w-sm mx-auto">
+              <div className="w-14 h-14 bg-rose-50 rounded-2xl flex items-center justify-center mx-auto mb-5">
                 <ArrowLeft className="h-8 w-8 text-rose-500" />
               </div>
               <h3 className="text-xl font-bold text-[#222222] mb-2">Connection Error</h3>
@@ -224,8 +224,8 @@ const Services = () => {
           )}
 
           {!isLoading && !error && filtered.length === 0 && (
-            <div className="py-32 flex flex-col items-center justify-center gap-4 text-center">
-              <div className="w-24 h-24 bg-slate-50 rounded-[2rem] flex items-center justify-center shadow-inner mb-6">
+            <div className="py-16 flex flex-col items-center justify-center gap-4 text-center">
+              <div className="w-20 h-20 bg-slate-50 rounded-[2rem] flex items-center justify-center shadow-inner mb-5">
                 <Search className="h-10 w-10 text-slate-200" />
               </div>
               <h3 className="text-3xl font-bold text-[#222222] tracking-tight">No results matched</h3>

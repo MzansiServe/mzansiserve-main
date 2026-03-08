@@ -13,6 +13,7 @@ import Register from "./pages/Register";
 import Services from "./pages/Services";
 import Transport from "./pages/Transport";
 import Professionals from "./pages/Professionals";
+import Profile from "./pages/Profile";
 import Shop from "./pages/Shop";
 import ProductDetails from "./pages/ProductDetails";
 import ProviderDetails from "./pages/ProviderDetails";
@@ -23,6 +24,9 @@ import NotFound from "./pages/NotFound";
 import AdminLogin from "./pages/AdminLogin";
 import Advertise from "./pages/Advertise";
 import AdminDashboard from "./pages/AdminDashboard";
+import ForgotPassword from "./pages/ForgotPassword";
+import ResetPassword from "./pages/ResetPassword";
+import VerifyEmail from "./pages/VerifyEmail";
 import DriverDashboard from "./pages/dashboards/driver/DriverDashboard";
 import ProfessionalDashboard from "./pages/dashboards/professional/ProfessionalDashboard";
 import ServiceProviderDashboard from "./pages/dashboards/service-provider/ServiceProviderDashboard";
@@ -36,6 +40,10 @@ import MyBookings from "./pages/MyBookings";
 import Terms from "./pages/Terms";
 import Privacy from "./pages/Privacy";
 import Cookies from "./pages/Cookies";
+import Marketplace from "./pages/Marketplace";
+import MarketplaceAdDetails from "./pages/MarketplaceAdDetails";
+import PostAd from "./pages/PostAd";
+import Ads from "./pages/Ads";
 
 const queryClient = new QueryClient();
 
@@ -52,9 +60,6 @@ const App = () => (
               <Route path="/" element={<Index />} />
               <Route path="/login" element={<Login />} />
               <Route path="/register" element={<Register />} />
-              <Route path="/services" element={<Services />} />
-              <Route path="/transport" element={<Transport />} />
-              <Route path="/professionals" element={<Professionals />} />
               <Route path="/shop" element={<Shop />} />
               <Route path="/shop/product/:id" element={<ProductDetails />} />
               <Route path="/provider/:category/:id" element={<ProviderDetails />} />
@@ -66,8 +71,29 @@ const App = () => (
               <Route path="/payment-error" element={<PaymentError />} />
               <Route path="/advertise" element={<Advertise />} />
               <Route path="/admin/login" element={<AdminLogin />} />
+              <Route path="/forgot-password" element={<ForgotPassword />} />
+              <Route path="/reset-password" element={<ResetPassword />} />
+              <Route path="/verify-email" element={<VerifyEmail />} />
+              <Route path="/marketplace" element={<Marketplace />} />
+              <Route path="/marketplace/ad/:id" element={<MarketplaceAdDetails />} />
+              <Route path="/ads" element={<Ads />} />
 
               {/* ── Auth-required routes ───────────────────────── */}
+              <Route path="/services" element={
+                <PrivateRoute>
+                  <Services />
+                </PrivateRoute>
+              } />
+              <Route path="/transport" element={
+                <PrivateRoute>
+                  <Transport />
+                </PrivateRoute>
+              } />
+              <Route path="/professionals" element={
+                <PrivateRoute>
+                  <Professionals />
+                </PrivateRoute>
+              } />
               <Route path="/my-bookings" element={
                 <PrivateRoute>
                   <MyBookings />
@@ -91,6 +117,16 @@ const App = () => (
               <Route path="/payment-status" element={
                 <PrivateRoute>
                   <PaymentStatus />
+                </PrivateRoute>
+              } />
+              <Route path="/profile" element={
+                <PrivateRoute>
+                  <Profile />
+                </PrivateRoute>
+              } />
+              <Route path="/marketplace/post" element={
+                <PrivateRoute>
+                  <PostAd />
                 </PrivateRoute>
               } />
 

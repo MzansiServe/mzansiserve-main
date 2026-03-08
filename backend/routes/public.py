@@ -7,6 +7,7 @@ from backend.models import CarouselItem, User, ProfessionalRating, DriverRating,
 from backend.models.testimonial import Testimonial
 from backend.models.landing_feature import LandingFeature
 from backend.models.footer_cms import FooterContent
+from backend.models.service import ServiceType
 from backend.extensions import db
 from backend.utils.response import success_response, error_response
 from backend.services.pricing_service import PricingService
@@ -254,3 +255,20 @@ def get_footer_details():
     except Exception as e:
         current_app.logger.error(f"Get footer details error: {str(e)}")
         return error_response('INTERNAL_ERROR', 'Failed to load footer details', None, 500)
+
+
+@bp.route('/service-options', methods=['GET'])
+def get_service_options():
+    """Returns a list of approved service types for professionals and service providers."""
+    try:
+        category = request.args.get('category')
+        query = ServiceType.query.filter_by(is_active=True)
+        if category:
+            query = query.filter_by(category=category)
+            
+        services = query.order_by(ServiceType.order.asc(), ServiceType.name.asc()).all()
+        return success_response({'services': [s.to_dict() for s in services]})
+    except Exception as e:
+        current_app.logger.error(f"Get service options error: {str(e)}")
+        return error_response('INTERNAL_ERROR', 'Failed to load service options', None, 500)
+

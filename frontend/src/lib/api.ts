@@ -5,6 +5,19 @@
 
 export const API_BASE_URL = import.meta.env.VITE_API_URL || "http://localhost:5006";
 
+/**
+ * Returns a fully-qualified URL for an image path.
+ * For relative paths (e.g. /uploads/...) it uses window.location.origin so the
+ * browser fetches the file over the same protocol (https) via Nginx, avoiding
+ * mixed-content errors on HTTPS.
+ */
+export function getImageUrl(path: string | null | undefined): string {
+    if (!path) return "";
+    if (path.startsWith("http")) return path;
+    return `${window.location.origin}${path}`;
+}
+
+
 interface FetchOptions extends RequestInit {
     data?: unknown;
 }
@@ -90,7 +103,7 @@ export async function apiFetch<T = any>(
         } else {
             errorMessage = response.statusText;
         }
-        
+
         throw new Error(errorMessage);
     }
 

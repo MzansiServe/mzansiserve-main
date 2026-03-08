@@ -1,17 +1,32 @@
-FROM node:20-alpine
+FROM node:20-alpine AS build
 
 WORKDIR /app
 
 # Install dependencies first for better caching
 COPY package.json package-lock.json* bun.lockb* ./
-# We'll use npm since package-lock.json exists
 RUN npm ci || npm install
 
 # Copy source code
 COPY . .
 
-# Expose Vite default port
+# Set build arguments
+ARG VITE_API_URL
+ENV VITE_API_URL=$VITE_API_URL
+
+# Build the app
+RUN npm run build
+
+# Production stage
+FROM node:20-alpine
+
+WORKDIR /app
+
+# Install serve
+RUN npm install -g serve
+
+# Copy built assets
+COPY --from=build /app/dist ./dist
+
 EXPOSE 8080
 
-# Start development server
-CMD ["npm", "run", "dev", "--", "--host", "0.0.0.0"]
+CMD ["serve", "-s", "dist", "-l", "8080"]

@@ -75,14 +75,14 @@ const SectionBlock = ({ section, index }: { section: ServiceSectionProps; index:
   return (
     <section
       ref={ref}
-      className={`py-20 lg:py-28 ${index % 2 === 1 ? "bg-secondary/50" : ""}`}
+      className={`py-12 lg:py-16 ${index % 2 === 1 ? "bg-secondary/50" : ""}`}
     >
       <div className="container mx-auto px-4 lg:px-8">
         <motion.div
           initial={{ opacity: 0, y: 30 }}
           animate={isInView ? { opacity: 1, y: 0 } : {}}
           transition={{ duration: 0.6 }}
-          className="mb-14 flex items-end justify-between"
+          className="mb-6 flex items-end justify-between"
         >
           <div className="max-w-2xl">
             <span className={`mb-4 inline-block rounded-full px-4 py-1.5 text-xs font-semibold uppercase tracking-wider ${section.badgeClass}`}>

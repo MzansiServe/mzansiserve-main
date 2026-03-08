@@ -35,8 +35,10 @@ const Login = () => {
   const navigate = useNavigate();
   const { toast } = useToast();
   const [searchParams] = useSearchParams();
-  const redirectTo = searchParams.get("from") || null;
+  const [redirectTo, setRedirectTo] = useState(searchParams.get("from") || null);
   const [availableRoles, setAvailableRoles] = useState<string[]>([]);
+  const [resending, setResending] = useState(false);
+  const [isVerificationError, setIsVerificationError] = useState(false);
 
   const checkRoles = async (emailVal: string) => {
     if (!emailVal || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(emailVal)) return;
@@ -55,7 +57,14 @@ const Login = () => {
     }
   };
 
-  const navigateByRole = (r: string) => {
+  const navigateByRole = (u: any) => {
+    // If user is verified but not paid, redirect to verification page to complete payment
+    if (u.email_verified && !u.is_paid && u.role !== 'client' && u.role !== 'admin') {
+      navigate(`/verify-email?status=pending_payment`);
+      return;
+    }
+
+    const r = u.role;
     // If we were redirected here from a protected page, go back there.
     if (redirectTo) { navigate(redirectTo, { replace: true }); return; }
     if (r === "driver") navigate("/dashboard/driver");
@@ -77,7 +86,7 @@ const Login = () => {
         localStorage.setItem("user", JSON.stringify(result.data.user));
         if (setUser) setUser(result.data.user);
         toast({ title: "Welcome!", description: "Logged in via Google successfully." });
-        navigateByRole(role);
+        navigateByRole(result.data.user);
       } else {
         setError(resolveError(result.error, "Google login failed"));
       }
@@ -85,6 +94,38 @@ const Login = () => {
       setError(err instanceof Error ? err.message : "An unexpected error occurred during Google sign-in");
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleResendVerification = async () => {
+    if (!email || !role) return;
+    setResending(true);
+    try {
+      const result = await apiFetch("/api/auth/resend-verification", {
+        method: "POST",
+        data: { email, role },
+      });
+      if (result.success) {
+        toast({
+          title: "Verification sent",
+          description: "A new verification link has been sent to your email.",
+        });
+        setIsVerificationError(false);
+      } else {
+        toast({
+          title: "Failed to resend",
+          description: resolveError(result.error, "Could not resend verification email"),
+          variant: "destructive",
+        });
+      }
+    } catch (err) {
+      toast({
+        title: "Error",
+        description: "An unexpected error occurred",
+        variant: "destructive",
+      });
+    } finally {
+      setResending(false);
     }
   };
 
@@ -99,13 +140,21 @@ const Login = () => {
     if (!role) { setError("Please select a role to login as"); return; }
 
     setLoading(true);
+    setIsVerificationError(false);
     try {
       const result = await login(email, password, role);
       if (result.success) {
         toast({ title: "Welcome back!", description: "You've been logged in successfully." });
-        navigateByRole(role);
+        navigateByRole(result.data.user);
       } else {
-        setError(resolveError(result.error, "Login failed"));
+        const errorMsg = resolveError(result.error, "Login failed");
+        setError(errorMsg);
+
+        // Use a more robust check for the specific verification error
+        const errObj = result.error as any;
+        if (errObj?.code === 'EMAIL_NOT_VERIFIED' || errorMsg.toLowerCase().includes("not verified")) {
+          setIsVerificationError(true);
+        }
       }
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : "An unexpected error occurred");
@@ -150,7 +199,20 @@ const Login = () => {
                   className="mb-4 p-4 bg-red-50 border border-red-200 rounded-lg flex items-start gap-3 text-[#C13515]"
                 >
                   <AlertCircle className="w-5 h-5 shrink-0 mt-0.5" />
-                  <p className="text-sm font-normal">{error}</p>
+                  <div className="flex-1">
+                    <p className="text-sm font-normal">{error}</p>
+                    {isVerificationError && (
+                      <button
+                        type="button"
+                        onClick={handleResendVerification}
+                        className="mt-2 text-[13px] font-bold underline flex items-center gap-2 hover:text-red-800 transition-colors"
+                        disabled={resending}
+                      >
+                        {resending ? <Loader2 className="w-3 h-3 animate-spin" /> : null}
+                        Resend verification email
+                      </button>
+                    )}
+                  </div>
                 </motion.div>
               )}
             </AnimatePresence>
@@ -209,12 +271,12 @@ const Login = () => {
                   <label htmlFor="login-password-input" className="text-[13px] font-bold text-[#222222] tracking-wide">
                     Password
                   </label>
-                  <button
-                    type="button"
+                  <Link
+                    to="/forgot-password"
                     className="text-[13px] font-bold text-primary hover:underline underline-offset-4"
                   >
                     Forgot password?
-                  </button>
+                  </Link>
                 </div>
                 <div className="relative border border-[#DDDDDD] rounded-2xl overflow-hidden focus-within:ring-4 focus-within:ring-primary/10 focus-within:border-primary/50 transition-all bg-slate-50/50">
                   <input
@@ -262,12 +324,12 @@ const Login = () => {
             </form>
 
             <div className="mt-4 flex justify-start">
-              <button
-                type="button"
+              <Link
+                to="/forgot-password"
                 className="text-sm font-semibold text-[#222222] underline hover:text-black transition-colors"
               >
                 Forgot password?
-              </button>
+              </Link>
             </div>
 
             {/* Divider */}

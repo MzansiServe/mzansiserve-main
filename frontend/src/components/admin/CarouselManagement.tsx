@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from "react";
 import { cn } from "@/lib/utils";
-import { apiFetch, API_BASE_URL } from "@/lib/api";
+import { apiFetch, API_BASE_URL, getImageUrl } from "@/lib/api";
 import { useToast } from "@/hooks/use-toast";
 import {
     Loader2,
@@ -204,7 +204,7 @@ export const CarouselManagement = () => {
                             <div className="relative aspect-video bg-slate-100 overflow-hidden">
                                 {item.image_url ? (
                                     <img
-                                        src={item.image_url.startsWith('http') ? item.image_url : `${API_BASE_URL}${item.image_url}`}
+                                        src={getImageUrl(item.image_url)}
                                         alt="Carousel Slide"
                                         className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110"
                                     />
@@ -296,7 +296,7 @@ export const CarouselManagement = () => {
                                 ) : editingItem && editingItem.image_url ? (
                                     <div className="relative w-full h-32 flex flex-col items-center justify-center">
                                         <img
-                                            src={editingItem.image_url.startsWith('http') ? editingItem.image_url : `${API_BASE_URL}${editingItem.image_url}`}
+                                            src={getImageUrl(editingItem.image_url)}
                                             className="h-24 w-auto object-contain mb-2"
                                             alt="Current slide"
                                         />

@@ -3,7 +3,7 @@ import { motion, useInView } from "framer-motion";
 import { ShoppingBag, ArrowRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useNavigate } from "react-router-dom";
-import { apiFetch, API_BASE_URL } from "@/lib/api";
+import { apiFetch, API_BASE_URL, getImageUrl } from "@/lib/api";
 
 interface Product {
     id: string;
@@ -35,13 +35,13 @@ const FeaturedProducts = () => {
     if (!loading && products.length === 0) return null;
 
     return (
-        <section ref={ref} className="py-24 lg:py-32">
+        <section ref={ref} className="py-12 lg:py-16">
             <div className="container mx-auto px-4 lg:px-8">
                 <motion.div
                     initial={{ opacity: 0, y: 30 }}
                     animate={isInView ? { opacity: 1, y: 0 } : {}}
                     transition={{ duration: 0.6 }}
-                    className="mb-12 flex flex-col sm:flex-row items-start sm:items-end justify-between gap-4"
+                    className="mb-6 flex flex-col sm:flex-row items-start sm:items-end justify-between gap-4"
                 >
                     <div>
                         <span className="mb-2 inline-block rounded-full bg-sa-red/10 px-4 py-1.5 text-xs font-semibold uppercase tracking-wider text-sa-red">
@@ -67,7 +67,7 @@ const FeaturedProducts = () => {
                     <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
                         {products.map((product, i) => {
                             const imgSrc = product.image_url
-                                ? (product.image_url.startsWith("http") ? product.image_url : `${API_BASE_URL}${product.image_url}`)
+                                ? (getImageUrl(product.image_url))
                                 : null;
                             const price = typeof product.price === "string" ? parseFloat(product.price) : product.price;
 

@@ -48,6 +48,10 @@ class ResetPasswordSchema(Schema):
 class VerifyEmailSchema(Schema):
     token = fields.Str(required=True)
 
+class ResendVerificationSchema(Schema):
+    email = fields.Email(required=True)
+    role = fields.Str(required=True, validate=validate.OneOf(['client', 'driver', 'professional', 'service-provider']))
+
 @bp.route('/register', methods=['POST'])
 def register():
     """User registration endpoint"""
@@ -126,6 +130,9 @@ def login():
         if not user.is_active:
             logger.warning("login: account inactive user_id=%s", user.id)
             return error_response('ACCOUNT_INACTIVE', 'Account is inactive', None, 403)
+        if not user.email_verified:
+            logger.warning("login: email not verified user_id=%s", user.id)
+            return error_response('EMAIL_NOT_VERIFIED', 'Your email address is not verified. Please check your inbox or resend the verification email.', None, 403)
         access_token = create_access_token(identity=str(user.id))
         logger.info("login: success user_id=%s", user.id)
         return success_response({
@@ -339,14 +346,97 @@ def verify_email():
         user.email_verified = True
         token.used = True
         db.session.commit()
+        
+        # Generate JWT token for immediate payment or login
+        access_token = create_access_token(identity=str(user.id))
+        
         logger.info("verify_email: success user_id=%s", user.id)
-        return success_response(None, 'Email verified successfully')
+        return success_response({
+            'user': user.to_dict(),
+            'token': access_token
+        }, 'Email verified successfully')
     except ValidationError as e:
         logger.warning("verify_email: validation error %s", e.messages)
         return error_response('VALIDATION_ERROR', 'Invalid input data', e.messages, 400)
     except Exception as e:
         logger.exception("verify_email: failed")
         return error_response('INTERNAL_ERROR', 'Failed to verify email', None, 500)
+
+@bp.route('/initiate-registration-payment', methods=['POST'])
+@jwt_required()
+def initiate_registration_payment():
+    """Initiate registration payment for a verified user"""
+    try:
+        user_id = get_jwt_identity()
+        user = User.query.get(user_id)
+        if not user:
+            return error_response('USER_NOT_FOUND', 'User not found', None, 404)
+        
+        if not user.email_verified:
+            return error_response('EMAIL_NOT_VERIFIED', 'Please verify your email address first', None, 403)
+            
+        if user.is_paid:
+            return error_response('ALREADY_PAID', 'Registration fee already paid', None, 400)
+            
+        # Generate external_id for payment
+        user_id_hex = str(user.id).replace('-', '')
+        external_id = f"reg_fee_{user_id_hex}_{uuid.uuid4().hex[:8]}"
+        
+        # Create checkout session
+        REGISTRATION_FEE_AMOUNT = 10000  # R100.00 in cents
+        backend_url = current_app.config.get('BACKEND_URL', 'http://localhost:5006')
+        
+        checkout_result = PaymentService.create_checkout(
+            amount=REGISTRATION_FEE_AMOUNT,
+            currency='ZAR',
+            external_id=external_id,
+            success_url=f"{backend_url}/api/auth/registration-callback?callback_status=success&external_id={external_id}",
+            cancel_url=f"{backend_url}/api/auth/registration-callback?callback_status=cancel&external_id={external_id}",
+            failure_url=f"{backend_url}/api/auth/registration-callback?callback_status=failure&external_id={external_id}"
+        )
+        
+        logger.info("initiate_registration_payment: success user_id=%s external_id=%s", user.id, external_id)
+        return success_response({
+            'redirect_url': checkout_result['redirect_url'],
+            'checkout_id': checkout_result['checkout_id'],
+            'external_id': external_id
+        })
+    except Exception as e:
+        logger.exception("initiate_registration_payment: failed")
+        return error_response('INTERNAL_ERROR', 'Failed to initiate payment', None, 500)
+
+@bp.route('/resend-verification', methods=['POST'])
+def resend_verification():
+    """Resend email verification token"""
+    try:
+        logger.info("resend_verification: request received")
+        schema = ResendVerificationSchema()
+        data = schema.load(request.json)
+        user = User.query.filter_by(email=data['email'], role=data['role']).first()
+        
+        if not user:
+            # Return success to prevent enumeration
+            return success_response(None, 'If the account exists, a verification email has been sent')
+            
+        if user.email_verified:
+            return success_response(None, 'Email is already verified')
+            
+        # Create new verification token
+        token = create_email_verification_token(user.id)
+        
+        # Queue verification email
+        try:
+            EmailService.send_verification_email(user, token)
+        except Exception as e:
+            logger.warning("resend_verification: failed to send email: %s", e)
+            
+        return success_response(None, 'Verification email has been resent')
+    except ValidationError as e:
+        logger.warning("resend_verification: validation error %s", e.messages)
+        return error_response('VALIDATION_ERROR', 'Invalid input data', e.messages, 400)
+    except Exception as e:
+        logger.exception("resend_verification: failed")
+        return error_response('INTERNAL_ERROR', 'Failed to resend verification email', None, 500)
 
 @bp.route('/me', methods=['GET'])
 @jwt_required()
@@ -656,41 +746,24 @@ def register_with_payment():
         
         # Store provider services data temporarily in user.data for later processing
         if registration_data.get('role') == 'service-provider':
-            user_data['pending_provider_services'] = registration_data.get('provider_services', [])
+            user_data['provider_services'] = registration_data.get('provider_services', [])
             user.data = user_data
         db.session.commit()
         
-        # Send registration confirmation email (user successfully registered; payment pending)
+        # Send Verification Email instead of initiating payment
         try:
-            logger.info("register_with_payment: sending registration confirmation email to user_id=%s", user.id)
-            EmailService.send_registration_confirmation(user)
-            logger.info("register_with_payment: registration confirmation email sent to user_id=%s", user.id)
+            logger.info("register_with_payment: sending verification email to user_id=%s", user.id)
+            token = create_email_verification_token(user.id)
+            EmailService.send_verification_email(user, token)
+            logger.info("register_with_payment: verification email sent to user_id=%s", user.id)
         except Exception as e:
-            logger.info("register_with_payment: failed to send registration confirmation email: %s", e)
+            logger.warning("register_with_payment: failed to send verification email: %s", e)
         
-        # Generate external_id for payment
-        user_id_hex = str(user.id).replace('-', '')
-        external_id = f"reg_fee_{user_id_hex}_{uuid.uuid4().hex[:8]}"
-        
-        # Create checkout session
-        REGISTRATION_FEE_AMOUNT = 10000  # R100.00 in cents
-        frontend_url = current_app.config.get('FRONTEND_URL', 'http://localhost:8080')
-        backend_url = current_app.config.get('BACKEND_URL', 'http://localhost:5006')
-        checkout_result = PaymentService.create_checkout(
-            amount=REGISTRATION_FEE_AMOUNT,
-            currency='ZAR',
-            external_id=external_id,
-            success_url=f"{backend_url}/api/auth/registration-callback?callback_status=success&external_id={external_id}",
-            cancel_url=f"{backend_url}/api/auth/registration-callback?callback_status=cancel&external_id={external_id}",
-            failure_url=f"{backend_url}/api/auth/registration-callback?callback_status=failure&external_id={external_id}"
-        )
-        
-        logger.info("register_with_payment: success user_id=%s external_id=%s", user.id, external_id)
+        logger.info("register_with_payment: success (pending verification) user_id=%s", user.id)
         return success_response({
-            'redirect_url': checkout_result['redirect_url'],
-            'checkout_id': checkout_result['checkout_id'],
-            'external_id': external_id
-        })
+            'user': user.to_dict(),
+            'message': 'Registration successful. Please check your email to verify your account and complete payment.'
+        }, 'Registration successful. Check email for verification.', 201)
     except json.JSONDecodeError:
         logger.info("register_with_payment: invalid JSON")
         return error_response('INVALID_DATA', 'Invalid registration data format', None, 400)
@@ -734,20 +807,7 @@ def complete_registration():
                         # Mark user as paid
                         user.is_paid = True
                         
-                        # Process service provider services
-                        if user.role == 'service-provider' and registration_data:
-                            pending_services = user.data.get('pending_provider_services', [])
-                            for svc_data in pending_services:
-                                user_service = UserSelectedService(
-                                    user_id=user.id,
-                                    service_type_id=uuid.UUID(svc_data['service_type_id']),
-                                    personalized_description=svc_data.get('personalized_description')
-                                )
-                                db.session.add(user_service)
-                            
-                            # Remove pending services from user.data
-                            if 'pending_provider_services' in user.data:
-                                del user.data['pending_provider_services']
+                        # Custom services will be processed during admin approval
                         
                         db.session.commit()
                         access_token = create_access_token(identity=str(user.id))
@@ -838,73 +898,60 @@ def registration_payment_callback():
                     if user:
                         if callback_status == 'success':
                             # Verify payment and mark user as paid
-                            # payment.amount is in currency units (R100.00 = 100.00), not cents
                             payment_amount = float(payment.amount) if payment.amount else 0.0
-                            if payment.status == 'pending' and payment_amount >= 100.0:  # R100.00
-                                user.is_paid = True
-                                payment.status = 'completed'
-                                
-                                # Process service provider services
-                                if user.role == 'service-provider':
-                                    pending_services = user.data.get('pending_provider_services', []) if user.data else []
-                                    for svc_data in pending_services:
-                                        try:
-                                            user_service = UserSelectedService(
-                                                user_id=user.id,
-                                                service_type_id=uuid.UUID(svc_data['service_type_id']),
-                                                personalized_description=svc_data.get('personalized_description')
-                                            )
-                                            db.session.add(user_service)
-                                        except Exception as e:
-                                            logger.warning("registration_callback: error adding service: %s", e)
+                            # If payment is already completed (e.g. via webhook), still show success to user
+                            if payment.status in ['pending', 'completed'] and payment_amount >= 99.0:
+                                if user and (not user.is_paid):
+                                    user.is_paid = True
+                                    # Award commission to agent if applicable
+                                    from backend.services.agent_service import AgentService
+                                    AgentService.award_commission(user)
                                     
-                                if user.data and 'pending_provider_services' in user.data:
-                                    user_data = dict(user.data)
-                                    del user_data['pending_provider_services']
-                                    user.data = user_data
+                                    # Send registration payment confirmation email
+                                    try:
+                                        from backend.services.email_service import EmailService
+                                        EmailService.send_registration_payment_confirmation(user, payment_amount)
+                                    except Exception as e:
+                                        logger.warning("registration_callback: failed to send payment confirmation email: %s", e)
                                 
-                                # Award commission to agent if applicable
-                                AgentService.award_commission(user)
-                                
+                                payment.status = 'completed'
                                 db.session.commit()
                                 
-                                # Send registration payment confirmation email
-                                try:
-                                    EmailService.send_registration_payment_confirmation(user, payment_amount)
-                                except Exception as e:
-                                    logger.warning("registration_callback: failed to send payment confirmation email: %s", e)
                                 logger.info("registration_callback: payment successful user_id=%s", user.id)
-                                
-                                # Redirect to payment-status with success
                                 return current_app.make_response((
-                                    f'<html><body><script>window.location.href="{base_url}/payment-status?payment=success&external_id=' + external_id + '";</script></body></html>',
+                                    f'<html><body><script>window.location.href="{frontend_url}/payment-status?payment=success&external_id=' + external_id + '";</script></body></html>',
                                     302
                                 ))
                             else:
-                                logger.warning("registration_callback: payment verification failed user_id=%s", user.id)
+                                logger.warning("registration_callback: payment verification failed user_id=%s status=%s amount=%s", user.id, payment.status, payment_amount)
+                                return current_app.make_response((
+                                    f'<html><body><script>window.location.href="{frontend_url}/payment-status?payment=error&reason=verification_failed&external_id=' + external_id + '";</script></body></html>',
+                                    302
+                                ))
                         elif callback_status == 'cancel':
                             if payment:
                                 payment.status = 'cancelled'
                                 db.session.commit()
                             return current_app.make_response((
-                                f'<html><body><script>window.location.href="{base_url}/payment-status?payment=cancel&external_id=' + external_id + '";</script></body></html>',
+                                f'<html><body><script>window.location.href="{frontend_url}/payment-status?payment=cancel&external_id=' + external_id + '";</script></body></html>',
                                 302
                             ))
         
         # Failure case
-        if payment:
+        if payment and payment.status == 'pending':
             payment.status = 'failed'
             db.session.commit()
         
         return current_app.make_response((
-            f'<html><body><script>window.location.href="{base_url}/payment-status?payment=error&external_id=' + external_id + '";</script></body></html>',
+            f'<html><body><script>window.location.href="{frontend_url}/payment-status?payment=error&external_id=' + external_id + '";</script></body></html>',
             302
         ))
         
     except Exception as e:
         logger.exception("registration_callback: failed")
+        frontend_url_fallback = current_app.config.get('FRONTEND_URL', 'http://localhost:8080') if current_app else 'http://localhost:8080'
         return current_app.make_response((
-            '<html><body><script>window.location.href="/?payment=error";</script></body></html>',
+            f'<html><body><script>window.location.href="{frontend_url_fallback}/?payment=error";</script></body></html>',
             302
         ))
 

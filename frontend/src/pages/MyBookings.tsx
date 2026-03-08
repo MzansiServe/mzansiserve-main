@@ -11,11 +11,12 @@ import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/contexts/AuthContext";
-import { apiFetch, API_BASE_URL } from "@/lib/api";
+import { apiFetch, getImageUrl } from "@/lib/api";
 import { useToast } from "@/hooks/use-toast";
 import { ChatOverlay } from "@/components/ChatOverlay";
 import { RatingModal } from "@/components/dashboards/RatingModal";
 import { ProviderReviewModal } from "@/components/dashboards/ProviderReviewModal";
+import { BookingDetailsModal } from "@/components/dashboards/BookingDetailsModal";
 import { cn } from "@/lib/utils";
 
 type Tab = 'services' | 'rides' | 'orders';
@@ -26,11 +27,13 @@ const MyBookings = () => {
   const [activeTab, setActiveTab] = useState<Tab>('services');
   const [requests, setRequests] = useState<any[]>([]);
   const [orders, setOrders] = useState<any[]>([]);
+  const [searchTerm, setSearchTerm] = useState("");
   const [loading, setLoading] = useState(true);
   const [chatJob, setChatJob] = useState<{ id: string, name: string } | null>(null);
   const [ratingJob, setRatingJob] = useState<{ id: string, name: string } | null>(null);
   const [reportingJob, setReportingJob] = useState<{ id: string, name: string } | null>(null);
   const [reviewJob, setReviewJob] = useState<{ id: string, name: string, type: 'professional' | 'provider' | 'cab' } | null>(null);
+  const [detailsJob, setDetailsJob] = useState<{ data: any, type: 'service' | 'ride' | 'order' } | null>(null);
   const [isPaying, setIsPaying] = useState<string | null>(null);
 
   const fetchAll = async () => {
@@ -65,9 +68,30 @@ const MyBookings = () => {
     if (isAuthenticated) fetchAll();
   }, [isAuthenticated]);
 
-  // ── Split requests into services vs rides ──────────────────────────────────
-  const serviceRequests = requests.filter(r => r.request_type !== 'cab');
-  const cabRides = requests.filter(r => r.request_type === 'cab');
+  // ── Split requests and apply search ──────────────────────────────────────
+  const lowerSearch = searchTerm.toLowerCase();
+
+  const filteredRequests = requests.filter(r => {
+    if (!searchTerm) return true;
+    const name = getProviderName(r).toLowerCase();
+    const serviceName = (r.details?.service_name || "").toLowerCase();
+    if (r.id.toLowerCase().includes(lowerSearch)) return true;
+    if (name.includes(lowerSearch)) return true;
+    if (serviceName.includes(lowerSearch)) return true;
+    if (r.status.toLowerCase().includes(lowerSearch)) return true;
+    return false;
+  });
+
+  const filteredOrders = orders.filter(o => {
+    if (!searchTerm) return true;
+    if (o.id.toLowerCase().includes(lowerSearch)) return true;
+    if (o.status.toLowerCase().includes(lowerSearch)) return true;
+    if (o.items?.some((i: any) => i.product_name && i.product_name.toLowerCase().includes(lowerSearch))) return true;
+    return false;
+  });
+
+  const serviceRequests = filteredRequests.filter(r => r.request_type !== 'cab');
+  const cabRides = filteredRequests.filter(r => r.request_type === 'cab');
 
   const getStatusColor = (status: string) => {
     switch (status?.toLowerCase()) {
@@ -121,13 +145,27 @@ const MyBookings = () => {
               <h1 className="text-4xl md:text-5xl font-bold text-[#222222] tracking-tight">My Bookings</h1>
               <p className="text-xl text-slate-500 font-normal mt-3">Your services, rides and shop orders in one place</p>
             </div>
-            <Button
-              variant="ghost"
-              onClick={fetchAll}
-              className="h-12 px-6 rounded-2xl bg-white border border-slate-100 shadow-sm font-bold text-slate-600 hover:bg-slate-50"
-            >
-              <History className="h-4 w-4 mr-2" /> Refresh
-            </Button>
+            <div className="flex flex-col sm:flex-row gap-4">
+              <div className="relative group w-full sm:w-80">
+                <div className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-primary transition-colors">
+                  <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="11" cy="11" r="8" /><path d="m21 21-4.3-4.3" /></svg>
+                </div>
+                <input
+                  type="text"
+                  className="w-full h-12 pl-12 pr-4 bg-white border border-slate-100 rounded-2xl focus:bg-slate-50 focus:border-primary/20 outline-none font-medium text-slate-700 transition-all shadow-sm"
+                  placeholder="Search bookings..."
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                />
+              </div>
+              <Button
+                variant="ghost"
+                onClick={fetchAll}
+                className="h-12 px-6 rounded-2xl bg-white border border-slate-100 shadow-sm font-bold text-slate-600 hover:bg-slate-50 shrink-0"
+              >
+                <History className="h-4 w-4 mr-2" /> Refresh
+              </Button>
+            </div>
           </div>
 
           {/* ── Tabs ── */}
@@ -190,6 +228,7 @@ const MyBookings = () => {
                       type: r.request_type === 'professional' ? 'professional' : 'provider'
                     })}
                     onReport={(r) => setReportingJob({ id: r.id, name: getProviderName(r) })}
+                    onView={(r: any) => setDetailsJob({ data: r, type: 'service' })}
                   />
                 ))}
               </div>
@@ -243,6 +282,13 @@ const MyBookings = () => {
                           onClick={() => setReportingJob({ id: req.id, name: getProviderName(req) })}>
                           <ShieldAlert className="h-4 w-4 mr-2" /> Report
                         </Button>
+                        <Button
+                          variant="ghost"
+                          className="h-11 px-5 rounded-2xl text-primary bg-primary/5 hover:bg-primary/10 font-bold"
+                          onClick={() => setDetailsJob({ data: req, type: 'ride' })}
+                        >
+                          Details <ChevronRight className="h-4 w-4 ml-1" />
+                        </Button>
                       </div>
                     </div>
 
@@ -289,16 +335,16 @@ const MyBookings = () => {
 
           {/* ══════════════ SHOP ORDERS TAB ══════════════ */}
           {activeTab === 'orders' && (
-            orders.length === 0 ? (
+            filteredOrders.length === 0 ? (
               <EmptyState
                 icon={<ShoppingBag className="h-12 w-12 text-slate-200" />}
-                title="No orders yet"
-                subtitle="Head to the shop to browse products and place your first order."
-                actions={[{ label: "Visit Shop", href: '/shop' }]}
+                title={searchTerm ? "No orders found" : "No orders yet"}
+                subtitle={searchTerm ? "Try adjusting your search query." : "Head to the shop to browse products and place your first order."}
+                actions={searchTerm ? [] : [{ label: "Visit Shop", href: '/shop' }]}
               />
             ) : (
               <div className="space-y-6">
-                {orders.map((order) => (
+                {filteredOrders.map((order) => (
                   <motion.div
                     key={order.id}
                     initial={{ opacity: 0, y: 20 }}
@@ -339,7 +385,7 @@ const MyBookings = () => {
                             <div className="flex items-center gap-3">
                               {item.image_url ? (
                                 <img
-                                  src={item.image_url.startsWith('http') ? item.image_url : `${API_BASE_URL}${item.image_url}`}
+                                  src={getImageUrl(item.image_url)}
                                   alt={item.product_name}
                                   className="h-11 w-11 rounded-xl object-cover bg-slate-50"
                                 />
@@ -372,7 +418,7 @@ const MyBookings = () => {
                       <Button
                         variant="ghost"
                         className="h-10 px-4 rounded-xl text-primary font-bold text-sm"
-                        onClick={() => window.location.href = `/order/${order.id}`}
+                        onClick={() => setDetailsJob({ data: order, type: 'order' })}
                       >
                         View Details <ChevronRight className="h-4 w-4 ml-1" />
                       </Button>
@@ -415,6 +461,15 @@ const MyBookings = () => {
           requestType={reviewJob.type}
           providerName={reviewJob.name}
           onSuccess={fetchAll}
+        />
+      )}
+
+      {detailsJob && (
+        <BookingDetailsModal
+          isOpen={!!detailsJob}
+          onClose={() => setDetailsJob(null)}
+          data={detailsJob.data}
+          type={detailsJob.type}
         />
       )}
 
@@ -515,7 +570,7 @@ const EmptyState = ({ icon, title, subtitle, actions }: {
 
 const ServiceCard = ({
   req, getStatusColor, getProviderName, safeLocation,
-  isPaying, onChat, onPay, onRate, onReport
+  isPaying, onChat, onPay, onRate, onReport, onView
 }: any) => (
   <motion.div
     key={req.id}
@@ -526,8 +581,12 @@ const ServiceCard = ({
     <div className="p-8 sm:p-10">
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-8 mb-8">
         <div className="flex items-center gap-5">
-          <div className="h-16 w-16 rounded-[1.5rem] bg-primary/5 text-primary flex items-center justify-center shrink-0 shadow-inner">
-            <Wrench className="h-8 w-8" />
+          <div className="h-16 w-16 rounded-[1.5rem] bg-primary/5 text-primary flex items-center justify-center shrink-0 shadow-inner overflow-hidden border border-slate-100">
+            {req.provider_profile_image_url || req.service_image_url ? (
+              <img src={req.provider_profile_image_url || req.service_image_url} alt="Profile" className="w-full h-full object-cover" />
+            ) : (
+              <Wrench className="h-8 w-8" />
+            )}
           </div>
           <div>
             <div className="flex items-center gap-3 mb-2">
@@ -565,6 +624,10 @@ const ServiceCard = ({
           <Button variant="ghost" className="h-12 px-6 rounded-2xl text-rose-500 bg-rose-50 hover:bg-rose-100 font-bold"
             onClick={() => onReport(req)}>
             <ShieldAlert className="h-4 w-4 mr-2" /> Report
+          </Button>
+          <Button variant="ghost" className="h-12 px-6 rounded-2xl text-slate-500 bg-slate-50 hover:bg-slate-100 font-bold"
+            onClick={() => onView(req)}>
+            Details <ChevronRight className="h-4 w-4 ml-1" />
           </Button>
         </div>
       </div>

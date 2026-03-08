@@ -31,16 +31,16 @@ const About = () => {
       <Navbar />
 
       {/* ── Page header ─────────────────────────────────────────────────── */}
-      <section className="pt-32 pb-20 bg-white relative overflow-hidden">
+      <section className="pt-20 pb-10 bg-white relative overflow-hidden">
         <div className="absolute inset-0 bg-[url('data:image/svg+xml,%3Csvg width=\'6\' height=\'6\' viewBox=\'0 0 6 6\' xmlns=\'svg\'%3E%3Cg fill=\'%23E5E7EB\' fill-opacity=\'0.5\'%3E%3Cpath d=\'M5 0h1L0 6V5zM6 5v1H5z\'/%3E%3C/g%3E%3C/svg%3E')] opacity-60" />
         <div className="container mx-auto px-6 relative z-10 text-center max-w-4xl">
           <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.6 }}>
-            <span className="inline-block mb-4 text-xs font-bold uppercase tracking-[0.2em] text-primary">Our Story</span>
-            <h1 className="text-4xl md:text-5xl lg:text-7xl font-semibold text-[#222222] mb-8 tracking-tight">
+            <span className="inline-block mb-3 text-xs font-bold uppercase tracking-[0.2em] text-primary">Our Story</span>
+            <h1 className="text-3xl md:text-5xl lg:text-6xl font-semibold text-[#222222] mb-6 tracking-tight">
               Mzansi's Most Trusted <br className="hidden md:block" />
               <span className="text-primary underline decoration-primary/10 decoration-8 underline-offset-8">Service Hub</span>
             </h1>
-            <p className="text-xl md:text-2xl text-slate-500 font-normal leading-relaxed max-w-3xl mx-auto">
+            <p className="text-lg md:text-xl text-slate-500 font-normal leading-relaxed max-w-3xl mx-auto">
               Built by South Africans, for South Africans. We connect you with verified pros,
               so you can get things done with complete peace of mind.
             </p>
@@ -49,7 +49,7 @@ const About = () => {
       </section>
 
       {/* ── Stats ───────────────────────────────────────────────────────── */}
-      <section className="py-16 bg-slate-50">
+      <section className="py-12 bg-slate-50">
         <div className="container mx-auto px-6">
           <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-4 max-w-5xl mx-auto">
             {stats.map((stat, i) => (
@@ -58,7 +58,7 @@ const About = () => {
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: i * 0.1, duration: 0.5 }}
-                className="bg-white rounded-2xl p-8 text-center shadow-lg border border-gray-100 hover:shadow-xl transition-all"
+                className="bg-white rounded-2xl p-6 text-center shadow-lg border border-gray-100 hover:shadow-xl transition-all"
               >
                 <div className="w-14 h-14 bg-gradient-to-br from-primary to-primary/80 rounded-xl flex items-center justify-center mx-auto mb-5 shadow-lg">
                   <stat.icon className="h-7 w-7 text-white" />
@@ -72,15 +72,15 @@ const About = () => {
       </section>
 
       {/* ── Values ──────────────────────────────────────────────────────── */}
-      <section ref={ref} className="py-24 bg-white relative">
+      <section ref={ref} className="py-16 bg-white relative">
         <div className="absolute inset-0 bg-[url('data:image/svg+xml,%3Csvg width=\'6\' height=\'6\' viewBox=\'0 0 6 6\' xmlns=\'http://www.w3.org/2000/svg\'%3E%3Cg fill=\'%23E5E7EB\' fill-opacity=\'0.4\'%3E%3Cpath d=\'M5 0h1L0 6V5zM6 5v1H5z\'/%3E%3C/g%3E%3C/svg%3E')] opacity-50" />
         <div className="container mx-auto px-6 relative z-10">
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={isInView ? { opacity: 1, y: 0 } : {}}
-            className="text-center mb-16"
+            className="text-center mb-10"
           >
-            <h2 className="text-4xl md:text-5xl font-semibold text-[#222222] mb-4">
+            <h2 className="text-3xl md:text-4xl font-semibold text-[#222222] mb-3">
               Our <span className="text-primary">Values</span>
             </h2>
             <p className="text-lg text-slate-500 font-normal max-w-lg mx-auto">
@@ -109,14 +109,14 @@ const About = () => {
       </section>
 
       {/* ── CTA ─────────────────────────────────────────────────────────── */}
-      <section className="py-24 bg-gradient-to-br from-primary/10 via-primary/5 to-primary/5 relative">
+      <section className="py-16 bg-gradient-to-br from-primary/10 via-primary/5 to-primary/5 relative">
         <div className="absolute inset-0 bg-[url('data:image/svg+xml,%3Csvg width=\'6\' height=\'6\' viewBox=\'0 0 6 6\' xmlns=\'http://www.w3.org/2000/svg\'%3E%3Cg fill=\'%2314B8A6\' fill-opacity=\'0.05\'%3E%3Cpath d=\'M5 0h1L0 6V5zM6 5v1H5z\'/%3E%3C/g%3E%3C/svg%3E')] opacity-50" />
         <div className="container mx-auto px-6 relative z-10 text-center max-w-2xl">
           <motion.h2
             initial={{ opacity: 0, y: 20 }}
             whileInView={{ opacity: 1, y: 0 }}
             viewport={{ once: true }}
-            className="text-4xl md:text-5xl font-semibold text-[#222222] mb-6"
+            className="text-3xl md:text-4xl font-semibold text-[#222222] mb-4"
           >
             Ready to Get <span className="text-primary">Started?</span>
           </motion.h2>

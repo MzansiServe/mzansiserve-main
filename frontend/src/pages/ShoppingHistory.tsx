@@ -4,10 +4,11 @@ import { Package, ArrowLeft, CheckCircle2, Clock, XCircle, ChevronRight, Shoppin
 import { Button } from "@/components/ui/button";
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
-import { apiFetch } from "@/lib/api";
+import { apiFetch, API_BASE_URL, getImageUrl } from "@/lib/api";
 import { useAuth } from "@/contexts/AuthContext";
 import { cn } from "@/lib/utils";
 import { motion } from "framer-motion";
+import { BookingDetailsModal } from "@/components/dashboards/BookingDetailsModal";
 
 type OrderItem = {
     product_id: string;
@@ -25,8 +26,11 @@ type Order = {
 
 const ShoppingHistory = () => {
     const [orders, setOrders] = useState<Order[]>([]);
+    const [filteredOrders, setFilteredOrders] = useState<Order[]>([]);
+    const [searchTerm, setSearchTerm] = useState("");
     const [isLoading, setIsLoading] = useState(true);
     const { user } = useAuth();
+    const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
     const location = useLocation();
     const navigate = useNavigate();
 
@@ -36,6 +40,7 @@ const ShoppingHistory = () => {
                 const response = await apiFetch("/api/shop/orders");
                 if (response.success && response.data?.orders) {
                     setOrders(response.data.orders);
+                    setFilteredOrders(response.data.orders);
                 }
             } catch (error) {
                 console.error("Failed to fetch orders:", error);
@@ -53,6 +58,21 @@ const ShoppingHistory = () => {
 
     const params = new URLSearchParams(location.search);
     const paymentStatus = params.get("payment");
+
+    useEffect(() => {
+        if (!searchTerm) {
+            setFilteredOrders(orders);
+            return;
+        }
+        const lowerSearch = searchTerm.toLowerCase();
+        const filtered = orders.filter((order) => {
+            if (order.id.toLowerCase().includes(lowerSearch)) return true;
+            if (order.status.toLowerCase().includes(lowerSearch)) return true;
+            if (order.items.some(item => item.product_name && item.product_name.toLowerCase().includes(lowerSearch))) return true;
+            return false;
+        });
+        setFilteredOrders(filtered);
+    }, [searchTerm, orders]);
 
     const getStatusStyles = (status: string) => {
         switch (status.toLowerCase()) {
@@ -103,6 +123,16 @@ const ShoppingHistory = () => {
                             <h1 className="text-4xl md:text-5xl font-bold text-[#222222] tracking-tight">Shopping History</h1>
                             <p className="text-xl text-slate-500 font-normal mt-3">Track your purchases and orders</p>
                         </div>
+                        <div className="w-full md:w-auto mt-6 md:mt-0 relative group">
+                            <ShoppingBag className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-slate-400 group-focus-within:text-primary transition-colors" />
+                            <input
+                                type="text"
+                                placeholder="Search by ID, Status, or Item..."
+                                value={searchTerm}
+                                onChange={(e) => setSearchTerm(e.target.value)}
+                                className="w-full md:w-80 h-14 pl-12 pr-4 bg-slate-50 border border-slate-100 rounded-2xl focus:bg-white focus:border-primary/20 outline-none font-medium text-slate-700 transition-all shadow-inner"
+                            />
+                        </div>
                     </div>
                 </div>
             </section>
@@ -131,9 +161,9 @@ const ShoppingHistory = () => {
                             <Clock className="h-10 w-10 animate-spin text-primary mb-4" />
                             <p className="font-bold">Syncing your history...</p>
                         </div>
-                    ) : orders.length > 0 ? (
+                    ) : filteredOrders.length > 0 ? (
                         <div className="space-y-8">
-                            {orders.map((order) => (
+                            {filteredOrders.map((order) => (
                                 <motion.div
                                     key={order.id}
                                     initial={{ opacity: 0, y: 20 }}
@@ -173,22 +203,40 @@ const ShoppingHistory = () => {
                                             </div>
 
                                             <div className="space-y-4">
-                                                {order.items.map((item, index) => (
+                                                {order.items.map((item: any, index) => (
                                                     <div key={index} className="flex justify-between items-center bg-slate-50/50 p-4 rounded-xl border border-transparent hover:border-slate-100 transition-colors">
                                                         <div className="flex items-center gap-4">
-                                                            <div className="h-12 w-12 bg-white rounded-lg flex items-center justify-center text-slate-300 shadow-sm border border-slate-50">
-                                                                <ShoppingBag className="h-6 w-6" />
+                                                            <div className="h-16 w-16 bg-white rounded-xl flex items-center justify-center text-slate-300 shadow-sm border border-slate-50 overflow-hidden">
+                                                                {item.image_url ? (
+                                                                    <img src={getImageUrl(item.image_url)} alt={item.product_name} className="h-full w-full object-cover" />
+                                                                ) : (
+                                                                    <ShoppingBag className="h-6 w-6" />
+                                                                )}
                                                             </div>
                                                             <div>
                                                                 <p className="text-base font-bold text-[#222222]">
                                                                     {item.product_name || `Product #${item.product_id.slice(-6).toUpperCase()}`}
                                                                 </p>
-                                                                <p className="text-xs font-bold text-slate-400 uppercase tracking-widest">Quantity: {item.quantity}</p>
+                                                                <p className="text-xs font-bold text-slate-400 uppercase tracking-widest mt-1">Quantity: {item.quantity}</p>
                                                             </div>
                                                         </div>
-                                                        <ChevronRight className="h-5 w-5 text-slate-200 group-hover:text-primary transition-colors" />
+                                                        <div className="text-right">
+                                                            {item.price && (
+                                                                <p className="font-black text-slate-900">R{(item.price * item.quantity).toFixed(2)}</p>
+                                                            )}
+                                                            <ChevronRight className="h-5 w-5 text-slate-200 group-hover:text-primary transition-colors ml-auto mt-1" />
+                                                        </div>
                                                     </div>
                                                 ))}
+                                            </div>
+                                            <div className="mt-8 flex justify-end">
+                                                <Button
+                                                    variant="ghost"
+                                                    className="rounded-2xl h-12 px-6 font-bold text-primary bg-primary/5 hover:bg-primary/10"
+                                                    onClick={() => setSelectedOrder(order)}
+                                                >
+                                                    View Detailed Receipt <ChevronRight className="h-4 w-4 ml-1" />
+                                                </Button>
                                             </div>
                                         </div>
                                     </div>
@@ -200,24 +248,35 @@ const ShoppingHistory = () => {
                             <div className="w-24 h-24 bg-slate-50 rounded-[2rem] flex items-center justify-center mx-auto mb-8 shadow-inner">
                                 <Package className="h-12 w-12 text-slate-200" />
                             </div>
-                            <h3 className="text-2xl font-bold text-[#222222]">No orders yet</h3>
+                            <h3 className="text-2xl font-bold text-[#222222]">No orders found</h3>
                             <p className="text-slate-500 mt-4 text-lg max-w-sm mx-auto leading-relaxed font-normal">
-                                You haven't placed any orders yet. Start shopping to see your history here.
+                                {searchTerm ? "Try adjusting your search query." : "You haven't placed any orders yet. Start shopping to see your history here."}
                             </p>
-                            <div className="mt-10">
-                                <Button
-                                    className="h-14 px-10 rounded-2xl bg-primary text-white font-bold text-lg shadow-lg hover:shadow-primary/20 transition-all"
-                                    onClick={() => navigate('/shop')}
-                                >
-                                    Browse Shop
-                                </Button>
-                            </div>
+                            {!searchTerm && (
+                                <div className="mt-10">
+                                    <Button
+                                        className="h-14 px-10 rounded-2xl bg-primary text-white font-bold text-lg shadow-lg hover:shadow-primary/20 transition-all"
+                                        onClick={() => navigate('/shop')}
+                                    >
+                                        Browse Shop
+                                    </Button>
+                                </div>
+                            )}
                         </div>
                     )}
                 </div>
             </div>
 
             <Footer />
+
+            {selectedOrder && (
+                <BookingDetailsModal
+                    isOpen={!!selectedOrder}
+                    onClose={() => setSelectedOrder(null)}
+                    data={selectedOrder}
+                    type="order"
+                />
+            )}
         </main>
     );
 };

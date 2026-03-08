@@ -49,6 +49,9 @@ const Checkout = () => {
                 data: {
                     items: items.map(item => ({
                         product_id: item.product.id,
+                        product_name: item.product.name,
+                        price: item.product.price,
+                        image_url: item.product.image,
                         quantity: item.quantity,
                     })),
                     shipping_address: `${formData.address}, ${formData.city}, ${formData.postalCode}`,

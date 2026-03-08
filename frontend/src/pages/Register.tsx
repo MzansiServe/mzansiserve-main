@@ -11,6 +11,7 @@ import { Card, CardContent, CardFooter } from "@/components/ui/card";
 import { Checkbox } from "@/components/ui/checkbox";
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
+import { apiFetch } from "@/lib/api";
 
 // ─── Design tokens ────────────────────────────────────────────────────────────
 const baseInput = "w-full bg-slate-50/50 border rounded-2xl py-4 text-[#222222] placeholder:text-slate-400 focus:outline-none focus:ring-4 transition-all font-medium h-14";
@@ -26,7 +27,7 @@ const sectionLabel = "text-[11px] font-bold text-primary uppercase tracking-[0.2
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 type FormFields = {
-  name: string; surname: string; email: string; confirmEmail: string; phone: string;
+  name: string; surname: string; email: string; phone: string;
   password: string; confirmPassword: string; gender: string;
   nationality: string; id_number: string; role: string;
   nokName: string; nokPhone: string; nokEmail: string;
@@ -43,7 +44,6 @@ const validators: Partial<Record<keyof FormFields, (v: string, form?: FormFields
   name: (v) => !v.trim() ? "First name is required" : "",
   surname: (v) => !v.trim() ? "Surname is required" : "",
   email: (v) => !v.trim() ? "Email is required" : !emailRegex.test(v) ? "Enter a valid email address" : "",
-  confirmEmail: (v, f) => !v.trim() ? "Please confirm your email" : v !== f?.email ? "Emails do not match" : "",
   password: (v) => !v ? "Password is required" : v.length < 8 ? "Password must be at least 8 characters" : "",
   confirmPassword: (v, f) => !v ? "Please confirm your password" : v !== f?.password ? "Passwords do not match" : "",
   phone: (v) => !v.trim() ? "Phone number is required" : !phoneRegex.test(v) ? "Use only digits, spaces or +" : "",
@@ -112,7 +112,7 @@ const RequiredLegend = () => (
 
 const Register = () => {
   const [form, setForm] = useState<FormFields>({
-    name: "", surname: "", email: "", confirmEmail: "", phone: "", password: "", confirmPassword: "",
+    name: "", surname: "", email: "", phone: "", password: "", confirmPassword: "",
     gender: "", nationality: "", id_number: "", role: "",
     nokName: "", nokPhone: "", nokEmail: "",
     highestQualification: "", professionalBody: "", agent_id: ""
@@ -136,20 +136,24 @@ const Register = () => {
   const { toast } = useToast();
 
   const [isSubmitted, setIsSubmitted] = useState(false);
-  const [paymentUrl, setPaymentUrl] = useState<string | null>(null);
-  const [countdown, setCountdown] = useState(5);
+  const [serviceOptions, setServiceOptions] = useState<any[]>([]);
+  const [selectedServices, setSelectedServices] = useState<string[]>([]);
 
   useEffect(() => {
-    if (isSubmitted && paymentUrl) {
-      const timer = setInterval(() => {
-        setCountdown((prev) => {
-          if (prev <= 1) { clearInterval(timer); window.location.href = paymentUrl!; return 0; }
-          return prev - 1;
-        });
-      }, 1000);
-      return () => clearInterval(timer);
+    if (form.role === 'service-provider' || form.role === 'professional') {
+      apiFetch(`/api/public/service-options?category=${form.role}`).then((res: any) => {
+        if (res?.success && res.data?.services) {
+          setServiceOptions(res.data.services);
+        }
+      });
     }
-  }, [isSubmitted, paymentUrl]);
+  }, [form.role]);
+
+  useEffect(() => {
+    if (isSubmitted) {
+      window.scrollTo({ top: 0, behavior: "smooth" });
+    }
+  }, [isSubmitted]);
 
   // ─── Update field + clear its error ────────────────────────────────────────
   const update = (field: keyof FormFields, value: string) => {
@@ -266,13 +270,16 @@ const Register = () => {
 
     setLoading(true);
     try {
+      const payloadServices = selectedServices.map(s => ({ name: s, description: "" }));
       const formData = new FormData();
       formData.append("registration_data", JSON.stringify({
         email: form.email, password: form.password, password_confirm: form.confirmPassword,
         role: form.role, full_name: form.name, surname: form.surname, phone: form.phone,
         gender: form.gender, nationality: form.nationality, id_number: form.id_number,
         next_of_kin: { full_name: form.nokName, contact_number: form.nokPhone, contact_email: form.nokEmail },
-        highest_qualification: form.highestQualification, professional_body: form.professionalBody, agent_id: form.agent_id
+        highest_qualification: form.highestQualification, professional_body: form.professionalBody, agent_id: form.agent_id,
+        professional_services: form.role === 'professional' ? payloadServices : [],
+        provider_services: form.role === 'service-provider' ? payloadServices : []
       }));
       if (files.profile_photo) formData.append("profile_photo", files.profile_photo);
       if (files.id_document) formData.append("id_document", files.id_document);
@@ -281,10 +288,9 @@ const Register = () => {
       if (files.cv_resume) formData.append("cv_resume", files.cv_resume);
       if (files.qualification_documents) formData.append("qualification_documents", files.qualification_documents);
 
-      const result = await register(formData) as { success: boolean; error?: string; redirect_url?: string };
+      const result = await register(formData);
       if (result.success) {
-        toast({ title: "Account Created!", description: "Please proceed to finalise your registration." });
-        if (result.redirect_url) setPaymentUrl(result.redirect_url);
+        toast({ title: "Verification Sent!", description: "Please check your email to verify and complete payment." });
         setIsSubmitted(true);
       } else {
         setServerError(result.error || "Registration failed");
@@ -385,40 +391,19 @@ const Register = () => {
                   <Check className="h-10 w-10" />
                 </div>
                 <h1 className="text-3xl font-bold text-[#222222] tracking-tight mb-3">
-                  {paymentUrl ? "Account Ready!" : "Registration Successful!"}
+                  Verification Sent!
                 </h1>
                 <p className="text-slate-600 text-base mb-8">
-                  {paymentUrl
-                    ? "Your MzansiServe account has been created. You will be redirected to complete activation."
-                    : "Congratulations! Your account has been created. Our team will review your documents shortly."}
+                  Your registration details have been captured. Please check your inbox for a verification email. You'll be able to complete your registration payment once your email is verified.
                 </p>
-                {paymentUrl && (
-                  <div className="rounded-2xl bg-slate-50 border border-slate-100 p-6 mb-8 text-left">
-                    <p className="font-bold text-[#222222] text-sm mb-1">Final Step: Activation Payment</p>
-                    <p className="text-sm text-slate-500">
-                      Redirecting in <span className="text-primary font-bold">{countdown}s</span>...
-                    </p>
-                    <div className="mt-3 h-1.5 w-full bg-slate-200 rounded-full overflow-hidden">
-                      <motion.div
-                        initial={{ width: "100%" }} animate={{ width: "0%" }}
-                        transition={{ duration: 5, ease: "linear" }}
-                        className="h-full bg-primary"
-                      />
-                    </div>
-                  </div>
-                )}
                 <div className="space-y-3">
-                  {paymentUrl ? (
-                    <Button asChild className="w-full h-14 rounded-2xl bg-primary hover:bg-primary/90 text-white font-bold text-base shadow-xl shadow-primary/10 transition-all active:scale-[0.98]">
-                      <a href={paymentUrl}>Proceed to Payment <ChevronRight className="ml-1 h-5 w-5" /></a>
-                    </Button>
-                  ) : (
-                    <Button asChild className="w-full h-14 rounded-2xl bg-primary hover:bg-primary/90 text-white font-bold text-base">
-                      <Link to="/login">Login to Your Account</Link>
-                    </Button>
-                  )}
+                  <Button asChild className="w-full h-14 rounded-2xl bg-primary hover:bg-primary/90 text-white font-bold text-base shadow-xl shadow-primary/10 transition-all active:scale-[0.98]">
+                    <a href="https://mail.google.com" target="_blank" rel="noopener noreferrer">
+                      <Mail className="mr-2 h-5 w-5" /> Open Email
+                    </a>
+                  </Button>
                   <Button asChild variant="ghost" className="w-full h-12 rounded-2xl text-slate-500">
-                    <Link to="/">Back to Homepage</Link>
+                    <Link to="/login">Go to Login</Link>
                   </Button>
                 </div>
               </CardContent>
@@ -511,21 +496,6 @@ const Register = () => {
                           autoComplete="email" />
                       </div>
                       <FieldError msg={fieldErrors.email} />
-                    </div>
-
-                    {/* Confirm Email */}
-                    <div className="space-y-1">
-                      <label className={fieldLabel}>Confirm Email Address<Req /></label>
-                      <div className="relative">
-                        <Mail className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400 pointer-events-none" />
-                        <input id="confirm-email" type="email" placeholder="Re-enter email"
-                          value={form.confirmEmail}
-                          onChange={(e) => update("confirmEmail", e.target.value)}
-                          onBlur={() => handleBlur("confirmEmail")}
-                          className={ic("confirmEmail", true)}
-                          autoComplete="email" />
-                      </div>
-                      <FieldError msg={fieldErrors.confirmEmail} />
                     </div>
 
                     {/* Password */}
@@ -729,6 +699,49 @@ const Register = () => {
                             onChange={(e) => update("professionalBody", e.target.value)}
                             className="w-full bg-slate-50 border border-slate-100 rounded-2xl py-4 px-4 text-[#222222] placeholder:text-slate-400 focus:outline-none focus:ring-4 focus:ring-primary/5 focus:border-primary/50 transition-all font-medium h-14" />
                         </div>
+                      </div>
+                    </motion.section>
+                  )}
+                </AnimatePresence>
+
+                {/* ── Services Offered ── */}
+                <AnimatePresence>
+                  {(form.role === "professional" || form.role === "service-provider") && (
+                    <motion.section
+                      initial={{ opacity: 0, height: 0 }}
+                      animate={{ opacity: 1, height: "auto" }}
+                      exit={{ opacity: 0, height: 0 }}
+                      className="overflow-hidden space-y-5 pt-6 border-t border-slate-50"
+                    >
+                      <p className={sectionLabel}><UserCircle className="w-4 h-4" /> {form.role === "professional" ? "Professions" : "Services"} Offered</p>
+                      <div className="space-y-1">
+                        <label className={fieldLabel}>{form.role === "professional" ? "Select or Add Your Profession" : "Select or Add Your Services"} <span className="text-slate-400 font-normal">(Multiple allowed)</span></label>
+                        <Autocomplete
+                          multiple
+                          freeSolo
+                          options={serviceOptions.map((opt) => opt.name)}
+                          value={selectedServices}
+                          onChange={(_, newValue) => setSelectedServices(newValue as string[])}
+                          renderInput={(params) => (
+                            <TextField
+                              {...params}
+                              variant="outlined"
+                              placeholder="e.g. Electrical Maintenance"
+                              className="bg-slate-50 border-slate-100 rounded-2xl"
+                              sx={{
+                                '& .MuiOutlinedInput-root': {
+                                  borderRadius: '16px',
+                                  backgroundColor: '#f8fafc',
+                                  minHeight: '56px',
+                                  '& fieldset': { borderColor: '#f1f5f9' },
+                                  '&:hover fieldset': { borderColor: '#e2e8f0' },
+                                  '&.Mui-focused fieldset': { borderColor: 'rgba(20, 184, 166, 0.5)', borderWidth: '4px' } // primary color with opacity
+                                }
+                              }}
+                            />
+                          )}
+                        />
+                        <p className="text-[11px] text-slate-400 font-medium ml-1 mt-1">If your service is not listed, you can type it and add it. Custom services will be reviewed by an administrator.</p>
                       </div>
                     </motion.section>
                   )}

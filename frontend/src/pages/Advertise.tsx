@@ -66,9 +66,9 @@ const Advertise = () => {
         <div className="min-h-screen bg-slate-50 flex flex-col">
             <Navbar />
 
-            <main className="flex-grow pt-32 pb-24">
+            <main className="flex-grow pt-24 pb-12">
                 <div className="container mx-auto px-6 max-w-5xl">
-                    <div className="grid lg:grid-cols-2 gap-16 items-start">
+                    <div className="grid lg:grid-cols-2 gap-10 items-start">
 
                         {/* Left Side: Copy */}
                         <motion.div
@@ -109,7 +109,7 @@ const Advertise = () => {
                             initial={{ opacity: 0, x: 20 }}
                             animate={{ opacity: 1, x: 0 }}
                             transition={{ duration: 0.6, delay: 0.2 }}
-                            className="bg-white rounded-[2rem] p-8 md:p-12 shadow-2xl shadow-slate-200 border border-slate-100"
+                            className="bg-white rounded-[2rem] p-6 md:p-10 shadow-2xl shadow-slate-200 border border-slate-100"
                         >
                             {isSubmitted ? (
                                 <div className="text-center py-12">

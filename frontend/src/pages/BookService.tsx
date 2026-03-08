@@ -24,7 +24,8 @@ import { cn } from "@/lib/utils";
 const LIBRARIES: ("places")[] = ["places"];
 const GOOGLE_MAPS_API_KEY = "AIzaSyBtXh26PcILBqis4Ad66wPetvU_wUKMNRs";
 
-const timeSlots = ["08:00", "09:00", "10:00", "11:00", "12:00", "13:00", "14:00", "15:00", "16:00", "17:00"];
+const DEFAULT_TIME_SLOTS = ["08:00", "09:00", "10:00", "11:00", "12:00", "13:00", "14:00", "15:00", "16:00", "17:00"];
+const DAYS_OF_WEEK: (keyof any)[] = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
 
 const BookService = () => {
   const { id, category } = useParams();
@@ -44,6 +45,7 @@ const BookService = () => {
   const [defaultCalloutFee, setDefaultCalloutFee] = useState<number>(150);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [step, setStep] = useState<"form" | "confirm" | "done">("form");
+  const [availableTimeSlots, setAvailableTimeSlots] = useState<string[]>(DEFAULT_TIME_SLOTS);
 
   const autocompleteRef = useRef<google.maps.places.Autocomplete | null>(null);
 
@@ -93,6 +95,59 @@ const BookService = () => {
     };
     fetchSettings();
   }, [category]);
+
+  // Update available time slots when date changes
+  useEffect(() => {
+    if (!date || !provider) {
+      setAvailableTimeSlots(DEFAULT_TIME_SLOTS);
+      return;
+    }
+
+    const availability = provider?.data?.availability;
+    if (!availability) {
+      setAvailableTimeSlots(DEFAULT_TIME_SLOTS);
+      return;
+    }
+
+    const selectedDate = new Date(date);
+    const dayName = DAYS_OF_WEEK[selectedDate.getDay()] as string;
+    const dayConfig = availability.regular_hours?.[dayName];
+
+    // Check if date is blocked
+    if (availability.blocked_dates?.includes(date)) {
+      setAvailableTimeSlots([]);
+      toast({ title: "Provider Unavailable", description: "Selected date is blocked by the provider.", variant: "destructive" });
+      return;
+    }
+
+    if (dayConfig && dayConfig.enabled) {
+      const start = dayConfig.start; // "08:00"
+      const end = dayConfig.end;     // "17:00"
+
+      // Fetch busy slots from backend
+      const fetchBusySlots = async () => {
+        try {
+          const res = await apiFetch(`/api/requests/provider/${id}/busy-slots?date=${date}`);
+          const busySlots = res.data?.busy_slots || [];
+
+          const filtered = DEFAULT_TIME_SLOTS.filter(slot => {
+            return slot >= start && slot < end && !busySlots.includes(slot);
+          });
+          setAvailableTimeSlots(filtered);
+          if (time && !filtered.includes(time)) setTime("");
+        } catch (err) {
+          // Fallback to regular hours only if API fails
+          const filtered = DEFAULT_TIME_SLOTS.filter(slot => slot >= start && slot < end);
+          setAvailableTimeSlots(filtered);
+        }
+      };
+
+      fetchBusySlots();
+    } else {
+      setAvailableTimeSlots([]);
+      toast({ title: "Provider Closed", description: `The provider does not work on ${dayName}s.`, variant: "destructive" });
+    }
+  }, [date, provider]);
 
   const onPlaceChanged = () => {
     if (autocompleteRef.current) {
@@ -347,12 +402,12 @@ const BookService = () => {
                           <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-3 ml-1">Preferred Time</label>
                           <div className="relative">
                             <Clock className="absolute left-6 top-1/2 -translate-y-1/2 h-5 w-5 text-slate-400 group-focus-within:text-primary transition-colors" />
-                            <Select value={time} onValueChange={setTime}>
+                            <Select value={time} onValueChange={setTime} disabled={availableTimeSlots.length === 0}>
                               <SelectTrigger className="w-full h-16 pl-16 bg-slate-50 rounded-2xl border-transparent focus:bg-white focus:border-primary/20 outline-none text-[#222222] font-medium text-lg transition-all">
-                                <SelectValue placeholder="Select a time slot" />
+                                <SelectValue placeholder={availableTimeSlots.length === 0 ? "No slots available" : "Select a time slot"} />
                               </SelectTrigger>
                               <SelectContent className="rounded-2xl shadow-2xl border-slate-50">
-                                {timeSlots.map((t) => <SelectItem key={t} value={t} className="py-3 focus:bg-slate-50 cursor-pointer">{t}</SelectItem>)}
+                                {availableTimeSlots.map((t) => <SelectItem key={t} value={t} className="py-3 focus:bg-slate-50 cursor-pointer">{t}</SelectItem>)}
                               </SelectContent>
                             </Select>
                           </div>

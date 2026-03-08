@@ -58,15 +58,15 @@ const HowItWorks = () => {
             <Navbar />
 
             {/* ── Hero Section ───────────────────────────────────────────────── */}
-            <section className="pt-32 pb-20 bg-white relative overflow-hidden">
+            <section className="pt-24 pb-12 bg-white relative overflow-hidden">
                 <div className="absolute inset-0 bg-[url('data:image/svg+xml,%3Csvg width=\'6\' height=\'6\' viewBox=\'0 0 6 6\' xmlns=\'http://www.w3.org/2000/svg\'%3E%3Cg fill=\'%23E5E7EB\' fill-opacity=\'0.5\'%3E%3Cpath d=\'M5 0h1L0 6V5zM6 5v1H5z\'/%3E%3C/g%3E%3C/svg%3E')] opacity-60" />
                 <div className="container mx-auto px-6 relative z-10 text-center max-w-3xl">
                     <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.6 }}>
-                        <span className="inline-block mb-4 text-xs font-bold uppercase tracking-[0.2em] text-primary">The Process</span>
-                        <h1 className="text-4xl md:text-5xl lg:text-6xl font-semibold text-[#222222] mb-6 tracking-tight">
+                        <span className="inline-block mb-3 text-xs font-bold uppercase tracking-[0.2em] text-primary">The Process</span>
+                        <h1 className="text-3xl md:text-5xl lg:text-6xl font-semibold text-[#222222] mb-4 tracking-tight">
                             How <span className="text-primary">MzansiServe</span> Works
                         </h1>
-                        <p className="text-lg md:text-xl text-slate-500 font-normal leading-relaxed">
+                        <p className="text-base md:text-lg text-slate-500 font-normal leading-relaxed">
                             We've made it easier than ever to book trusted services in South Africa.
                             Our platform handles the vetting and scheduling, so you can focus on what matters.
                         </p>
@@ -75,9 +75,9 @@ const HowItWorks = () => {
             </section>
 
             {/* ── Steps Section ─────────────────────────────────────────────── */}
-            <section className="py-24 bg-white border-y border-slate-50">
+            <section className="py-16 bg-white border-y border-slate-50">
                 <div className="container mx-auto px-6">
-                    <div className="grid gap-16 lg:grid-cols-2 lg:gap-24 items-center max-w-6xl mx-auto">
+                    <div className="grid gap-12 lg:grid-cols-2 lg:gap-16 items-center max-w-6xl mx-auto">
                         {/* Steps Left */}
                         <div className="space-y-12">
                             {steps.map((step, i) => (
@@ -145,15 +145,15 @@ const HowItWorks = () => {
             </section>
 
             {/* ── Guarantees Section ────────────────────────────────────────── */}
-            <section className="py-24 bg-slate-50/50">
+            <section className="py-16 bg-slate-50/50">
                 <div className="container mx-auto px-6">
                     <motion.div
                         initial={{ opacity: 0, y: 20 }}
                         whileInView={{ opacity: 1, y: 0 }}
                         viewport={{ once: true }}
-                        className="text-center mb-16"
+                        className="text-center mb-10"
                     >
-                        <h2 className="text-3xl md:text-4xl font-semibold text-[#222222] mb-4">
+                        <h2 className="text-2xl md:text-3xl font-semibold text-[#222222] mb-3">
                             Our <span className="text-primary">Safety</span> First Approach
                         </h2>
                         <p className="text-slate-500 font-normal max-w-xl mx-auto">
@@ -183,13 +183,13 @@ const HowItWorks = () => {
             </section>
 
             {/* ── CTA Section ───────────────────────────────────────────────── */}
-            <section className="py-24 bg-white relative">
+            <section className="py-16 bg-white relative">
                 <div className="container mx-auto px-6 relative z-10 text-center max-w-2xl">
                     <motion.div
                         initial={{ opacity: 0, scale: 0.95 }}
                         whileInView={{ opacity: 1, scale: 1 }}
                         viewport={{ once: true }}
-                        className="bg-[#222222] rounded-[3rem] p-12 lg:p-16 text-white relative overflow-hidden shadow-2xl"
+                        className="bg-[#222222] rounded-[3rem] p-10 lg:p-12 text-white relative overflow-hidden shadow-2xl"
                     >
                         <div className="absolute top-0 right-0 w-64 h-64 bg-primary/20 rounded-full blur-3xl -mr-32 -mt-32" />
                         <div className="relative z-10">

@@ -3,7 +3,7 @@ import { Star, ShieldCheck, MapPin, ChevronRight, User as UserIcon } from "lucid
 import { Button } from "./ui/button";
 import { useNavigate } from "react-router-dom";
 import { useState, useEffect } from "react";
-import { apiFetch, API_BASE_URL } from "@/lib/api";
+import { apiFetch, API_BASE_URL, getImageUrl } from "@/lib/api";
 
 interface Provider {
     id: string;
@@ -15,6 +15,7 @@ interface Provider {
     profile_image_url: string | null;
     is_approved: boolean;
     data: any;
+    role?: string;
 }
 
 const FALLBACK_PROVIDERS = [
@@ -49,7 +50,7 @@ export const TopProviders = () => {
 
     if (loading && providers.length === 0) {
         return (
-            <section className="py-24 bg-slate-50">
+            <section className="py-12 bg-slate-50">
                 <div className="container mx-auto px-6 text-center">
                     <div className="animate-pulse flex flex-col items-center gap-4">
                         <div className="h-6 w-48 bg-gray-200 rounded" />
@@ -63,12 +64,12 @@ export const TopProviders = () => {
     if (providers.length === 0) return null;
 
     return (
-        <section className="py-24 bg-slate-50">
+        <section className="py-12 bg-slate-50">
             <div className="container mx-auto px-6">
                 {/* Header */}
-                <div className="flex flex-col md:flex-row md:items-end justify-between mb-16 gap-6">
+                <div className="flex flex-col md:flex-row md:items-end justify-between mb-6 gap-6">
                     <div className="max-w-2xl">
-                        <h2 className="text-4xl md:text-5xl font-semibold text-[#222222] mb-4">
+                        <h2 className="text-3xl md:text-4xl font-semibold text-[#222222] mb-3">
                             Mzansi's <span className="text-primary">Top Rated</span>
                         </h2>
                         <p className="text-lg md:text-xl text-slate-600 font-normal">
@@ -90,9 +91,7 @@ export const TopProviders = () => {
                     {providers.map((provider, index) => {
                         const fullName = provider.data?.full_name || provider.name || "Service Provider";
                         const imageUrl = provider.profile_image_url
-                            ? (provider.profile_image_url.startsWith("http")
-                                ? provider.profile_image_url
-                                : `${API_BASE_URL}${provider.profile_image_url}`)
+                            ? (getImageUrl(provider.profile_image_url))
                             : null;
 
                         return (
@@ -147,7 +146,7 @@ export const TopProviders = () => {
 
                                 <Button
                                     className="w-full bg-primary hover:bg-primary/90 text-white font-semibold py-5 rounded-xl shadow-lg hover:shadow-xl transition-all"
-                                    onClick={() => navigate("/professionals")}
+                                    onClick={() => navigate(`/provider/${provider.role || 'professional'}/${provider.id}`)}
                                 >
                                     View Profile <ChevronRight className="ml-1 h-4 w-4" />
                                 </Button>

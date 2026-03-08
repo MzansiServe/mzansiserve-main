@@ -145,6 +145,42 @@ def approve_user(user_id):
         if user.role in ('professional', 'service-provider'):
             user.is_active = True
             
+            # Process services upon approval
+            from backend.models import ServiceType, UserSelectedService
+            services = []
+            if user.data:
+                if user.role == 'professional':
+                    services = user.data.get('professional_services', [])
+                elif user.role == 'service-provider':
+                    services = user.data.get('provider_services', [])
+            
+            for s in services:
+                service_name = s.get('name', '').strip()
+                if not service_name:
+                    continue
+                
+                existing_service = ServiceType.query.filter(db.func.lower(ServiceType.name) == service_name.lower(), ServiceType.category == user.role).first()
+                if not existing_service:
+                    new_service = ServiceType(
+                        name=service_name,
+                        description=s.get('description', ''),
+                        category=user.role,
+                        is_active=True
+                    )
+                    db.session.add(new_service)
+                    db.session.flush()
+                    service_id = new_service.id
+                else:
+                    service_id = existing_service.id
+                
+                has_service = UserSelectedService.query.filter_by(user_id=user.id, service_type_id=service_id).first()
+                if not has_service:
+                    db.session.add(UserSelectedService(
+                        user_id=user.id,
+                        service_type_id=service_id,
+                        personalized_description=s.get('personalized_description', '')
+                    ))
+
         db.session.commit()
         
         # Send user approval notification email
@@ -2123,6 +2159,27 @@ def approve_pending_profile_update(pending_id):
                     del updated_data[key]
                 else:
                     updated_data[key] = value
+
+            # If services were updated, auto-add any custom ones to the master list
+            if key in ('professional_services', 'provider_services') and isinstance(value, list):
+                category = 'professional' if key == 'professional_services' else 'service-provider'
+                for service in value:
+                    s_name = service.get('name', '').strip()
+                    if not s_name:
+                        continue
+                    
+                    # Check if service exists
+                    existing = ServiceType.query.filter(ServiceType.name.ilike(s_name)).first()
+                    if not existing:
+                        # Create new approved service
+                        new_service = ServiceType(
+                            name=s_name,
+                            category=category,
+                            is_active=True,
+                            description=service.get('description', '')
+                        )
+                        db.session.add(new_service)
+
         user.data = updated_data
         db.session.delete(pending)
         db.session.commit()

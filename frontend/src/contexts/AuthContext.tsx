@@ -7,13 +7,19 @@ export interface User {
   email: string;
   phone?: string;
   role: string;
+  is_paid?: boolean;
+  is_approved?: boolean;
+  email_verified?: boolean;
+  profile_image_url?: string;
+  tracking_number?: string;
+  data?: any;
 }
 
 interface AuthContextType {
   user: User | null;
-  login: (email: string, password: string, role: string) => Promise<{ success: boolean; error?: string }>;
-  adminLogin: (email: string, password: string) => Promise<{ success: boolean; error?: string }>;
-  register: (data: FormData | Record<string, any>) => Promise<{ success: boolean; error?: string }>;
+  login: (email: string, password: string, role: string) => Promise<{ success: boolean; data?: any; error?: string }>;
+  adminLogin: (email: string, password: string) => Promise<{ success: boolean; data?: any; error?: string }>;
+  register: (data: FormData | Record<string, any>) => Promise<{ success: boolean; data?: any; error?: string }>;
   logout: () => void;
   setUser: (user: User | null) => void;
   isAuthenticated: boolean;
@@ -65,7 +71,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       if (result.success) {
         localStorage.setItem("token", result.data.token);
         setUser(result.data.user);
-        return { success: true };
+        return { success: true, data: result.data };
       }
       return { success: false, error: result.message || "Login failed" };
     } catch (error: any) {
@@ -83,7 +89,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         localStorage.setItem("adminToken", result.data.token);
         localStorage.setItem("adminUser", JSON.stringify(result.data.user));
         setUser(result.data.user);
-        return { success: true };
+        return { success: true, data: result.data };
       }
       return { success: false, error: result.message || "Login failed" };
     } catch (error: any) {
@@ -104,14 +110,14 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       if (result.success) {
         // Optional: register-with-payment may trigger a redirect URL rather than token immediately
         if (result.data?.redirect_url) {
-          return { success: true, redirect_url: result.data.redirect_url };
+          return { success: true, data: result.data };
         }
 
         if (result.data?.token) {
           localStorage.setItem("token", result.data.token);
           setUser(result.data.user);
         }
-        return { success: true };
+        return { success: true, data: result.data };
       }
       return { success: false, error: result.message || "Registration failed" };
     } catch (error: any) {

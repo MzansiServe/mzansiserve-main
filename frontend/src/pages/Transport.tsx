@@ -313,21 +313,21 @@ const Transport = () => {
       <Navbar />
 
       {/* ── Page header ── */}
-      <section className="pt-32 pb-12 bg-white relative overflow-hidden border-b border-slate-50">
+      <section className="pt-24 pb-8 bg-white relative overflow-hidden border-b border-slate-50">
         <div className="absolute inset-0 bg-[url('data:image/svg+xml,%3Csvg width=\'6\' height=\'6\' viewBox=\'0 0 6 6\' xmlns=\'http://www.w3.org/2000/svg\'%3E%3Cg fill=\'%23EEF2FF\' fill-opacity=\'1\'%3E%3Cpath d=\'M5 0h1L0 6V5zM6 5v1H5z\'/%3E%3C/g%3E%3C/svg%3E')] opacity-70" />
         <div className="container mx-auto px-6 max-w-5xl relative z-10 text-center">
-          <span className="inline-block mb-4 text-[10px] font-bold uppercase tracking-[0.2em] text-primary">Transport</span>
-          <h1 className="text-4xl md:text-5xl font-bold text-[#222222] tracking-tight leading-tight">
+          <span className="inline-block mb-3 text-[10px] font-bold uppercase tracking-[0.2em] text-primary">Transport</span>
+          <h1 className="text-3xl md:text-4xl font-bold text-[#222222] tracking-tight leading-tight">
             Where would you like to go?
           </h1>
-          <p className="mt-4 text-xl text-slate-500 font-normal max-w-2xl mx-auto">Safe, reliable, and convenient city travel across Mzansi.</p>
+          <p className="mt-2 text-lg text-slate-500 font-normal max-w-2xl mx-auto">Safe, reliable, and convenient city travel across Mzansi.</p>
         </div>
       </section>
 
       <div className="flex-1 bg-white">
-        <div className="container mx-auto px-6 py-12 max-w-5xl">
+        <div className="container mx-auto px-6 py-8 max-w-5xl">
           {/* Custom Wizard Step Indicators */}
-          <div className="relative mb-20 max-w-2xl mx-auto">
+          <div className="relative mb-12 max-w-2xl mx-auto">
             <div className="flex justify-between relative z-10 px-4">
               {[1, 2, 3].map((s) => (
                 <div key={s} className="flex flex-col items-center gap-4">
@@ -363,7 +363,7 @@ const Transport = () => {
                   initial={{ opacity: 0, x: 20 }}
                   animate={{ opacity: 1, x: 0 }}
                   exit={{ opacity: 0, x: -20 }}
-                  className="p-8 md:p-12 lg:p-16"
+                  className="p-6 md:p-8 lg:p-10"
                 >
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-16 items-center">
                     <div className="space-y-10">

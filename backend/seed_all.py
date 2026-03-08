@@ -7,9 +7,10 @@ import os
 import shutil
 from flask.cli import with_appcontext
 from flask import current_app
+import datetime
 
 from backend.extensions import db
-from backend.models import User, ShopCategory, ShopSubcategory, Country, ServiceType, Agent
+from backend.models import User, ShopCategory, ShopSubcategory, Country, ServiceType, Agent, ServiceRequest, Order, MarketplaceCategory, MarketplaceAd
 from backend.services.wallet_service import WalletService
 from backend.utils.auth import generate_tracking_number
 
@@ -308,6 +309,161 @@ def seed_all():
     db.session.commit()
     click.echo(f'   {user_c} demo users created.\n')
 
+    # ── 11. Marketplace Categories ──────────────────────────────────────────
+    click.echo('[11/12] Marketplace categories…')
+    from backend.models.marketplace import MarketplaceCategory, MarketplaceAd
+    m_cats = [
+        ('Vehicles', 'vehicles', 'Car'),
+        ('Property', 'property', 'Home'),
+        ('Electronics', 'electronics', 'Smartphone'),
+        ('Home & Garden', 'home-garden', 'Lamp'),
+        ('Services', 'services', 'Briefcase'),
+        ('Jobs', 'jobs', 'UserCheck'),
+        ('Fashion', 'fashion', 'Shirt'),
+        ('Appliances', 'appliances', 'Microwave')
+    ]
+    mcat_c = 0
+    for name, slug, icon in m_cats:
+        if not MarketplaceCategory.query.filter_by(slug=slug).first():
+            db.session.add(MarketplaceCategory(name=name, slug=slug, icon=icon))
+            mcat_c += 1
+    db.session.commit()
+    click.echo(f'   {mcat_c} marketplace categories created.\n')
+
+    # ── 12. Marketplace Ads ────────────────────────────────────────────────
+    click.echo('[12/12] Marketplace ads…')
+    admin_user = User.query.filter_by(email=ADMIN_EMAIL).first()
+    if admin_user:
+        example_ads = [
+            {
+                'title': '2018 Toyota Corolla for Sale',
+                'description': 'Excellent condition, low mileage (45,000km). One owner from new. Full service history.',
+                'price': 185000.0,
+                'category_slug': 'vehicles',
+                'city': 'Johannesburg',
+                'province': 'Gauteng',
+                'condition': 'Used (Like New)',
+                'images': ['https://images.unsplash.com/photo-1590362891121-399618458783?q=80&w=800&auto=format&fit=crop']
+            },
+            {
+                'title': 'Modern 2 Bedroom Apartment in Sandton',
+                'description': 'Spacious apartment with balcony and fiber ready. Includes 24h security and pool.',
+                'price': 12000.0,
+                'category_slug': 'property',
+                'city': 'Sandton',
+                'province': 'Gauteng',
+                'condition': 'Excellent',
+                'images': ['https://images.unsplash.com/photo-1522708323590-d24dbb6b0267?q=80&w=800&auto=format&fit=crop']
+            },
+            {
+                'title': 'iPhone 13 Pro - 128GB (Graphite)',
+                'description': 'Barely used, comes with original box and accessories. Battery health 95%.',
+                'price': 10500.0,
+                'category_slug': 'electronics',
+                'city': 'Cape Town',
+                'province': 'Western Cape',
+                'condition': 'Used (Good)',
+                'images': ['https://images.unsplash.com/photo-1632661674596-df8be070a5c5?q=80&w=800&auto=format&fit=crop']
+            }
+        ]
+        mad_c = 0
+        for ad_data in example_ads:
+            if not MarketplaceAd.query.filter_by(title=ad_data['title']).first():
+                cat = MarketplaceCategory.query.filter_by(slug=ad_data['category_slug']).first()
+                if cat:
+                    db.session.add(MarketplaceAd(
+                        user_id=admin_user.id,
+                        category_id=cat.id,
+                        title=ad_data['title'],
+                        description=ad_data['description'],
+                        price=ad_data['price'],
+                        city=ad_data['city'],
+                        province=ad_data['province'],
+                        condition=ad_data['condition'],
+                        images=ad_data['images'],
+                        contact_name='MzansiServe Sales',
+                        contact_phone='011 234 5678',
+                        status='active'
+                    ))
+                    mad_c += 1
+        db.session.commit()
+        click.echo(f'   {mad_c} marketplace ads created.\n')
+
+        # ── 12. Demo Bookings (for Admin) ───────────────────────────────────
+        click.echo('[12/12] Demo bookings & orders…')
+        
+        # Admin is our demo client
+        admin_user = User.query.filter_by(email='admin@mzansiserve.co.za').first()
+        demo_prof = User.query.filter_by(role='professional').first()
+        demo_prov = User.query.filter_by(role='service-provider').first()
+        
+        if admin_user:
+            # Add a Cab Ride
+            if not ServiceRequest.query.filter_by(requester_id=admin_user.id, request_type='cab').first():
+                db.session.add(ServiceRequest(
+                    id=f"REQ-{secrets.token_hex(4).upper()}CAB",
+                    request_type='cab',
+                    requester_id=admin_user.id,
+                    scheduled_date=(datetime.datetime.utcnow().strftime('%Y-%m-%d')),
+                    scheduled_time='14:30',
+                    status='completed',
+                    payment_status='paid',
+                    payment_amount=245.50,
+                    location_data={
+                        'pickup': {'address': '123 Sandton Dr, Sandton', 'lat': -26.1076, 'lng': 28.0567},
+                        'dropoff': {'address': 'OR Tambo International Airport', 'lat': -26.1367, 'lng': 28.2411}
+                    },
+                    details={'car_type': 'sedan', 'notes': 'Flight at 17:00, please be on time.'}
+                ))
+            
+            # Add a Professional Service
+            if demo_prof and not ServiceRequest.query.filter_by(requester_id=admin_user.id, request_type='professional').first():
+                db.session.add(ServiceRequest(
+                    id=f"REQ-{secrets.token_hex(4).upper()}PROF",
+                    request_type='professional',
+                    requester_id=admin_user.id,
+                    provider_id=demo_prof.id,
+                    scheduled_date=(datetime.datetime.utcnow().strftime('%Y-%m-%d')),
+                    scheduled_time='10:00',
+                    status='accepted',
+                    payment_status='paid',
+                    payment_amount=450.00,
+                    location_data={'location': {'address': 'Online Consultation', 'lat': 0, 'lng': 0}},
+                    details={
+                        'service_name': 'Tax Consultation',
+                        'professional_name': demo_prof.data.get('full_name'),
+                        'notes': 'Discussing small business registration.'
+                    }
+                ))
+                
+            # Add a Shop Order
+            if not Order.query.filter_by(customer_id=admin_user.id).first():
+                products = ShopProduct.query.limit(2).all()
+                if products:
+                    order_items = []
+                    for p in products:
+                        order_items.append({
+                            'product_id': p.id,
+                            'product_name': p.name,
+                            'price': float(p.price),
+                            'image_url': p.image_url,
+                            'quantity': 1
+                        })
+                    
+                    db.session.add(Order(
+                        id=f"ORD-{secrets.token_hex(4).upper()}SEED",
+                        customer_id=admin_user.id,
+                        customer_email=admin_user.email,
+                        status='paid',
+                        total=sum(item['price'] for item in order_items),
+                        items=order_items,
+                        shipping={'delivery_address': 'Shop 45, Mall of Africa, Midrand'},
+                        placed_at=datetime.datetime.utcnow()
+                    ))
+            
+            db.session.commit()
+            click.echo('   Demo bookings created for admin.\n')
+
     click.echo(SEP)
-    click.echo(f'  Seed complete  ✓  ({prod_c} products, {user_c} demo users added)')
+    click.echo(f'  Seed complete  ✓  ({prod_c} products, {user_c} demo users, {mad_c} ads added)')
     click.echo(SEP)

@@ -3,7 +3,7 @@ User Models
 """
 import uuid
 import bcrypt
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from flask_login import UserMixin
 from sqlalchemy.dialects.postgresql import UUID, JSONB, CITEXT
 from backend.extensions import db
@@ -118,7 +118,8 @@ class PasswordResetToken(db.Model):
     
     def is_valid(self):
         """Check if token is valid"""
-        return not self.used and datetime.utcnow() < self.expires_at
+        now = datetime.now(timezone.utc) if self.expires_at.tzinfo else datetime.utcnow()
+        return not self.used and now < self.expires_at
 
 
 class EmailVerificationToken(db.Model):
@@ -136,7 +137,8 @@ class EmailVerificationToken(db.Model):
     
     def is_valid(self):
         """Check if token is valid"""
-        return not self.used and datetime.utcnow() < self.expires_at
+        now = datetime.now(timezone.utc) if self.expires_at.tzinfo else datetime.utcnow()
+        return not self.used and now < self.expires_at
 
 
 class Wallet(db.Model):

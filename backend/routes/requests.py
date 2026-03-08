@@ -449,7 +449,45 @@ def create_professional_checkout():
             if pid:
                 try:
                     from uuid import UUID as PUUID
-                    service_request.provider_id = PUUID(pid)
+                    provider_uuid = PUUID(pid)
+                    service_request.provider_id = provider_uuid
+                    
+                    # --- VALIDATE AVAILABILITY ---
+                    provider_user = User.query.get(provider_uuid)
+                    if provider_user and provider_user.data and 'availability' in provider_user.data:
+                        availability = provider_user.data['availability']
+                        req_date = data['date'] # 'YYYY-MM-DD'
+                        req_time = data['time'] # 'HH:MM'
+                        
+                        # 1. Check blocked dates
+                        if req_date in (availability.get('blocked_dates') or []):
+                            return error_response('UNAVAILABLE', 'Provider is unavailable on this date.', None, 400)
+                            
+                        # 2. Check regular hours
+                        try:
+                            dt = datetime.strptime(req_date, '%Y-%m-%d')
+                            day_name = dt.strftime('%A').lower() # 'monday'
+                            day_config = availability.get('regular_hours', {}).get(day_name, {})
+                            if not day_config.get('enabled'):
+                                return error_response('UNAVAILABLE', f'Provider does not work on {day_name}s.', None, 400)
+                            
+                            start = day_config.get('start', '08:00')
+                            end = day_config.get('end', '17:00')
+                            if not (start <= req_time < end):
+                                return error_response('UNAVAILABLE', f'Provider is only available between {start} and {end} on {day_name}s.', None, 400)
+                        except Exception as e:
+                            current_app.logger.error(f"Availability check error (regular hours): {str(e)}")
+                            
+                        # 3. Check busy slots (existing bookings)
+                        busy = ServiceRequest.query.filter(
+                            ServiceRequest.provider_id == provider_uuid,
+                            ServiceRequest.scheduled_date == req_date,
+                            ServiceRequest.scheduled_time == req_time,
+                            ServiceRequest.status.in_(['accepted', 'completed', 'paid'])
+                        ).first()
+                        if busy:
+                            return error_response('UNAVAILABLE', 'This time slot is already booked.', None, 400)
+                    
                 except (ValueError, TypeError):
                     pass
 
@@ -705,14 +743,30 @@ def list_requests():
             d['has_professional_rating'] = r.id in rated_professional_ids
             d['has_provider_rating'] = r.id in rated_provider_ids
             # For cab requests with an accepted driver, include driver display info
-            if r.request_type == 'cab' and r.provider_id and r.provider:
-                driver_user = r.provider
-                pdata = driver_user.data or {}
+            if r.provider_id and r.provider:
+                provider_user = r.provider
+                pdata = provider_user.data or {}
                 first = (pdata.get('full_name') or '').strip()
                 last = (pdata.get('surname') or '').strip()
-                d['driver_name'] = f"{first} {last}".strip() or 'Driver'
-                d['driver_profile_image_url'] = driver_user.profile_image_url
-                d['driver_id'] = str(driver_user.id)
+                name = f"{first} {last}".strip() or 'Provider'
+                
+                if r.request_type == 'cab':
+                    d['driver_name'] = name
+                    d['driver_profile_image_url'] = provider_user.profile_image_url
+                    d['driver_id'] = str(provider_user.id)
+                elif r.request_type in ('professional', 'provider'):
+                    # Use business name for service providers if available
+                    if r.request_type == 'provider' and pdata.get('business_name'):
+                        name = pdata.get('business_name')
+                    d['provider_name'] = name
+                    d['provider_profile_image_url'] = provider_user.profile_image_url
+                    d['provider_banner_url'] = provider_user.banner_url if hasattr(provider_user, 'banner_url') else None
+                    d['provider_id_assigned'] = str(provider_user.id)
+            
+            # Also attach service images if they exist in preferences
+            if r.details and 'service_image_url' in r.details:
+                d['service_image_url'] = r.details['service_image_url']
+            
             requests_data.append(d)
         return success_response({
             'requests': requests_data,
@@ -740,6 +794,23 @@ def get_request(request_id):
     except Exception as e:
         current_app.logger.error(f"Get request error: {str(e)}")
         return error_response('INTERNAL_ERROR', 'Failed to get request', None, 500)
+
+@bp.route('/provider/<uuid:provider_id>/busy-slots', methods=['GET'])
+def get_busy_slots(provider_id):
+    """Get busy time slots for a provider on a specific date"""
+    date_str = request.args.get('date')
+    if not date_str:
+        return error_response('MISSING_DATE', 'Date is required', None, 400)
+    
+    # Query accepted/paid/completed requests for this provider on this date
+    busy_requests = ServiceRequest.query.filter(
+        ServiceRequest.provider_id == provider_id,
+        ServiceRequest.scheduled_date == date_str,
+        ServiceRequest.status.in_(['accepted', 'completed', 'paid'])
+    ).all()
+    
+    slots = [r.scheduled_time for r in busy_requests]
+    return success_response({'busy_slots': slots})
 
 @bp.route('/<request_id>/accept', methods=['POST'])
 @require_auth

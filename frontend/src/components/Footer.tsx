@@ -60,6 +60,7 @@ const Footer = () => {
       { label: "Professional Services", to: "/professionals", isProtected: true },
       { label: "Home & Garden Services", to: "/services", isProtected: true },
       { label: "E-Commerce Shop", to: "/shop", isProtected: true },
+      { label: "Marketplace Ads", to: "/marketplace" },
     ],
     Account: [
       { label: "Login", to: "/login", show: !isAuthenticated },

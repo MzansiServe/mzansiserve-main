@@ -5,8 +5,7 @@ from flask import Blueprint, request, current_app
 from backend.models import AdInquiry, Advert
 from backend.extensions import db
 from backend.utils.response import success_response, error_response
-from backend.utils.auth import require_auth
-from flask_jwt_extended import get_jwt_identity
+from flask_jwt_extended import get_jwt_identity, jwt_required
 import datetime
 
 bp = Blueprint('ads', __name__)
@@ -44,7 +43,7 @@ def create_ad_inquiry():
 
 
 @bp.route('', methods=['GET'])
-@require_auth
+@jwt_required()
 def get_user_adverts():
     """Get all adverts for the authenticated user"""
     try:
@@ -57,7 +56,7 @@ def get_user_adverts():
 
 
 @bp.route('', methods=['POST'])
-@require_auth
+@jwt_required()
 def create_advert():
     """Create a new advert"""
     try:
@@ -92,7 +91,7 @@ def create_advert():
 
 
 @bp.route('/<ad_id>', methods=['PATCH'])
-@require_auth
+@jwt_required()
 def update_advert(ad_id):
     """Update an advert (or change status like pause)"""
     try:
@@ -121,7 +120,7 @@ def update_advert(ad_id):
 
 
 @bp.route('/<ad_id>', methods=['DELETE'])
-@require_auth
+@jwt_required()
 def delete_advert(ad_id):
     """Delete an advert"""
     try:

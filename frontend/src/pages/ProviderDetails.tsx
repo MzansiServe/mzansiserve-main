@@ -10,7 +10,7 @@ import {
 import { Button } from "@/components/ui/button";
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
-import { apiFetch, API_BASE_URL } from "@/lib/api";
+import { apiFetch, API_BASE_URL, getImageUrl } from "@/lib/api";
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
 import { ChatOverlay } from "@/components/ChatOverlay";
@@ -29,7 +29,7 @@ const ProviderDetails = () => {
     const { data: fetchResult, isLoading, error } = useQuery({
         queryKey: ['provider', category, id],
         queryFn: async () => {
-            const endpoint = category === 'professionals'
+            const endpoint = (category === 'professionals' || category === 'professional')
                 ? `/api/profile/professional/${id}`
                 : `/api/profile/service-provider/${id}`;
             const res = await apiFetch(endpoint);
@@ -47,7 +47,7 @@ const ProviderDetails = () => {
         enabled: !!id,
     });
 
-    const profile = category === 'professionals' ? fetchResult?.professional : fetchResult?.provider;
+    const profile = (category === 'professionals' || category === 'professional') ? fetchResult?.professional : fetchResult?.provider;
     const services = fetchResult?.services || [];
     const reviews: any[] = reviewsData?.reviews || [];
     const avgRating: number = reviewsData?.average_rating || 0;
@@ -72,7 +72,7 @@ const ProviderDetails = () => {
                     location: { address: 'General Inquiry' },
                     notes: 'Initial inquiry via profile',
                     preferences: {
-                        [category === 'professionals' ? 'professional_id' : 'provider_id']: id,
+                        [(category === 'professionals' || category === 'professional') ? 'professional_id' : 'provider_id']: id,
                         service_name: 'General Inquiry'
                     }
                 }
@@ -118,19 +118,23 @@ const ProviderDetails = () => {
     }
 
     const data = profile.data || {};
-    const userDetails = profile.user || {};
+    const userDetails = profile || {};
 
-    const fullName = category === 'professionals'
-        ? `${data.full_name || ''} ${data.surname || ''}`.trim()
-        : data.business_name || `${data.full_name || ''} ${data.surname || ''}`.trim() || "Service Provider";
+    const fullName = (category === 'professionals' || category === 'professional')
+        ? `${data.full_name || ''} ${data.surname || ''}`.trim() || profile.full_name || profile.name
+        : data.business_name || `${data.full_name || ''} ${data.surname || ''}`.trim() || profile.full_name || profile.name || "Service Provider";
 
     const avatarUrl = userDetails.profile_image_url
-        ? (userDetails.profile_image_url.startsWith('http') ? userDetails.profile_image_url : `${API_BASE_URL}${userDetails.profile_image_url}`)
+        ? (getImageUrl(userDetails.profile_image_url))
         : null;
 
     const bannerUrl = userDetails.banner_url
-        ? (userDetails.banner_url.startsWith('http') ? userDetails.banner_url : `${API_BASE_URL}${userDetails.banner_url}`)
+        ? (getImageUrl(userDetails.banner_url))
         : "https://images.unsplash.com/photo-1541888081628-912235c4eb5e?q=80&w=1200&auto=format&fit=crop";
+
+    // Detect if they offer any priced services
+    const hasPricedServices = services.some((svc: any) => parseFloat(svc.hourly_rate) > 0);
+    const isQuoteRequired = services.length > 0 && !hasPricedServices;
 
     return (
         <main className="min-h-screen bg-white flex flex-col">
@@ -378,7 +382,8 @@ const ProviderDetails = () => {
                                         className="w-full h-16 rounded-2xl bg-primary hover:bg-primary/90 text-white font-bold text-lg shadow-lg shadow-primary/20 transition-all hover:-translate-y-1"
                                         onClick={() => navigate(`/book/${category}/${id}`)}
                                     >
-                                        <CalendarCheck className="mr-3 h-5 w-5" /> Book Now
+                                        <CalendarCheck className="mr-3 h-5 w-5" />
+                                        {isQuoteRequired ? "Request Quote" : "Book Now"}
                                     </Button>
 
                                     <Button

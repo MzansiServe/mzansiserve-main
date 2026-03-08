@@ -3,7 +3,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { ChevronLeft, ChevronRight, Car, Briefcase, Wrench, ShoppingBag } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useNavigate } from "react-router-dom";
-import { apiFetch, API_BASE_URL } from "@/lib/api";
+import { apiFetch, API_BASE_URL, getImageUrl } from "@/lib/api";
 import { cn } from "@/lib/utils";
 
 // Mapping logical badge/types to appropriate Lucide icons
@@ -87,9 +87,9 @@ const HeroCarousel = () => {
   const IconComponent = iconMap[slide.badge || "Shop"] || ShoppingBag;
 
   return (
-    <section id="home" className="relative h-[650px] w-full overflow-hidden">
+    <section id="home" className="relative h-[800px] lg:h-[850px] w-full overflow-hidden">
       {/* Background images */}
-      <AnimatePresence mode="popLayout">
+      <AnimatePresence mode="wait">
         <motion.div
           key={slide.id}
           initial={{ opacity: 0 }}
@@ -98,13 +98,17 @@ const HeroCarousel = () => {
           transition={{ duration: 1 }}
           className="absolute inset-0"
         >
-          <img src={slide.image_url.startsWith('http') ? slide.image_url : `${API_BASE_URL}${slide.image_url}`} alt={slide.badge || 'Slide'} className="h-full w-full object-cover" />
+          <img
+            src={getImageUrl(slide.image_url)}
+            alt={slide.badge || 'Slide'}
+            className="h-full w-full object-cover"
+          />
           <div className="absolute inset-0 bg-black/30" />
         </motion.div>
       </AnimatePresence>
 
       {/* Content */}
-      <div className="relative z-10 flex h-full items-center">
+      <div className="relative z-10 flex h-full items-center pb-32 lg:pb-40">
         <div className="container mx-auto px-8 lg:px-12">
           <AnimatePresence mode="wait">
             <motion.div
@@ -167,7 +171,7 @@ const HeroCarousel = () => {
       {slides.length > 1 && (
         <>
           {/* Navigation controls - Refined Minimal Style */}
-          <div className="absolute bottom-16 right-12 z-20 flex items-center gap-4">
+          <div className="absolute bottom-28 lg:bottom-32 right-12 z-50 flex items-center gap-4">
             <div className="flex gap-2 mr-4">
               {slides.map((_, idx) => (
                 <button

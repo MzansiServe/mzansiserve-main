@@ -24,7 +24,8 @@ import {
     AccessTime as Clock,
     Assignment as ClipboardList,
     BusinessCenter as Briefcase,
-    ForumOutlined as ChatIcon
+    ForumOutlined as ChatIcon,
+    Settings as SettingsIcon
 } from "@mui/icons-material";
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 import DashboardLayout from "@/components/dashboard/DashboardLayout";
@@ -56,6 +57,7 @@ const ProfessionalDashboard = () => {
         { id: "reviews", label: "Reviews & Feedback", icon: StarIcon },
         { id: "services", label: "My Services", icon: Briefcase },
         { id: "wallet", label: "Wallet & Earnings", icon: WalletIcon },
+        { id: "profile", label: "My Profile", icon: SettingsIcon },
     ];
 
     const fetchData = useCallback(async () => {
@@ -331,10 +333,14 @@ const ProfessionalDashboard = () => {
                         <MessagesInbox />
                     </Box>
                 );
-            case "settings":
+            case "profile":
                 return (
-                    <Box sx={{ animation: 'fadeIn 0.5s' }}>
-                        <ProfileSettings />
+                    <Box sx={{ animation: 'fadeIn 0.5s', textAlign: 'center', py: 10 }}>
+                        <Typography variant="h5" fontWeight={700} mb={2}>Profile Management</Typography>
+                        <Typography variant="body1" color="text.secondary" mb={4}>Manage your personal information, documents, and availability in the unified profile center.</Typography>
+                        <Button variant="contained" size="large" onClick={() => window.location.href = '/profile'}>
+                            Go to Profile Page
+                        </Button>
                     </Box>
                 );
             case "wallet":

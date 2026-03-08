@@ -1,6 +1,6 @@
 import { motion } from "framer-motion";
 import { useNavigate } from "react-router-dom";
-import { Car, Briefcase, Wrench, ShoppingBag, ChevronRight } from "lucide-react";
+import { Car, Briefcase, Wrench, ShoppingBag, ChevronRight, Tag } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 const actions = [
@@ -27,9 +27,16 @@ const actions = [
     },
     {
         title: "Shop Hub",
-        subtitle: "Local Marketplace",
+        subtitle: "Order Products",
         icon: ShoppingBag,
         href: "/shop",
+        iconBg: "bg-gradient-to-br from-primary to-primary/80",
+    },
+    {
+        title: "Marketplace",
+        subtitle: "Classified Ads",
+        icon: Tag,
+        href: "/marketplace",
         iconBg: "bg-gradient-to-br from-primary to-primary/80",
     },
 ];
@@ -40,7 +47,7 @@ export const QuickActionGrid = () => {
     return (
         <section className="relative -mt-16 z-20 pb-12">
             <div className="container mx-auto px-6">
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-4 lg:gap-6">
+                <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4 lg:gap-6">
                     {actions.map((action, index) => (
                         <motion.div
                             key={action.title}

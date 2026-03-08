@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from "react";
 import { cn } from "@/lib/utils";
-import { apiFetch, API_BASE_URL } from "@/lib/api";
+import { apiFetch, API_BASE_URL, getImageUrl } from "@/lib/api";
 import { useToast } from "@/hooks/use-toast";
 import {
     Loader2,
@@ -857,7 +857,7 @@ export const ProductsManagement = () => {
                                         {existingImages.map((img) => (
                                             <div key={img.id} className="relative group  overflow-hidden border border-slate-200 aspect-square bg-slate-50">
                                                 <img
-                                                    src={img.url.startsWith('http') ? img.url : `${API_BASE_URL}${img.url}`}
+                                                    src={getImageUrl(img.url)}
                                                     alt="Existing product image"
                                                     className="w-full h-full object-cover"
                                                 />

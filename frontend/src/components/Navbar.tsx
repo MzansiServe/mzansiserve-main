@@ -4,6 +4,7 @@ import { Menu, X, ShoppingCart, User, LogOut } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/contexts/AuthContext";
 import { useCart } from "@/contexts/CartContext";
+import { apiFetch, API_BASE_URL, getImageUrl } from "@/lib/api";
 import { cn } from "@/lib/utils";
 import logo from "@/assets/logo.jpeg";
 import LoginRequiredModal from "./LoginRequiredModal";
@@ -12,6 +13,7 @@ import CartDrawer from "./CartDrawer";
 const navLinks = [
   { label: "Home", to: "/" },
   { label: "Shop", to: "/shop" },
+  { label: "Ads", to: "/ads" },
   { label: "Request Cab", to: "/transport", requiresAuth: true },
   { label: "Professionals", to: "/professionals", requiresAuth: true },
   { label: "Services", to: "/services", requiresAuth: true },
@@ -151,15 +153,26 @@ const Navbar = () => {
               "flex items-center gap-1 pl-3 border-l",
               isTransparent ? "border-white/20" : "border-slate-200"
             )}>
-              <div className={cn(
-                "flex items-center gap-2 px-3 py-1.5 rounded-full border transition-all cursor-pointer hover:shadow-md",
-                isTransparent
-                  ? "bg-white/10 border-white/20 text-white"
-                  : "bg-white border-slate-200 text-[#222222]"
-              )}>
-                <User className="h-4 w-4" />
+              <Link
+                to="/profile"
+                className={cn(
+                  "flex items-center gap-2 px-3 py-1.5 rounded-full border transition-all cursor-pointer hover:shadow-md",
+                  isTransparent
+                    ? "bg-white/10 border-white/20 text-white"
+                    : "bg-white border-slate-200 text-[#222222]"
+                )}
+              >
+                {user?.profile_image_url ? (
+                  <img
+                    src={getImageUrl(user.profile_image_url)}
+                    className="h-5 w-5 rounded-full object-cover"
+                    alt=""
+                  />
+                ) : (
+                  <User className="h-4 w-4" />
+                )}
                 <span className="text-[13px] font-medium">{user?.name?.split(" ")[0]}</span>
-              </div>
+              </Link>
               <Button
                 variant="ghost"
                 size="icon"

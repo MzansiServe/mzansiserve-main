@@ -13,7 +13,7 @@ import { useCart } from "@/contexts/CartContext";
 import { useAuth } from "@/contexts/AuthContext";
 import { useState } from "react";
 import LoginRequiredModal from "./LoginRequiredModal";
-import { API_BASE_URL } from "@/lib/api";
+import { API_BASE_URL, getImageUrl } from "@/lib/api";
 
 import { cn } from "@/lib/utils";
 
@@ -33,11 +33,7 @@ const CartDrawer = ({ children }: { children: React.ReactNode }) => {
         navigate("/checkout");
     };
 
-    const getImageSrc = (url: string | null) => {
-        if (!url) return null;
-        if (url.startsWith("http")) return url;
-        return `${API_BASE_URL}${url}`;
-    };
+    const getImageSrc = (url: string | null) => getImageUrl(url);
 
     return (
         <>

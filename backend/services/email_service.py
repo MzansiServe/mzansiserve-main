@@ -150,12 +150,20 @@ www.mzansiserve.co.za"""
         frontend_url = current_app.config.get('FRONTEND_URL', 'http://localhost').rstrip('/')
         reset_url = f"{frontend_url}/reset-password?token={token}"
         
-        body = f"Reset your password by clicking the link: {reset_url}"
-        body_html = render_template('emails/reset_password.html', user=user, reset_url=reset_url)
+        first_name = _first_name(user)
+        subject = "Reset Your Password - MzansiServe"
+        body = f"Hi {first_name},\n\nReset your password by clicking the link: {reset_url}"
+        body_html = f"""<html><body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333 text-align: center;">
+<p>Hi {first_name},</p>
+<p>You requested to reset your password. Click the button below to set a new password:</p>
+<p><a href="{reset_url}" style="display:inline-block;background:#2563eb;color:#fff;padding:10px 20px;text-decoration:none;border-radius:6px;">Reset My Password</a></p>
+<p>If you did not request this, you can safely ignore this email.</p>
+<p>Warm regards,<br>MzansiServe Team</p>
+</body></html>"""
         
         email = EmailService.queue_email(
             recipient=user.email,
-            subject="Reset Your Password - MzansiServe",
+            subject=subject,
             body=body,
             body_html=body_html,
             metadata={'type': 'password_reset', 'user_id': str(user.id)}

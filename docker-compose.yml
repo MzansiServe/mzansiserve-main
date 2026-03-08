@@ -48,6 +48,7 @@ services:
       DEFAULT_FROM_EMAIL: ${DEFAULT_FROM_EMAIL:-noreply@mzansiserve.co.za}
       # External services
       FRONTEND_URL: ${FRONTEND_URL:-http://localhost}
+      BACKEND_URL: ${BACKEND_URL:-http://localhost:5006}
       PAYPAL_CLIENT_ID: ${PAYPAL_CLIENT_ID:-}
       PAYPAL_SECRET: ${PAYPAL_SECRET:-}
       PAYPAL_BASE_URL: ${PAYPAL_BASE_URL:-https://api-m.sandbox.paypal.com}
@@ -66,28 +67,28 @@ services:
     build:
       context: ./frontend
       dockerfile: Dockerfile
+      args:
+        VITE_API_URL: ${VITE_API_URL:-http://${HOST:-${PUBLIC_IP:-localhost}}:5006}
     expose:
       - "8080"          # Internal only — nginx proxies this
     environment:
-      # IMPORTANT: VITE_API_URL is the PUBLIC address so the *browser* can reach the API.
       # We now route /api/ through Nginx on port 80, so no port is needed.
-      - VITE_API_URL=http://${PUBLIC_IP:-localhost}:5006
+      - VITE_API_URL=${VITE_API_URL:-http://${HOST:-${PUBLIC_IP:-localhost}}:5006}
     depends_on:
       - app
-    volumes:
-      - ./frontend:/app
-      - /app/node_modules
 
   nginx:
     image: nginx:alpine
     entrypoint: ["/bin/sh", "-c", "rm -f /etc/nginx/conf.d/default.conf && exec nginx -g 'daemon off;'"]
     ports:
       - "80:80"       # Frontend (Vite) — main entry point
+      - "443:443"     # HTTPS
       - "5006:5006"   # Backend API (Flask)
     volumes:
       - ./nginx_dir/new/nginx.docker.conf:/etc/nginx/nginx.conf:ro
       - ./static:/app/static:ro
       - ./uploads:/app/uploads:ro
+      - /etc/letsencrypt:/etc/letsencrypt:ro
     depends_on:
       - app
       - frontend

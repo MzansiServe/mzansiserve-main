@@ -17,14 +17,14 @@ const ReachMillionsSection = () => {
   return (
     <Box
       sx={{
-        py: { xs: 8, md: 12 },
+        py: { xs: 4, md: 6 },
         bgcolor: '#F7F7F7',
         color: '#222222',
         position: 'relative',
         overflow: 'hidden',
         borderRadius: 0,
         mx: 0,
-        mb: 8,
+        mb: 4,
         borderTop: '1px solid',
         borderBottom: '1px solid',
         borderColor: alpha('#000', 0.05)
@@ -39,12 +39,12 @@ const ReachMillionsSection = () => {
               viewport={{ once: true }}
               transition={{ duration: 0.6 }}
             >
-              <Box sx={{ mb: 4 }}>
+              <Box sx={{ mb: 3 }}>
                 <Typography
                   variant="h1"
                   sx={{
                     fontWeight: 800,
-                    fontSize: { xs: '2.5rem', md: '4.5rem' },
+                    fontSize: { xs: '2rem', md: '3.5rem' },
                     lineHeight: 1,
                     letterSpacing: '-0.02em',
                     mb: 2,
@@ -52,7 +52,7 @@ const ReachMillionsSection = () => {
                   }}
                 >
                   Reach millions <br />
-                  <Box component="span" sx={{ color: '#FF385C' }}>on MzansiServe</Box>
+                  <Box component="span" sx={{ color: 'hsl(var(--primary))' }}>on MzansiServe</Box>
                 </Typography>
                 <Typography
                   variant="h5"
@@ -74,7 +74,7 @@ const ReachMillionsSection = () => {
                   size="large"
                   onClick={() => navigate('/register')}
                   sx={{
-                    bgcolor: '#FF385C',
+                    bgcolor: 'hsl(var(--primary))',
                     color: 'white',
                     fontWeight: 600,
                     px: 4,
@@ -83,7 +83,7 @@ const ReachMillionsSection = () => {
                     fontSize: '1.1rem',
                     textTransform: 'none',
                     '&:hover': {
-                      bgcolor: '#E31C5F',
+                      bgcolor: 'hsl(var(--primary) / 0.9)',
                     }
                   }}
                 >
@@ -137,7 +137,7 @@ const ReachMillionsSection = () => {
                   variant="h2"
                   sx={{
                     fontWeight: 900,
-                    color: '#FF385C',
+                    color: 'hsl(var(--primary))',
                     mb: 1,
                     letterSpacing: '-0.04em'
                   }}
@@ -165,7 +165,7 @@ const ReachMillionsSection = () => {
                     '24-Hour Safety Line'
                   ].map((text, i) => (
                     <Stack key={i} direction="row" spacing={2} alignItems="center">
-                      <Box sx={{ color: '#FF385C', display: 'flex' }}>
+                      <Box sx={{ color: 'hsl(var(--primary))', display: 'flex' }}>
                         <Public sx={{ fontSize: 20 }} />
                       </Box>
                       <Typography variant="body1" sx={{ fontWeight: 500, color: '#484848' }}>

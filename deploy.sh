@@ -7,11 +7,12 @@ set -e
 
 # ─── Configuration ────────────────────────────────────────────────────────────
 ZONE="us-central1-c"
-INSTANCE="dipselgroup"
+INSTANCE="mzansiserveprod"
 PROJECT="white-caster-270410"
 REMOTE_DIR="/opt/mzansiserve"
 SSH_PASSPHRASE="admin"       # SSH key passphrase
 LOCAL_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+DOMAIN="mzansiserve.co.za"   # Production domain
 
 # Colours
 RED='\033[0;31m'; GREEN='\033[0;32m'; YELLOW='\033[1;33m'; CYAN='\033[0;36m'; NC='\033[0m'
@@ -27,6 +28,9 @@ remote() {
     --zone "$ZONE" \
     --project "$PROJECT" \
     --ssh-flag="-o StrictHostKeyChecking=no" \
+    --ssh-flag="-o ServerAliveInterval=10" \
+    --ssh-flag="-o ServerAliveCountMax=60" \
+    --ssh-flag="-o TCPKeepAlive=yes" \
     "$INSTANCE" -- "$@"
 }
 
@@ -74,12 +78,18 @@ if [[ "$ACTION" == "restart" ]]; then
   exit 0
 fi
 
-# ─── Upload .env file ────────────────────────────────────────────────────────
-info "Uploading .env to VM…"
+# ─── Upload environment file ─────────────────────────────────────────────────
+ENV_FILE="$LOCAL_DIR/.env"
+if [[ -f "$LOCAL_DIR/.env.production" ]]; then
+  info "Using .env.production for deployment."
+  ENV_FILE="$LOCAL_DIR/.env.production"
+fi
+
+info "Uploading $(basename "$ENV_FILE") to VM (as .env)…"
 gcloud compute scp \
   --zone "$ZONE" \
   --project "$PROJECT" \
-  "$LOCAL_DIR/.env" \
+  "$ENV_FILE" \
   "${INSTANCE}:${REMOTE_DIR}/.env" \
   2>/dev/null || {
     # Remote dir may not exist yet — create it first
@@ -87,7 +97,7 @@ gcloud compute scp \
     gcloud compute scp \
       --zone "$ZONE" \
       --project "$PROJECT" \
-      "$LOCAL_DIR/.env" \
+      "$ENV_FILE" \
       "${INSTANCE}:${REMOTE_DIR}/.env"
   }
 success ".env uploaded."
@@ -130,7 +140,7 @@ gcloud compute firewall-rules describe mzansiserve-http \
   --project "$PROJECT" &>/dev/null 2>&1 || \
 gcloud compute firewall-rules create mzansiserve-http \
   --project "$PROJECT" \
-  --allow tcp:80,tcp:5006 \
+  --allow tcp:80,tcp:5006,tcp:443 \
   --source-ranges 0.0.0.0/0 \
   --target-tags http-server \
   --description "MzansiServe HTTP ports" \
@@ -154,14 +164,20 @@ tar --exclude='.git' \
     --exclude='*.pyc' \
     --exclude='.DS_Store' \
     --exclude='node_modules' \
+    --exclude='*/node_modules/*' \
     --exclude='frontend/dist' \
     --exclude='frontend/.next' \
+    --exclude='.env' \
+    --exclude='.env.*' \
     -czf - . | \
   gcloud compute ssh \
     --zone "$ZONE" \
     --project "$PROJECT" \
     --ssh-flag="-T" \
     --ssh-flag="-o StrictHostKeyChecking=no" \
+    --ssh-flag="-o ServerAliveInterval=10" \
+    --ssh-flag="-o ServerAliveCountMax=60" \
+    --ssh-flag="-o TCPKeepAlive=yes" \
     "$INSTANCE" -- "mkdir -p $REMOTE_DIR && tar --warning=no-unknown-keyword -xzf - -C $REMOTE_DIR"
 
 success "Files synced to VM."
@@ -171,15 +187,23 @@ info "Step 4/5 — Building & starting containers…"
 PUBLIC_IP=$(gcloud compute instances describe "$INSTANCE" \
   --zone "$ZONE" \
   --project "$PROJECT" \
-  --format='get(networkInterfaces[0].accessConfigs[0].natIP)' 2>/dev/null || echo "34.173.133.132")
+  --format='get(networkInterfaces[0].accessConfigs[0].natIP)' 2>/dev/null || echo "34.30.76.206")
 info "  Public IP: $PUBLIC_IP"
 
 remote "
   set -e
   cd $REMOTE_DIR
 
-  # Inject public IP so VITE_API_URL is correct
+  # Inject domain or IP so VITE_API_URL is correct
+  [[ -n "$DOMAIN" ]] && HOST="$DOMAIN" || HOST="$PUBLIC_IP"
   export PUBLIC_IP=$PUBLIC_IP
+  export HOST=$HOST
+  # Ensure VITE_API_URL uses https if we have a domain (handled by Nginx 443 block)
+  if [[ -n "$DOMAIN" ]]; then
+    export VITE_API_URL="https://$DOMAIN"
+  else
+    export VITE_API_URL="http://$PUBLIC_IP:5006"
+  fi
 
   # ── Free up ports 80 and 5006 from any host-level services ──
   echo 'Freeing ports 80 and 5006 on host...'
@@ -189,9 +213,10 @@ remote "
   # Stop apache if running
   sudo systemctl stop apache2  2>/dev/null || true
   sudo systemctl disable apache2 2>/dev/null || true
-  # Kill anything else still holding port 80 or 5006
+  # Kill anything else still holding port 80, 5006, or 443
   sudo fuser -k 80/tcp   2>/dev/null || true
   sudo fuser -k 5006/tcp 2>/dev/null || true
+  sudo fuser -k 443/tcp  2>/dev/null || true
   sleep 1
   echo 'Ports cleared.'
 
@@ -201,8 +226,8 @@ remote "
   # Pull any updated base images
   docker compose pull --quiet 2>/dev/null || true
 
-  # Build & bring up (detached), passing PUBLIC_IP as build arg
-  PUBLIC_IP=$PUBLIC_IP docker compose up --build -d
+  # Build & bring up (detached), passing HOST as build arg if needed
+  PUBLIC_IP=$PUBLIC_IP HOST=$HOST docker compose up --build -d
 
   # Remove dangling images to save disk space
   docker image prune -f 2>/dev/null || true

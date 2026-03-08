@@ -31,7 +31,7 @@ class Advert(db.Model):
     def to_dict(self):
         return {
             'id': self.id,
-            'user_id': self.user_id,
+            'user_id': str(self.user_id) if self.user_id else None,
             'title': self.title,
             'image_url': self.image_url,
             'target_url': self.target_url,

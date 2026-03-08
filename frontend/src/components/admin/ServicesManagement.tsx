@@ -368,8 +368,8 @@ export const ServicesManagement = () => {
                                     </SelectTrigger>
                                     <SelectContent className=" border-slate-200">
                                         <SelectItem value="professional">Professional</SelectItem>
-                                        <SelectItem value="provider">Service Provider</SelectItem>
-                                        <SelectItem value="transport">Transport</SelectItem>
+                                        <SelectItem value="service-provider">Service Provider</SelectItem>
+                                        <SelectItem value="driver">Driver (Transport)</SelectItem>
                                         <SelectItem value="emergency">Emergency</SelectItem>
                                     </SelectContent>
                                 </Select>

@@ -24,16 +24,16 @@ const steps = [
 
 export const HowItWorks = () => {
     return (
-        <section className="py-24 bg-white relative">
+        <section className="py-12 bg-white relative">
             {/* Subtle dot pattern */}
             <div className="absolute inset-0 bg-[url('data:image/svg+xml,%3Csvg width=\'6\' height=\'6\' viewBox=\'0 0 6 6\' xmlns=\'http://www.w3.org/2000/svg\'%3E%3Cg fill=\'%23E5E7EB\' fill-opacity=\'0.4\'%3E%3Cpath d=\'M5 0h1L0 6V5zM6 5v1H5z\'/%3E%3C/g%3E%3C/svg%3E')] opacity-50" />
 
             <div className="container mx-auto px-6 relative z-10">
                 {/* Header */}
-                <h2 className="text-4xl md:text-5xl font-semibold text-center mb-4 text-[#222222]">
+                <h2 className="text-3xl md:text-4xl font-semibold text-center mb-2 text-[#222222]">
                     Simple Steps to <span className="text-primary">Your Service</span>
                 </h2>
-                <p className="text-xl text-slate-600 font-normal text-center mb-16 max-w-xl mx-auto">
+                <p className="text-lg text-slate-600 font-normal text-center mb-10 max-w-xl mx-auto">
                     We've made finding and booking quality South African services as easy as three steps.
                 </p>
 
