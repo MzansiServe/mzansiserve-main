@@ -74,9 +74,13 @@ fi
 
 echo "Starting application..."
 
-# ── Seed all default data + admin user (idempotent) ──────────────────────
-echo "Running flask seed-all (skips existing records to preserve user data)..."
-flask seed-all && echo "Seed complete." || echo "Warning: seed-all had errors (non-fatal, app will still start)"
+# ── Seed all default data + admin user (conditional) ──────────────────────
+if [[ "$RUN_SEEDERS" == "true" ]]; then
+    echo "Running flask seed-all (skips existing records to preserve user data)..."
+    flask seed-all && echo "Seed complete." || echo "Warning: seed-all had errors (non-fatal, app will still start)"
+else
+    echo "Seeding skipped (RUN_SEEDERS is not 'true')."
+fi
 
 # Execute the command passed to docker-entrypoint
 exec "$@"
