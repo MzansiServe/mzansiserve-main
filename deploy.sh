@@ -217,23 +217,26 @@ remote "
 
   # Ensure remote dir exists
   sudo mkdir -p $REMOTE_DIR && sudo chown \$(whoami):\$(whoami) $REMOTE_DIR
+  cd $REMOTE_DIR
 
-  if [ -d '$REMOTE_DIR/.git' ]; then
+  if [ -d '.git' ]; then
     echo 'Repository exists. Running git pull…'
-    cd $REMOTE_DIR
     git fetch origin
     git checkout $BRANCH 2>/dev/null || git checkout -b $BRANCH origin/$BRANCH
     git reset --hard origin/$BRANCH
     echo 'Pull complete.'
   else
-    echo 'Cloning repository for the first time…'
-    git clone --branch $BRANCH $REPO_URL $REMOTE_DIR
-    echo 'Clone complete.'
+    echo 'Initializing git in existing directory…'
+    git init
+    git remote add origin $REPO_URL 2>/dev/null || git remote set-url origin $REPO_URL
+    git fetch origin
+    git checkout -b $BRANCH origin/$BRANCH 2>/dev/null || (git checkout $BRANCH && git reset --hard origin/$BRANCH)
+    echo 'Git initialized and synced.'
   fi
 
   echo ''
   echo 'Latest commit:'
-  cd $REMOTE_DIR && git log --oneline -1
+  git log --oneline -1
 "
 success "Code synced via git (branch: $BRANCH)."
 
