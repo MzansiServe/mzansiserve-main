@@ -68,11 +68,6 @@ echo -e "${CYAN}╔════════════════════�
 echo -e "${CYAN}║     MzansiServe  —  Deploy to GCP VM (Git)      ║${NC}"
 echo -e "${CYAN}╚══════════════════════════════════════════════════╝${NC}"
 echo ""
-info "Project  : $PROJECT"
-info "Instance : $INSTANCE  ($ZONE)"
-info "Branch   : $BRANCH"
-info "Action   : $ACTION"
-echo ""
 
 # ─── Stream logs ─────────────────────────────────────────────────────────────
 if [[ "$ACTION" == "logs" ]]; then
@@ -87,6 +82,39 @@ if [[ "$ACTION" == "restart" ]]; then
   remote "cd $REMOTE_DIR && docker compose up -d"
   success "Containers restarted."
   exit 0
+fi
+
+# ─── Interactive Deployment Prompts ──────────────────────────────────────────
+if [[ "$ACTION" == "deploy" ]]; then
+  echo -e "${YELLOW}─── Deployment Configuration ───${NC}"
+  
+  # 1. Branch selection
+  read -p "Deploy branch [$BRANCH]: " input_branch
+  BRANCH=${input_branch:-$BRANCH}
+
+  # 2. Repository selection (for forks)
+  read -p "Repository URL [$REPO_URL]: " input_repo
+  REPO_URL=${input_repo:-$REPO_URL}
+
+  # 3. Seeding selection
+  read -p "Run database seeders? (y/N): " input_seed
+  if [[ "$input_seed" =~ ^[Yy]$ ]]; then
+    RUN_SEEDERS="true"
+  else
+    RUN_SEEDERS="false"
+  fi
+
+  # 4. Confirmation
+  echo ""
+  echo -e "${CYAN}Summary:${NC}"
+  echo -e "  Instance : $INSTANCE"
+  echo -e "  Branch   : $BRANCH"
+  echo -e "  Repo     : $REPO_URL"
+  echo -e "  Seeding  : ${RUN_SEEDERS}"
+  echo ""
+  read -p "Proceed with deployment? (y/N): " confirm
+  [[ "$confirm" =~ ^[Yy]$ ]] || error "Deployment cancelled by user."
+  echo ""
 fi
 
 # ─── Setup: create SSH deploy key on server ──────────────────────────────────
@@ -290,8 +318,8 @@ remote "
   chmod +x docker-entrypoint.sh 2>/dev/null || true
 
   # Build & bring up (detached)
-  # docker-entrypoint.sh handles: flask db upgrade + flask seed-all
-  PUBLIC_IP=\$PUBLIC_IP HOST=\$HOST docker compose up --build -d
+  # docker-entrypoint.sh handles: flask db upgrade + flask seed-all (if RUN_SEEDERS=true)
+  RUN_SEEDERS=$RUN_SEEDERS PUBLIC_IP=\$PUBLIC_IP HOST=\$HOST docker compose up --build -d
 
   # Clean up dangling images
   docker image prune -f 2>/dev/null || true
@@ -320,6 +348,7 @@ echo ""
 echo -e "  Branch   : ${CYAN}$BRANCH${NC}"
 echo -e "  Commit   : ${CYAN}$COMMIT${NC}"
 echo -e "  Site     : ${CYAN}https://$DOMAIN${NC}"
+echo -e "  Seeded   : ${CYAN}$RUN_SEEDERS${NC}"
 echo ""
 echo -e "  ${YELLOW}Commands:${NC}"
 echo -e "    ./deploy.sh              Full deploy (git pull + rebuild)"
