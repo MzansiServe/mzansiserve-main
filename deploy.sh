@@ -230,7 +230,10 @@ remote "
     git init
     git remote add origin $REPO_URL 2>/dev/null || git remote set-url origin $REPO_URL
     git fetch origin
-    git checkout -b $BRANCH origin/$BRANCH 2>/dev/null || (git checkout $BRANCH && git reset --hard origin/$BRANCH)
+    # Overwrite any existing files that conflict with the repo
+    git reset --hard origin/$BRANCH
+    git checkout $BRANCH 2>/dev/null || git checkout -b $BRANCH
+    git branch --set-upstream-to=origin/$BRANCH $BRANCH 2>/dev/null || true
     echo 'Git initialized and synced.'
   fi
 
