@@ -59,18 +59,24 @@ else
     echo "Flask-Migrate already initialized"
 fi
 
-# Run database migrations first (apply all pending migrations)
-echo "Running database migrations..."
-flask db upgrade
-echo "Migrations completed."
-
-# Optionally create a new migration if models have changed (won't break if no changes)
-echo "Checking for model changes..."
-set +e
-flask db migrate -m "Auto migration" 2>&1 | grep -v "No changes detected" || true
-set -e
+# Run database migrations to create / update all tables
+echo "Running database migrations (flask db upgrade)..."
+if flask db upgrade; then
+    echo "Database migrations applied successfully."
+else
+    echo "ERROR: flask db upgrade failed."
+    echo "Please check the migration history and ensure the database is in sync."
+    echo "Fallback to db.create_all() is disabled to prevent data inconsistency."
+    # If this is a fresh DB with no migrations table but existing tables, 
+    # you might need to run 'flask db stamp head' manually.
+    exit 1
+fi
 
 echo "Starting application..."
+
+# ── Seed all default data + admin user (idempotent) ──────────────────────
+echo "Running flask seed-all (skips existing records to preserve user data)..."
+flask seed-all && echo "Seed complete." || echo "Warning: seed-all had errors (non-fatal, app will still start)"
 
 # Execute the command passed to docker-entrypoint
 exec "$@"

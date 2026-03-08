@@ -7,6 +7,7 @@ import sys
 
 from flask import Flask, render_template, send_from_directory, request
 from flask_migrate import Migrate
+from flask_cors import CORS
 from dotenv import load_dotenv
 
 from backend.models import User, CarouselItem, FooterContent
@@ -41,6 +42,10 @@ def create_app(config_class=Config):
     app.config.from_object(config_class)
     _configure_logging(app)
 
+    # Initialize CORS
+    # Initialize CORS - Allow all origins and ports for mobile apps
+    CORS(app, resources={r"/api/*": {"origins": "*"}})
+
     # Initialize extensions
     db.init_app(app)
     jwt.init_app(app)
@@ -51,9 +56,14 @@ def create_app(config_class=Config):
     # Register CLI commands
     from backend.cli import cli
     app.cli.add_command(cli)
+
+    # Register seed-all as a top-level Flask CLI command
+    from backend.seed_all import seed_all
+    app.cli.add_command(seed_all)
     
     # Register blueprints (API routes)
-    from backend.routes import auth, requests, payments, shop, admin, dashboard, location, profile, address, faq, drivers, clients
+    from backend.routes import auth, requests, payments, shop, admin, dashboard, location, profile, address, faq, drivers, clients, public, chat, reports, ads, marketplace
+    app.register_blueprint(public.bp, url_prefix='/api/public')
     app.register_blueprint(auth.bp, url_prefix='/api/auth')
     app.register_blueprint(requests.bp, url_prefix='/api/requests')
     app.register_blueprint(drivers.bp, url_prefix='/api/drivers')
@@ -66,6 +76,10 @@ def create_app(config_class=Config):
     app.register_blueprint(profile.bp, url_prefix='/api/profile')
     app.register_blueprint(address.bp, url_prefix='/api/addresses')
     app.register_blueprint(faq.bp, url_prefix='/api/faq')
+    app.register_blueprint(chat.bp, url_prefix='/api/chat')
+    app.register_blueprint(reports.bp, url_prefix='/api/reports')
+    app.register_blueprint(ads.bp, url_prefix='/api/ads')
+    app.register_blueprint(marketplace.bp, url_prefix='/api/marketplace')
     
     @app.context_processor
     def inject_google_maps_api_key():
@@ -116,7 +130,7 @@ def create_app(config_class=Config):
     @app.route('/dashboard')
     def dashboard_page():
         return render_template('dashboard.html')
-
+    
     @app.route('/driver-dashboard')
     def driver_dashboard_page():
         return render_template('driver_dashboard.html')
@@ -224,5 +238,6 @@ app = create_app()
 if __name__ == '__main__':
     with app.app_context():
         db.create_all()
-    app.run(host='0.0.0.0', port=5000, debug=True)
+    port = int(os.environ.get('PORT', 5006))
+    app.run(host='0.0.0.0', port=port, debug=True)
 

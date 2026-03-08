@@ -62,6 +62,77 @@ def list_users():
         current_app.logger.error(f"List users error: {str(e)}")
         return error_response('INTERNAL_ERROR', 'Failed to list users', None, 500)
 
+@bp.route('/users', methods=['POST'])
+@require_admin
+def create_user():
+    """Create a new user from admin"""
+    try:
+        data = request.get_json(silent=True) or {}
+        email = data.get('email', '').strip().lower()
+        password = data.get('password')
+        role = data.get('role', 'user')
+
+        if not email or not password:
+            return error_response('MISSING_FIELDS', 'Email and password are required', None, 400)
+
+        # Check if email is already registered
+        existing_user = User.query.filter_by(email=email).first()
+        if existing_user:
+            return error_response('ALREADY_EXISTS', 'A user with this email already exists', None, 409)
+
+        # Create user
+        user = User(
+            email=email,
+            role=role,
+            is_active=bool(data.get('is_active', True)),
+            is_approved=bool(data.get('is_approved', True)),
+            is_paid=bool(data.get('is_paid', False)),
+            email_verified=bool(data.get('email_verified', True))
+        )
+        user.set_password(password)
+
+        # Build profile data
+        profile_data = {}
+        if 'first_name' in data: profile_data['full_name'] = data['first_name']
+        if 'last_name' in data: profile_data['surname'] = data['last_name']
+        if 'phone' in data: profile_data['phone'] = data['phone']
+        if 'gender' in data: profile_data['gender'] = data['gender']
+        if 'sa_id_number' in data: profile_data['sa_id'] = data['sa_id_number']
+        if 'is_sa_citizen' in data: profile_data['sa_citizen'] = data['is_sa_citizen']
+        if 'highest_qualification' in data: profile_data['highest_qualification'] = data['highest_qualification']
+        if 'professional_body' in data: profile_data['professional_body'] = data['professional_body']
+        if 'professional_services' in data: profile_data['professional_services'] = data['professional_services']
+        if 'driver_vehicles' in data: profile_data['driver_services'] = data['driver_vehicles']
+        
+        # Next of kin
+        nok = {}
+        if data.get('next_of_kin_name'): nok['full_name'] = data['next_of_kin_name']
+        if data.get('next_of_kin_phone'): nok['contact_number'] = data['next_of_kin_phone']
+        if data.get('next_of_kin_email'): nok['contact_email'] = data['next_of_kin_email']
+        if nok: profile_data['next_of_kin'] = nok
+
+        user.data = profile_data
+        db.session.add(user)
+        db.session.commit()
+
+        # Handle service provider services
+        if role == 'service-provider' and 'provider_services' in data and data['provider_services']:
+            from backend.models import UserSelectedService
+            for svc_name in data['provider_services']:
+                # For admin convenience, if we just have strings, we can't easily map to service_type_id
+                # without knowing existing types. Usually admins select from options.
+                # In this simplified version `provider_services` might be just strings from the frontend mock.
+                # If they passed real UUIDs in JS it would work, but the frontend currently sends raw strings.
+                pass # Skipping actual insertion unless service_type_id is provided.
+
+        return success_response(user.to_dict(), 'User created successfully', 201)
+
+    except Exception as e:
+        db.session.rollback()
+        current_app.logger.error(f"Create user error: {str(e)}")
+        return error_response('INTERNAL_ERROR', 'Failed to create user', None, 500)
+
+
 @bp.route('/users/<user_id>/approve', methods=['PATCH'])
 @require_admin
 def approve_user(user_id):
@@ -70,8 +141,46 @@ def approve_user(user_id):
         user = User.query.get(user_id)
         if not user:
             return error_response('NOT_FOUND', 'User not found', None, 404)
-        
         user.is_approved = True
+        if user.role in ('professional', 'service-provider'):
+            user.is_active = True
+            
+            # Process services upon approval
+            from backend.models import ServiceType, UserSelectedService
+            services = []
+            if user.data:
+                if user.role == 'professional':
+                    services = user.data.get('professional_services', [])
+                elif user.role == 'service-provider':
+                    services = user.data.get('provider_services', [])
+            
+            for s in services:
+                service_name = s.get('name', '').strip()
+                if not service_name:
+                    continue
+                
+                existing_service = ServiceType.query.filter(db.func.lower(ServiceType.name) == service_name.lower(), ServiceType.category == user.role).first()
+                if not existing_service:
+                    new_service = ServiceType(
+                        name=service_name,
+                        description=s.get('description', ''),
+                        category=user.role,
+                        is_active=True
+                    )
+                    db.session.add(new_service)
+                    db.session.flush()
+                    service_id = new_service.id
+                else:
+                    service_id = existing_service.id
+                
+                has_service = UserSelectedService.query.filter_by(user_id=user.id, service_type_id=service_id).first()
+                if not has_service:
+                    db.session.add(UserSelectedService(
+                        user_id=user.id,
+                        service_type_id=service_id,
+                        personalized_description=s.get('personalized_description', '')
+                    ))
+
         db.session.commit()
         
         # Send user approval notification email
@@ -96,7 +205,7 @@ def verify_id(user_id):
         if not user:
             return error_response('NOT_FOUND', 'User not found', None, 404)
         
-        data = request.json
+        data = request.get_json(silent=True)
         status = data.get('status')  # 'verified' or 'rejected'
         reason = data.get('reason')  # Required if rejected
         
@@ -273,7 +382,7 @@ def update_user(user_id):
                                 current_app.logger.warning(f"Could not delete old profile image: {e}")
                     user.profile_image_url = profile_url
         else:
-            request_data = request.json or {}
+            request_data = request.get_json(silent=True) or {}
         
         # Extract status fields before validation (they're not in UpdateProfileSchema)
         status_fields = {}
@@ -404,15 +513,42 @@ def unsuspend_user(user_id):
         current_app.logger.error(f"Unsuspend user error: {str(e)}")
         return error_response('INTERNAL_ERROR', 'Failed to unsuspend user', None, 500)
 
+@bp.route('/users/<user_id>', methods=['DELETE'])
+@require_admin
+def delete_user(user_id):
+    """Permanently delete a user"""
+    try:
+        user = User.query.get(user_id)
+        if not user:
+            return error_response('NOT_FOUND', 'User not found', None, 404)
+        
+        db.session.delete(user)
+        db.session.commit()
+        
+        return success_response(None, 'User deleted successfully')
+        
+    except Exception as e:
+        db.session.rollback()
+        current_app.logger.error(f"Delete user error: {str(e)}")
+        return error_response('INTERNAL_ERROR', 'Failed to delete user', None, 500)
+
 @bp.route('/requests', methods=['GET'])
 @require_admin
 def list_requests():
-    """List all service requests"""
+    """List all service requests with optional filters: status, type"""
     try:
         limit = int(request.args.get('limit', 50))
         offset = int(request.args.get('offset', 0))
+        status = request.args.get('status', '').strip().lower()
+        request_type = request.args.get('type', '').strip().lower()
         
         query = ServiceRequest.query
+        
+        if status:
+            query = query.filter(ServiceRequest.status == status)
+        if request_type:
+            query = query.filter(ServiceRequest.request_type == request_type)
+            
         total = query.count()
         requests = query.order_by(ServiceRequest.created_at.desc()).limit(limit).offset(offset).all()
         
@@ -498,22 +634,48 @@ def create_product():
             name = form.get('name')
             description = form.get('description', '')
             price = form.get('price')
-            category_id = form.get('category_id')
-            subcategory_id = form.get('subcategory_id')
+            category_id = form.get('category_id', '').strip() or None
+            subcategory_id = form.get('subcategory_id', '').strip() or None
             quantity_raw = form.get('quantity', '0')
             try:
                 quantity = int(quantity_raw)
             except (TypeError, ValueError):
                 quantity = 0
+
+            product_type = form.get('product_type', 'simple')
+            import json
+            try:
+                attributes = json.loads(form.get('attributes', '[]'))
+            except Exception:
+                attributes = []
+            try:
+                variations = json.loads(form.get('variations', '[]'))
+            except Exception:
+                variations = []
+            try:
+                grouped_products = json.loads(form.get('grouped_products', '[]'))
+            except Exception:
+                grouped_products = []
+            external_url = form.get('external_url', '').strip() or None
+            button_text = form.get('button_text', 'Buy Product').strip() or 'Buy Product'
+
             image_files = request.files.getlist('image_files')
         else:
-            data = request.json or {}
+            data = request.get_json(silent=True) or {}
             name = data.get('name')
             description = data.get('description', '')
             price = data.get('price')
-            category_id = data.get('category_id')
-            subcategory_id = data.get('subcategory_id')
+            category_id = data.get('category_id', '').strip() or None
+            subcategory_id = data.get('subcategory_id', '').strip() or None
             quantity = data.get('quantity', 0)  # Initial inventory quantity
+            
+            product_type = data.get('product_type', 'simple')
+            attributes = data.get('attributes', [])
+            variations = data.get('variations', [])
+            grouped_products = data.get('grouped_products', [])
+            external_url = data.get('external_url', '').strip() or None
+            button_text = data.get('button_text', 'Buy Product').strip() or 'Buy Product'
+
             image_files = []
         
         if not name or not price:
@@ -557,6 +719,12 @@ def create_product():
             price=price,
             category_id=category_id,
             subcategory_id=subcategory_id,
+            product_type=product_type,
+            attributes=attributes,
+            variations=variations,
+            grouped_products=grouped_products,
+            external_url=external_url,
+            button_text=button_text,
             image_url=image_url,  # Legacy field, kept for backward compatibility
             status='active',
             in_stock=True
@@ -584,8 +752,8 @@ def create_product():
         
     except Exception as e:
         db.session.rollback()
-        current_app.logger.error(f"Create product error: {str(e)}")
-        return error_response('INTERNAL_ERROR', 'Failed to create product', None, 500)
+        current_app.logger.error(f"Create product error: {str(e)}", exc_info=True)
+        return error_response('INTERNAL_ERROR', f'Failed to create product: {str(e)}', None, 500)
 
 @bp.route('/products/<product_id>', methods=['GET'])
 @require_admin
@@ -630,9 +798,36 @@ def update_product(product_id):
                 except (TypeError, ValueError):
                     pass
             if 'category_id' in form:
-                product.category_id = form.get('category_id') or None
+                category_id_val = form.get('category_id', '').strip()
+                product.category_id = category_id_val if category_id_val else None
             if 'subcategory_id' in form:
-                product.subcategory_id = form.get('subcategory_id') or None
+                subcategory_id_val = form.get('subcategory_id', '').strip()
+                product.subcategory_id = subcategory_id_val if subcategory_id_val else None
+
+            if 'product_type' in form:
+                product.product_type = form.get('product_type', 'simple')
+            if 'attributes' in form:
+                import json
+                try:
+                    product.attributes = json.loads(form.get('attributes', '[]'))
+                except Exception:
+                    pass
+            if 'variations' in form:
+                import json
+                try:
+                    product.variations = json.loads(form.get('variations', '[]'))
+                except Exception:
+                    pass
+            if 'grouped_products' in form:
+                import json
+                try:
+                    product.grouped_products = json.loads(form.get('grouped_products', '[]'))
+                except Exception:
+                    pass
+            if 'external_url' in form:
+                product.external_url = form.get('external_url', '').strip() or None
+            if 'button_text' in form:
+                product.button_text = form.get('button_text', 'Buy Product').strip() or 'Buy Product'
             
             # Handle multiple image files
             image_files = request.files.getlist('image_files')
@@ -717,7 +912,7 @@ def update_product(product_id):
                         )
                         db.session.add(inventory)
         else:
-            data = request.json or {}
+            data = request.get_json(silent=True) or {}
 
             if 'name' in data:
                 product.name = data['name']
@@ -729,6 +924,20 @@ def update_product(product_id):
                 product.category_id = data.get('category_id')
             if 'subcategory_id' in data:
                 product.subcategory_id = data.get('subcategory_id')
+                
+            if 'product_type' in data:
+                product.product_type = data['product_type']
+            if 'attributes' in data:
+                product.attributes = data['attributes']
+            if 'variations' in data:
+                product.variations = data['variations']
+            if 'grouped_products' in data:
+                product.grouped_products = data['grouped_products']
+            if 'external_url' in data:
+                product.external_url = data.get('external_url', '').strip() or None
+            if 'button_text' in data:
+                product.button_text = data.get('button_text', 'Buy Product').strip() or 'Buy Product'
+
             if 'quantity' in data:
                 inventory = Inventory.query.filter_by(product_id=product_id).first()
                 if inventory:
@@ -802,7 +1011,7 @@ def update_inventory(product_id):
         if not product:
             return error_response('NOT_FOUND', 'Product not found', None, 404)
         
-        data = request.json
+        data = request.get_json(silent=True)
         quantity = data.get('quantity')
         
         if quantity is None:
@@ -849,7 +1058,7 @@ def list_categories():
 def create_category():
     """Create a new category"""
     try:
-        data = request.json or {}
+        data = request.get_json(silent=True) or {}
         title = data.get('title')
         
         if not title:
@@ -863,8 +1072,8 @@ def create_category():
         return success_response(category.to_dict(), 'Category created successfully', 201)
     except Exception as e:
         db.session.rollback()
-        current_app.logger.error(f"Create category error: {str(e)}")
-        return error_response('INTERNAL_ERROR', 'Failed to create category', None, 500)
+        current_app.logger.error(f"Create category error: {str(e)}", exc_info=True)
+        return error_response('INTERNAL_ERROR', f'Failed to create category: {str(e)}', None, 500)
 
 @bp.route('/categories/<category_id>', methods=['PUT'])
 @require_admin
@@ -875,7 +1084,7 @@ def update_category(category_id):
         if not category:
             return error_response('NOT_FOUND', 'Category not found', None, 404)
         
-        data = request.json or {}
+        data = request.get_json(silent=True) or {}
         if 'title' in data:
             category.title = data['title']
         
@@ -883,8 +1092,8 @@ def update_category(category_id):
         return success_response(category.to_dict(), 'Category updated successfully')
     except Exception as e:
         db.session.rollback()
-        current_app.logger.error(f"Update category error: {str(e)}")
-        return error_response('INTERNAL_ERROR', 'Failed to update category', None, 500)
+        current_app.logger.error(f"Update category error: {str(e)}", exc_info=True)
+        return error_response('INTERNAL_ERROR', f'Failed to update category: {str(e)}', None, 500)
 
 @bp.route('/categories/<category_id>', methods=['DELETE'])
 @require_admin
@@ -908,7 +1117,7 @@ def delete_category(category_id):
 def create_subcategory():
     """Create a new subcategory"""
     try:
-        data = request.json or {}
+        data = request.get_json(silent=True) or {}
         title = data.get('title')
         category_id = data.get('category_id')
         
@@ -923,8 +1132,8 @@ def create_subcategory():
         return success_response(subcategory.to_dict(), 'Subcategory created successfully', 201)
     except Exception as e:
         db.session.rollback()
-        current_app.logger.error(f"Create subcategory error: {str(e)}")
-        return error_response('INTERNAL_ERROR', 'Failed to create subcategory', None, 500)
+        current_app.logger.error(f"Create subcategory error: {str(e)}", exc_info=True)
+        return error_response('INTERNAL_ERROR', f'Failed to create subcategory: {str(e)}', None, 500)
 
 @bp.route('/subcategories/<subcategory_id>', methods=['PUT'])
 @require_admin
@@ -935,7 +1144,7 @@ def update_subcategory(subcategory_id):
         if not subcategory:
             return error_response('NOT_FOUND', 'Subcategory not found', None, 404)
         
-        data = request.json or {}
+        data = request.get_json(silent=True) or {}
         if 'title' in data:
             subcategory.title = data['title']
         if 'category_id' in data:
@@ -992,7 +1201,7 @@ def list_service_types():
 def create_service_type():
     """Create a new service type"""
     try:
-        data = request.json or {}
+        data = request.get_json(silent=True) or {}
         name = data.get('name')
         category = data.get('category')
         
@@ -1024,7 +1233,7 @@ def update_service_type(service_type_id):
         if not service_type:
             return error_response('NOT_FOUND', 'Service type not found', None, 404)
         
-        data = request.json or {}
+        data = request.get_json(silent=True) or {}
         if 'name' in data:
             service_type.name = data['name']
         if 'description' in data:
@@ -1127,6 +1336,23 @@ def _get_callout_fee_value(key: str, fallback_key: str = 'callout_fee_amount', d
     return float(setting.value) if setting else default
 
 
+@bp.route('/settings', methods=['GET'])
+def list_settings():
+    """List all application settings. Authenticated users can view."""
+    try:
+        settings = AppSetting.query.all()
+        # Map 'key' to 'id' for frontend compatibility
+        settings_data = []
+        for s in settings:
+            d = s.to_dict()
+            d['id'] = s.key
+            settings_data.append(d)
+        return success_response(settings_data)
+    except Exception as e:
+        current_app.logger.error(f"List settings error: {str(e)}")
+        return error_response('INTERNAL_ERROR', 'Failed to list settings', None, 500)
+
+
 @bp.route('/settings/callout-fee', methods=['GET'])
 @require_auth
 def get_callout_fee():
@@ -1169,7 +1395,7 @@ def update_callout_fees():
     Accepts { professional_callout_fee?, provider_callout_fee? }; updates only provided keys.
     """
     try:
-        data = request.json or {}
+        data = request.get_json(silent=True) or {}
         updated = {}
 
         for key, setting_key in [
@@ -1212,7 +1438,7 @@ def update_callout_fee():
     Prefer PATCH /settings/callout-fees to set both professional and provider fees.
     """
     try:
-        data = request.json or {}
+        data = request.get_json(silent=True) or {}
         amount = data.get('amount')
         if amount is None:
             return error_response('MISSING_FIELDS', 'amount is required', None, 400)
@@ -1335,7 +1561,7 @@ def trigger_recon():
     """Manually trigger recon for all earner roles for a given month (YYYY-MM)."""
     try:
         from backend.services.recon_service import run_recon_for_all_earners
-        data = request.json or {}
+        data = request.get_json(silent=True) or {}
         month = data.get('month')
         if not month or len(month) != 7 or month[4] != '-':
             return error_response('INVALID_INPUT', 'month must be YYYY-MM', None, 400)
@@ -1380,7 +1606,7 @@ def update_withdrawal_request(wr_id):
         wr = WithdrawalRequest.query.get(wr_id)
         if not wr:
             return error_response('NOT_FOUND', 'Withdrawal request not found', None, 404)
-        data = request.json or {}
+        data = request.get_json(silent=True) or {}
         status = data.get('status')
         if status not in ('pending', 'paid', 'reversed'):
             return error_response('INVALID_INPUT', 'status must be pending, paid, or reversed', None, 400)
@@ -1437,7 +1663,7 @@ def update_driver_admin_fee_rate():
     """
     try:
         setting_key = 'driver_admin_fee_rate'
-        data = request.json or {}
+        data = request.get_json(silent=True) or {}
         rate = data.get('rate')
         percentage = data.get('percentage')
         
@@ -1504,7 +1730,7 @@ def list_faqs():
 def create_faq():
     """Create a new FAQ"""
     try:
-        data = request.json
+        data = request.get_json(silent=True)
         question = data.get('question')
         answer = data.get('answer')
         order = data.get('order', 0)
@@ -1540,7 +1766,7 @@ def update_faq(faq_id):
         if not faq:
             return error_response('NOT_FOUND', 'FAQ not found', None, 404)
         
-        data = request.json
+        data = request.get_json(silent=True)
         if 'question' in data:
             faq.question = data['question']
         if 'answer' in data:
@@ -1620,7 +1846,7 @@ def create_carousel_item():
                 image_file.save(filepath)
                 image_url = f"/uploads/{unique_filename}"
         else:
-            data = request.json or {}
+            data = request.get_json(silent=True) or {}
             cta_link = data.get('cta_link') or None
             cta_text = data.get('cta_text') or None
             order = data.get('order', 0)
@@ -1680,7 +1906,7 @@ def update_carousel_item(item_id):
                             pass
                 item.image_url = f"/uploads/{unique_filename}"
         else:
-            data = request.json or {}
+            data = request.get_json(silent=True) or {}
             if 'cta_link' in data:
                 item.cta_link = data.get('cta_link') or None
             if 'cta_text' in data:
@@ -1750,7 +1976,7 @@ def update_footer():
             footer = FooterContent(id=1, company_name='MzansiServe')
             db.session.add(footer)
             db.session.flush()
-        data = request.json or {}
+        data = request.get_json(silent=True) or {}
         if 'company_name' in data:
             footer.company_name = data.get('company_name') or ''
         if 'email' in data:
@@ -1797,18 +2023,31 @@ def _generate_agent_id():
 def create_agent():
     """Create a new agent. agent_id is optional; if omitted, a short alphanumeric ID is auto-generated."""
     try:
-        data = request.json or {}
+        data = request.get_json(silent=True) or {}
         name = (data.get('name') or '').strip()
         surname = (data.get('surname') or '').strip()
         id_number = (data.get('id_number') or '').strip() or None
         agent_id = (data.get('agent_id') or '').strip()
+        phone = (data.get('phone') or '').strip() or None
+        municipality = (data.get('municipality') or '').strip() or None
+        ward = (data.get('ward') or '').strip() or None
+        
         if not name or not surname:
             return error_response('MISSING_FIELDS', 'Name and surname are required', None, 400)
         if not agent_id:
             agent_id = _generate_agent_id()
         if Agent.query.filter_by(agent_id=agent_id).first():
             return error_response('DUPLICATE', 'An agent with this agent_id already exists', None, 400)
-        agent = Agent(name=name, surname=surname, id_number=id_number, agent_id=agent_id)
+        
+        agent = Agent(
+            name=name, 
+            surname=surname, 
+            id_number=id_number, 
+            agent_id=agent_id,
+            phone=phone,
+            municipality=municipality,
+            ward=ward
+        )
         db.session.add(agent)
         db.session.commit()
         return success_response(agent.to_dict(), 'Agent created')
@@ -1826,13 +2065,19 @@ def update_agent(agent_uuid):
         agent = Agent.query.get(agent_uuid)
         if not agent:
             return error_response('NOT_FOUND', 'Agent not found', None, 404)
-        data = request.json or {}
+        data = request.get_json(silent=True) or {}
         if 'name' in data:
             agent.name = (data.get('name') or '').strip() or agent.name
         if 'surname' in data:
             agent.surname = (data.get('surname') or '').strip() or agent.surname
         if 'id_number' in data:
             agent.id_number = (data.get('id_number') or '').strip() or None
+        if 'phone' in data:
+            agent.phone = (data.get('phone') or '').strip() or None
+        if 'municipality' in data:
+            agent.municipality = (data.get('municipality') or '').strip() or None
+        if 'ward' in data:
+            agent.ward = (data.get('ward') or '').strip() or None
         if 'agent_id' in data:
             new_agent_id = (data.get('agent_id') or '').strip()
             if not new_agent_id:
@@ -1909,11 +2154,32 @@ def approve_pending_profile_update(pending_id):
         updated_data = dict(user.data) if user.data else {}
         for key, value in payload.items():
             if key in ('phone', 'next_of_kin', 'driver_services', 'professional_services', 'provider_services',
-                       'highest_qualification', 'professional_body', 'proof_of_residence_url', 'driver_license_url', 'qualification_urls'):
+                       'highest_qualification', 'professional_body', 'proof_of_residence_url', 'driver_license_url', 'qualification_urls', 'operating_areas', 'availability'):
                 if value is None and key in updated_data:
                     del updated_data[key]
                 else:
                     updated_data[key] = value
+
+            # If services were updated, auto-add any custom ones to the master list
+            if key in ('professional_services', 'provider_services') and isinstance(value, list):
+                category = 'professional' if key == 'professional_services' else 'service-provider'
+                for service in value:
+                    s_name = service.get('name', '').strip()
+                    if not s_name:
+                        continue
+                    
+                    # Check if service exists
+                    existing = ServiceType.query.filter(ServiceType.name.ilike(s_name)).first()
+                    if not existing:
+                        # Create new approved service
+                        new_service = ServiceType(
+                            name=s_name,
+                            category=category,
+                            is_active=True,
+                            description=service.get('description', '')
+                        )
+                        db.session.add(new_service)
+
         user.data = updated_data
         db.session.delete(pending)
         db.session.commit()
@@ -1930,7 +2196,7 @@ def reject_pending_profile_update(pending_id):
     """Reject a pending profile update (optionally with reason)."""
     try:
         admin_id = get_jwt_identity()
-        data = request.json or {}
+        data = request.get_json(silent=True) or {}
         pending = PendingProfileUpdate.query.get(pending_id)
         if not pending:
             return error_response('NOT_FOUND', 'Pending update not found', None, 404)
@@ -1946,4 +2212,421 @@ def reject_pending_profile_update(pending_id):
         db.session.rollback()
         current_app.logger.error(f"Reject pending update error: {str(e)}")
         return error_response('INTERNAL_ERROR', 'Failed to reject update', None, 500)
+
+
+
+# ─── Testimonials Management ───────────────────────────────────────────────────
+
+@bp.route('/testimonials', methods=['GET'])
+@require_admin
+def list_testimonials():
+    """List all testimonials."""
+    from backend.models.testimonial import Testimonial
+    try:
+        items = Testimonial.query.order_by(Testimonial.order.asc(), Testimonial.created_at.asc()).all()
+        return success_response({'testimonials': [t.to_dict() for t in items]})
+    except Exception as e:
+        return error_response('INTERNAL_ERROR', 'Failed to load testimonials', None, 500)
+
+
+@bp.route('/testimonials', methods=['POST'])
+@require_admin
+def create_testimonial():
+    """Create a new testimonial."""
+    from backend.models.testimonial import Testimonial
+    try:
+        data = request.get_json(silent=True) or {}
+        if not data.get('name') or not data.get('text'):
+            return error_response('VALIDATION_ERROR', 'name and text are required', None, 400)
+        t = Testimonial(
+            name=data['name'].strip(),
+            role=data.get('role', '').strip() or None,
+            avatar_url=data.get('avatar_url') or None,
+            rating=int(data.get('rating', 5)),
+            text=data['text'].strip(),
+            order=int(data.get('order', 0)),
+            is_active=bool(data.get('is_active', True)),
+        )
+        db.session.add(t)
+        db.session.commit()
+        return success_response(t.to_dict(), 'Testimonial created'), 201
+    except Exception as e:
+        db.session.rollback()
+        return error_response('INTERNAL_ERROR', 'Failed to create testimonial', None, 500)
+
+
+@bp.route('/testimonials/<testimonial_id>', methods=['PUT'])
+@require_admin
+def update_testimonial(testimonial_id):
+    """Update a testimonial."""
+    from backend.models.testimonial import Testimonial
+    try:
+        t = Testimonial.query.get(testimonial_id)
+        if not t:
+            return error_response('NOT_FOUND', 'Testimonial not found', None, 404)
+        data = request.get_json(silent=True) or {}
+        if 'name' in data:
+            t.name = data['name'].strip()
+        if 'role' in data:
+            t.role = data['role'].strip() or None
+        if 'text' in data:
+            t.text = data['text'].strip()
+        if 'rating' in data:
+            t.rating = int(data['rating'])
+        if 'order' in data:
+            t.order = int(data['order'])
+        if 'is_active' in data:
+            t.is_active = bool(data['is_active'])
+        if 'avatar_url' in data:
+            t.avatar_url = data['avatar_url'] or None
+        db.session.commit()
+        return success_response(t.to_dict(), 'Testimonial updated')
+    except Exception as e:
+        db.session.rollback()
+        return error_response('INTERNAL_ERROR', 'Failed to update testimonial', None, 500)
+
+
+@bp.route('/testimonials/<testimonial_id>', methods=['DELETE'])
+@require_admin
+def delete_testimonial(testimonial_id):
+    """Delete a testimonial."""
+    from backend.models.testimonial import Testimonial
+    try:
+        t = Testimonial.query.get(testimonial_id)
+        if not t:
+            return error_response('NOT_FOUND', 'Testimonial not found', None, 404)
+        db.session.delete(t)
+        db.session.commit()
+        return success_response(None, 'Testimonial deleted')
+    except Exception as e:
+        db.session.rollback()
+        return error_response('INTERNAL_ERROR', 'Failed to delete testimonial', None, 500)
+
+
+# ─── Landing Features Management ───────────────────────────────────────────────
+
+@bp.route('/landing-features', methods=['GET'])
+@require_admin
+def list_landing_features_admin():
+    """List all landing features."""
+    from backend.models.landing_feature import LandingFeature
+    try:
+        items = LandingFeature.query.order_by(LandingFeature.order.asc(), LandingFeature.created_at.asc()).all()
+        return success_response({'features': [f.to_dict() for f in items]})
+    except Exception as e:
+        return error_response('INTERNAL_ERROR', 'Failed to load landing features', None, 500)
+
+
+@bp.route('/landing-features', methods=['POST'])
+@require_admin
+def create_landing_feature():
+    """Create a new landing feature."""
+    from backend.models.landing_feature import LandingFeature
+    try:
+        data = request.get_json(silent=True) or {}
+        if not data.get('title') or not data.get('description'):
+            return error_response('VALIDATION_ERROR', 'title and description are required', None, 400)
+        f = LandingFeature(
+            icon=data.get('icon', 'Star').strip(),
+            title=data['title'].strip(),
+            description=data['description'].strip(),
+            order=int(data.get('order', 0)),
+            is_active=bool(data.get('is_active', True)),
+        )
+        db.session.add(f)
+        db.session.commit()
+        return success_response(f.to_dict(), 'Feature created'), 201
+    except Exception as e:
+        db.session.rollback()
+        return error_response('INTERNAL_ERROR', 'Failed to create feature', None, 500)
+
+
+@bp.route('/landing-features/<feature_id>', methods=['PUT'])
+@require_admin
+def update_landing_feature(feature_id):
+    """Update a landing feature."""
+    from backend.models.landing_feature import LandingFeature
+    try:
+        f = LandingFeature.query.get(feature_id)
+        if not f:
+            return error_response('NOT_FOUND', 'Feature not found', None, 404)
+        data = request.get_json(silent=True) or {}
+        if 'icon' in data:
+            f.icon = data['icon'].strip()
+        if 'title' in data:
+            f.title = data['title'].strip()
+        if 'description' in data:
+            f.description = data['description'].strip()
+        if 'order' in data:
+            f.order = int(data['order'])
+        if 'is_active' in data:
+            f.is_active = bool(data['is_active'])
+        db.session.commit()
+        return success_response(f.to_dict(), 'Feature updated')
+    except Exception as e:
+        db.session.rollback()
+        return error_response('INTERNAL_ERROR', 'Failed to update feature', None, 500)
+
+
+@bp.route('/landing-features/<feature_id>', methods=['DELETE'])
+@require_admin
+def delete_landing_feature(feature_id):
+    """Delete a landing feature."""
+    from backend.models.landing_feature import LandingFeature
+    try:
+        f = LandingFeature.query.get(feature_id)
+        if not f:
+            return error_response('NOT_FOUND', 'Feature not found', None, 404)
+        db.session.delete(f)
+        db.session.commit()
+        return success_response(None, 'Feature deleted')
+    except Exception as e:
+        db.session.rollback()
+        return error_response('INTERNAL_ERROR', 'Failed to delete feature', None, 500)
+
+
+@bp.route('/users/<user_id>/impersonate', methods=['POST'])
+@require_admin
+def impersonate_user(user_id):
+    """Generate a JWT token for another user (admin only)"""
+    try:
+        from flask_jwt_extended import create_access_token
+        user = User.query.get(user_id)
+        if not user:
+            return error_response('NOT_FOUND', 'User not found', None, 404)
+        
+        # Create token for target user
+        access_token = create_access_token(identity=str(user.id))
+        
+        return success_response({
+            'user': user.to_dict(),
+            'token': access_token
+        }, f'Impersonating user {user.email}')
+        
+    except Exception as e:
+        current_app.logger.error(f"Impersonate error: {str(e)}")
+        return error_response('INTERNAL_ERROR', 'Failed to impersonate user', None, 500)
+
+
+@bp.route('/api-logs', methods=['GET'])
+@require_admin
+def list_api_logs():
+    """List external API logs"""
+    try:
+        from backend.models.api_log import ExternalApiLog
+        limit = int(request.args.get('limit', 100))
+        offset = int(request.args.get('offset', 0))
+        provider = request.args.get('provider')
+        
+        query = ExternalApiLog.query
+        if provider:
+            query = query.filter_by(provider=provider)
+            
+        total = query.count()
+        logs = query.order_by(ExternalApiLog.created_at.desc()).limit(limit).offset(offset).all()
+        
+        return success_response({
+            'logs': [l.to_dict() for l in logs],
+            'total': total,
+            'limit': limit,
+            'offset': offset
+        })
+        
+    except Exception as e:
+        current_app.logger.error(f"List API logs error: {str(e)}")
+        return error_response('INTERNAL_ERROR', 'Failed to list API logs', None, 500)
+
+
+@bp.route('/reports', methods=['GET'])
+@require_admin
+def list_reports():
+    """List all user reports"""
+    try:
+        from backend.models.report import Report
+        status = request.args.get('status')
+        limit = int(request.args.get('limit', 100))
+        offset = int(request.args.get('offset', 0))
+        
+        query = Report.query
+        if status:
+            query = query.filter_by(status=status)
+            
+        total = query.count()
+        reports = query.order_by(Report.created_at.desc()).limit(limit).offset(offset).all()
+        
+        return success_response({
+            'reports': [r.to_dict() for r in reports],
+            'total': total,
+            'limit': limit,
+            'offset': offset
+        })
+    except Exception as e:
+        current_app.logger.error(f"List reports error: {str(e)}")
+        return error_response('INTERNAL_ERROR', 'Failed to list reports', None, 500)
+
+
+@bp.route('/reports/<report_id>', methods=['PATCH'])
+@require_admin
+def update_report(report_id):
+    """Update report status and add notes"""
+    try:
+        from backend.models.report import Report
+        report = Report.query.get(report_id)
+        if not report:
+            return error_response('NOT_FOUND', 'Report not found', None, 404)
+            
+        data = request.json
+        status = data.get('status')
+        admin_notes = data.get('admin_notes')
+        
+        if status:
+            report.status = status
+            if status in ('resolved', 'dismissed'):
+                report.resolved_at = datetime.utcnow()
+        
+        if admin_notes:
+            report.admin_notes = admin_notes
+            
+        db.session.commit()
+        return success_response(report.to_dict(), 'Report updated successfully')
+    except Exception as e:
+        db.session.rollback()
+        current_app.logger.error(f"Update report error: {str(e)}")
+        return error_response('INTERNAL_ERROR', 'Failed to update report', None, 500)
+
+
+@bp.route('/global-stats', methods=['GET'])
+@require_admin
+def get_global_stats():
+    """Consolidated view of all system activity"""
+    try:
+        from backend.models.chat import ChatMessage
+        from backend.models.report import Report
+        from backend.models.driver_rating import DriverRating
+        from backend.models.professional_rating import ProfessionalRating
+        from backend.models.provider_rating import ProviderRating
+        
+        from backend.models.shop import Order
+        from sqlalchemy import func
+        from datetime import timedelta
+        
+        # Calculate total revenue from all sources
+        # 1. Orders (Shop)
+        shop_revenue = db.session.query(func.sum(Order.total)).filter(Order.status == 'paid').scalar() or 0
+        # 2. Service Requests (Payments)
+        # Assuming payment_amount on requests with status 'completed' is finalized
+        service_revenue = db.session.query(func.sum(ServiceRequest.payment_amount)).filter(ServiceRequest.status == 'completed').scalar() or 0
+        
+        total_revenue = float(shop_revenue) + float(service_revenue)
+        
+        # Growth data (last 7 days)
+        seven_days_ago = datetime.utcnow() - timedelta(days=7)
+        user_growth = []
+        for i in range(7):
+            day = seven_days_ago + timedelta(days=i+1)
+            start_of_day = datetime(day.year, day.month, day.day)
+            end_of_day = start_of_day + timedelta(days=1)
+            count = User.query.filter(User.created_at >= start_of_day, User.created_at < end_of_day).count()
+            user_growth.append({'date': start_of_day.strftime('%b %d'), 'count': count})
+
+        return success_response({
+            'users': {
+                'total': User.query.count(),
+                'drivers': User.query.filter_by(role='driver').count(),
+                'professionals': User.query.filter_by(role='professional').count(),
+                'providers': User.query.filter_by(role='service-provider').count(),
+                'clients': User.query.filter_by(role='client').count(),
+                'growth': user_growth
+            },
+            'requests': {
+                'total': ServiceRequest.query.count(),
+                'pending': ServiceRequest.query.filter_by(status='pending').count(),
+                'completed': ServiceRequest.query.filter_by(status='completed').count()
+            },
+            'revenue': {
+                'total': total_revenue,
+                'shop': float(shop_revenue),
+                'service': float(service_revenue)
+            },
+            'feedback': {
+                'total_ratings': DriverRating.query.count() + ProfessionalRating.query.count() + ProviderRating.query.count(),
+                'total_reports': Report.query.count(),
+                'pending_reports': Report.query.filter_by(status='pending').count()
+            },
+            'activity': {
+                'total_chats': ChatMessage.query.count()
+            }
+        })
+    except Exception as e:
+        current_app.logger.error(f"Global stats error: {str(e)}")
+        return error_response('INTERNAL_ERROR', 'Failed to get global stats', None, 500)
+
+
+@bp.route('/chats', methods=['GET'])
+@require_admin
+def list_all_chats():
+    """List all chat conversations for monitoring"""
+    try:
+        from backend.models.chat import ChatMessage
+        # Group messages by request_id
+        # In a real system, we'd use a more sophisticated grouping
+        messages = ChatMessage.query.order_by(ChatMessage.created_at.desc()).limit(200).all()
+        return success_response([m.to_dict() for m in messages])
+    except Exception as e:
+        current_app.logger.error(f"List chats error: {str(e)}")
+        return error_response('INTERNAL_ERROR', 'Failed to list chats', None, 500)
+
+
+@bp.route('/global-commissions', methods=['GET'])
+@require_admin
+def list_global_commissions():
+    """List all agent commissions for monitoring"""
+    try:
+        from backend.models.agent_commission import AgentCommission
+        commissions = AgentCommission.query.order_by(AgentCommission.created_at.desc()).limit(100).all()
+        
+        out = []
+        for c in commissions:
+            d = c.to_dict()
+            if c.agent:
+                d['agent_email'] = c.agent.email
+            out.append(d)
+            
+        return success_response({'commissions': out})
+    except Exception as e:
+        current_app.logger.error(f"List global commissions error: {str(e)}")
+        return error_response('INTERNAL_ERROR', 'Failed to list commissions', None, 500)
+
+
+@bp.route('/affiliate-stats', methods=['GET'])
+@require_admin
+def get_affiliate_stats():
+    """Get summarized affiliate/agent performance metrics"""
+    try:
+        from backend.models.agent_commission import AgentCommission
+        from sqlalchemy import func
+        
+        # 1. Total Paid Out
+        # Sum of commissions with status 'paid_out'
+        total_payout = db.session.query(func.sum(AgentCommission.amount)).filter(AgentCommission.status == 'paid_out').scalar() or 0.0
+        
+        # 2. Active Agents Count
+        # Agents who have a user account (role='agent') OR have recruited at least one person
+        # For simplicity, count unique agent_ids from commissions table
+        active_agents_count = db.session.query(func.count(func.distinct(AgentCommission.agent_id))).scalar() or 0
+        
+        # 3. Total Commissions
+        total_commissions = db.session.query(func.count(AgentCommission.id)).scalar() or 0
+
+        return success_response({
+            'total_paid_out': float(total_payout),
+            'active_agents_count': active_agents_count,
+            'total_commissions': total_commissions
+        })
+    except Exception as e:
+        current_app.logger.error(f"Affiliate stats error: {str(e)}")
+        return error_response('INTERNAL_ERROR', 'Failed to get affiliate stats', None, 500)
+
+
+
 

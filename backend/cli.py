@@ -3,7 +3,7 @@ CLI Commands for User Management and Shop Management
 """
 import click
 from flask.cli import with_appcontext
-from backend.models import User, ShopCategory, ShopSubcategory, ShopProduct, Order, Country, ServiceType, Agent
+from backend.models import User, ShopCategory, ShopSubcategory, ShopProduct, Order, Country, ServiceType, Agent, DriverRating
 from backend.extensions import db
 from backend.services.wallet_service import WalletService
 from backend.utils.auth import generate_tracking_number
@@ -52,7 +52,7 @@ def create_admin(email, password, full_name):
 @cli.command('add-user')
 @click.option('--email', prompt=True, help='User email address')
 @click.option('--password', prompt=True, hide_input=True, confirmation_prompt=True, help='User password')
-@click.option('--role', type=click.Choice(['client', 'driver', 'professional', 'service-provider', 'admin']), 
+@click.option('--role', type=click.Choice(['client', 'driver', 'professional', 'service-provider', 'admin', 'agent']), 
               prompt=True, help='User role')
 @click.option('--full-name', prompt=True, help='User full name')
 @click.option('--is-paid', is_flag=True, default=False, help='Mark user as paid')
@@ -158,7 +158,7 @@ def change_password(email, role, user_id, password):
     click.echo(f'Password changed successfully for {user.email}{role_info}')
 
 @cli.command('create-users')
-@click.option('--role', type=click.Choice(['client', 'driver', 'professional', 'service-provider']), 
+@click.option('--role', type=click.Choice(['client', 'driver', 'professional', 'service-provider', 'agent']), 
               prompt=True, help='User role')
 @click.option('--count', default=1, prompt=True, help='Number of users to create')
 @click.option('--email-prefix', default='user', help='Email prefix (will be user1@example.com, user2@example.com, etc.)')
@@ -213,8 +213,8 @@ def create_users(role, count, email_prefix, domain, password):
 @click.option('--approved', is_flag=True, default=False, help='Mark users as approved')
 @with_appcontext
 def seed_users(count, email_prefix, domain, password, paid, approved):
-    """Seed users of all roles (client, driver, professional, service-provider)"""
-    roles = ['client', 'driver', 'professional', 'service-provider']
+    """Seed users of all roles (client, driver, professional, service-provider, agent)"""
+    roles = ['client', 'driver', 'professional', 'service-provider', 'agent']
     total_created = 0
     total_skipped = 0
     
@@ -270,6 +270,81 @@ def seed_users(count, email_prefix, domain, password, paid, approved):
     click.echo(f'  Password for all users: {password}')
     click.echo(f'  Registration Fee Paid: {"Yes" if paid else "No"}')
     click.echo(f'  Approved: {"Yes" if approved else "No"}')
+
+
+@cli.command('seed-nearby-drivers')
+@with_appcontext
+def seed_nearby_drivers():
+    """Seed drivers within 10km of Johannesburg center for testing."""
+    # Jo'burg Center
+    JB_LAT = -26.2041
+    JB_LNG = 28.0473
+    
+    drivers_data = [
+        {
+            'email': 'driver_near1@example.com',
+            'full_name': 'Thabo Near-Map',
+            'offset_lat': 0.01, # ~1.1km
+            'offset_lng': 0.01,
+            'car_type': 'sedan'
+        },
+        {
+            'email': 'driver_near2@example.com',
+            'full_name': 'Lerato Close',
+            'offset_lat': -0.02, # ~2.2km
+            'offset_lng': 0.02,
+            'car_type': 'hatchback'
+        },
+        {
+            'email': 'driver_near3@example.com',
+            'full_name': 'Sipho SUV',
+            'offset_lat': 0.05, # ~5.5km
+            'offset_lng': -0.05,
+            'car_type': 'suv'
+        },
+        {
+            'email': 'driver_far@example.com',
+            'full_name': 'Far Away Driver',
+            'offset_lat': 0.2, # ~22km (Should be outside 10km radius)
+            'offset_lng': 0.2,
+            'car_type': 'luxury'
+        }
+    ]
+    
+    created = 0
+    for data in drivers_data:
+        if User.query.filter_by(email=data['email']).first():
+            continue
+            
+        user = User(
+            email=data['email'],
+            role='driver',
+            is_approved=True,
+            is_active=True,
+            is_paid=True,
+            email_verified=True,
+            tracking_number=generate_tracking_number(),
+            data={
+                'full_name': data['full_name'],
+                'current_location': {
+                    'lat': JB_LAT + data['offset_lat'],
+                    'lng': JB_LNG + data['offset_lng']
+                },
+                'driver_services': [
+                    {
+                        'car_make': 'Test',
+                        'car_model': 'Model',
+                        'car_type': data['car_type']
+                    }
+                ]
+            }
+        )
+        user.set_password('password123')
+        db.session.add(user)
+        created += 1
+        
+    db.session.commit()
+    click.echo(f"Seeded {created} nearby drivers.")
 
 @cli.command('add-category')
 @click.option('--id', help='Category ID (auto-generated if not provided)')
@@ -606,39 +681,39 @@ def seed_products(clear, count):
     # Default seed data - common products with categories
     default_products = [
         # Electronics
-        {'name': 'Smartphone', 'description': 'Latest smartphone with advanced features', 'price': 8999.99, 'category': 'electronics'},
-        {'name': 'Laptop', 'description': 'High-performance laptop for work and gaming', 'price': 12999.99, 'category': 'electronics'},
-        {'name': 'Headphones', 'description': 'Wireless noise-cancelling headphones', 'price': 2499.99, 'category': 'electronics'},
-        {'name': 'Smartwatch', 'description': 'Fitness tracking smartwatch', 'price': 3499.99, 'category': 'electronics'},
-        {'name': 'Tablet', 'description': '10-inch tablet for entertainment', 'price': 5999.99, 'category': 'electronics'},
+        {'name': 'Smartphone', 'description': 'Latest smartphone with advanced features', 'price': 8999.99, 'category': 'electronics', 'image_url': 'https://images.unsplash.com/photo-1511707171634-5f897ff02aa9?q=80&w=800&auto=format&fit=crop'},
+        {'name': 'Laptop', 'description': 'High-performance laptop for work and gaming', 'price': 12999.99, 'category': 'electronics', 'image_url': 'https://images.unsplash.com/photo-1496181133206-80ce9b88a853?q=80&w=800&auto=format&fit=crop'},
+        {'name': 'Headphones', 'description': 'Wireless noise-cancelling headphones', 'price': 2499.99, 'category': 'electronics', 'image_url': 'https://images.unsplash.com/photo-1505740420928-5e560c06d30e?q=80&w=800&auto=format&fit=crop'},
+        {'name': 'Smartwatch', 'description': 'Fitness tracking smartwatch', 'price': 3499.99, 'category': 'electronics', 'image_url': 'https://images.unsplash.com/photo-1523275335684-37898b6baf30?q=80&w=800&auto=format&fit=crop'},
+        {'name': 'Tablet', 'description': '10-inch tablet for entertainment', 'price': 5999.99, 'category': 'electronics', 'image_url': 'https://images.unsplash.com/photo-1544244015-0df4b3ffc6b0?q=80&w=800&auto=format&fit=crop'},
         
         # Clothing
-        {'name': 'T-Shirt', 'description': 'Cotton t-shirt in various colors', 'price': 199.99, 'category': 'clothing'},
-        {'name': 'Jeans', 'description': 'Classic denim jeans', 'price': 799.99, 'category': 'clothing'},
-        {'name': 'Sneakers', 'description': 'Comfortable running sneakers', 'price': 1299.99, 'category': 'clothing'},
-        {'name': 'Jacket', 'description': 'Winter jacket with warm lining', 'price': 1499.99, 'category': 'clothing'},
-        {'name': 'Dress', 'description': 'Elegant evening dress', 'price': 999.99, 'category': 'clothing'},
+        {'name': 'T-Shirt', 'description': 'Cotton t-shirt in various colors', 'price': 199.99, 'category': 'clothing', 'image_url': 'https://images.unsplash.com/photo-1521572163474-6864f9cf17ab?q=80&w=800&auto=format&fit=crop'},
+        {'name': 'Jeans', 'description': 'Classic denim jeans', 'price': 799.99, 'category': 'clothing', 'image_url': 'https://images.unsplash.com/photo-1542272604-787c3835535d?q=80&w=800&auto=format&fit=crop'},
+        {'name': 'Sneakers', 'description': 'Comfortable running sneakers', 'price': 1299.99, 'category': 'clothing', 'image_url': 'https://images.unsplash.com/photo-1542291026-7eec264c27ff?q=80&w=800&auto=format&fit=crop'},
+        {'name': 'Jacket', 'description': 'Winter jacket with warm lining', 'price': 1499.99, 'category': 'clothing', 'image_url': 'https://images.unsplash.com/photo-1551028719-00167b16eac5?q=80&w=800&auto=format&fit=crop'},
+        {'name': 'Dress', 'description': 'Elegant evening dress', 'price': 999.99, 'category': 'clothing', 'image_url': 'https://images.unsplash.com/photo-1539008835272-35319520e541?q=80&w=800&auto=format&fit=crop'},
         
         # Home & Kitchen
-        {'name': 'Coffee Maker', 'description': 'Automatic drip coffee maker', 'price': 899.99, 'category': 'home-kitchen'},
-        {'name': 'Blender', 'description': 'High-speed kitchen blender', 'price': 599.99, 'category': 'home-kitchen'},
-        {'name': 'Toaster', 'description': '4-slice stainless steel toaster', 'price': 399.99, 'category': 'home-kitchen'},
-        {'name': 'Dining Set', 'description': '6-piece dinnerware set', 'price': 499.99, 'category': 'home-kitchen'},
-        {'name': 'Bedding Set', 'description': 'Queen size bedding set', 'price': 699.99, 'category': 'home-kitchen'},
+        {'name': 'Coffee Maker', 'description': 'Automatic drip coffee maker', 'price': 899.99, 'category': 'home-kitchen', 'image_url': 'https://images.unsplash.com/photo-1520970014086-2208d157c9e2?q=80&w=800&auto=format&fit=crop'},
+        {'name': 'Blender', 'description': 'High-speed kitchen blender', 'price': 599.99, 'category': 'home-kitchen', 'image_url': 'https://images.unsplash.com/photo-1585238341267-1cfec2046a55?q=80&w=800&auto=format&fit=crop'},
+        {'name': 'Toaster', 'description': '4-slice stainless steel toaster', 'price': 399.99, 'category': 'home-kitchen', 'image_url': 'https://images.unsplash.com/photo-1584622650111-993a426fbf0a?q=80&w=800&auto=format&fit=crop'},
+        {'name': 'Dining Set', 'description': '6-piece dinnerware set', 'price': 499.99, 'category': 'home-kitchen', 'image_url': 'https://images.unsplash.com/photo-1516738901171-8eb4fc13bd20?q=80&w=800&auto=format&fit=crop'},
+        {'name': 'Bedding Set', 'description': 'Queen size bedding set', 'price': 699.99, 'category': 'home-kitchen', 'image_url': 'https://images.unsplash.com/photo-1522771739844-6a9f6d5f14af?q=80&w=800&auto=format&fit=crop'},
         
         # Sports & Outdoors
-        {'name': 'Bicycle', 'description': 'Mountain bike for trails', 'price': 3999.99, 'category': 'sports-outdoors'},
-        {'name': 'Yoga Mat', 'description': 'Non-slip exercise yoga mat', 'price': 299.99, 'category': 'sports-outdoors'},
-        {'name': 'Dumbbells Set', 'description': 'Adjustable dumbbells set', 'price': 1799.99, 'category': 'sports-outdoors'},
-        {'name': 'Tennis Racket', 'description': 'Professional tennis racket', 'price': 1299.99, 'category': 'sports-outdoors'},
-        {'name': 'Camping Tent', 'description': '4-person camping tent', 'price': 2499.99, 'category': 'sports-outdoors'},
+        {'name': 'Bicycle', 'description': 'Mountain bike for trails', 'price': 3999.99, 'category': 'sports-outdoors', 'image_url': 'https://images.unsplash.com/photo-1485965120184-e220f721d03e?q=80&w=800&auto=format&fit=crop'},
+        {'name': 'Yoga Mat', 'description': 'Non-slip exercise yoga mat', 'price': 299.99, 'category': 'sports-outdoors', 'image_url': 'https://images.unsplash.com/photo-1592432678016-e910b452f9a2?q=80&w=800&auto=format&fit=crop'},
+        {'name': 'Dumbbells Set', 'description': 'Adjustable dumbbells set', 'price': 1799.99, 'category': 'sports-outdoors', 'image_url': 'https://images.unsplash.com/photo-1586401100295-7a8096fd231a?q=80&w=800&auto=format&fit=crop'},
+        {'name': 'Tennis Racket', 'description': 'Professional tennis racket', 'price': 1299.99, 'category': 'sports-outdoors', 'image_url': 'https://images.unsplash.com/photo-1595435064212-362bd3d466bc?q=80&w=800&auto=format&fit=crop'},
+        {'name': 'Camping Tent', 'description': '4-person camping tent', 'price': 2499.99, 'category': 'sports-outdoors', 'image_url': 'https://images.unsplash.com/photo-1504280390367-361c6d9f38f4?q=80&w=800&auto=format&fit=crop'},
         
         # Books & Media
-        {'name': 'Novel', 'description': 'Bestselling fiction novel', 'price': 149.99, 'category': 'books-media'},
-        {'name': 'Cookbook', 'description': 'Gourmet recipes cookbook', 'price': 249.99, 'category': 'books-media'},
-        {'name': 'DVD Collection', 'description': 'Classic movie DVD collection', 'price': 399.99, 'category': 'books-media'},
-        {'name': 'Music Album', 'description': 'Latest music album CD', 'price': 179.99, 'category': 'books-media'},
-        {'name': 'Educational Book', 'description': 'Learning and development book', 'price': 299.99, 'category': 'books-media'},
+        {'name': 'Novel', 'description': 'Bestselling fiction novel', 'price': 149.99, 'category': 'books-media', 'image_url': 'https://images.unsplash.com/photo-1544947950-fa07a98d237f?q=80&w=800&auto=format&fit=crop'},
+        {'name': 'Cookbook', 'description': 'Gourmet recipes cookbook', 'price': 249.99, 'category': 'books-media', 'image_url': 'https://images.unsplash.com/photo-1589998059171-988d887df646?q=80&w=800&auto=format&fit=crop'},
+        {'name': 'DVD Collection', 'description': 'Classic movie DVD collection', 'price': 399.99, 'category': 'books-media', 'image_url': 'https://images.unsplash.com/photo-1594909122845-11baa439b7bf?q=80&w=800&auto=format&fit=crop'},
+        {'name': 'Music Album', 'description': 'Latest music album CD', 'price': 179.99, 'category': 'books-media', 'image_url': 'https://images.unsplash.com/photo-1614613535308-eb5fbd3d2c17?q=80&w=800&auto=format&fit=crop'},
+        {'name': 'Educational Book', 'description': 'Learning and development book', 'price': 299.99, 'category': 'books-media', 'image_url': 'https://images.unsplash.com/photo-1497633762265-9d179a990aa6?q=80&w=800&auto=format&fit=crop'},
     ]
     
     # Clear existing products if requested
@@ -689,7 +764,7 @@ def seed_products(clear, count):
             price=product_data['price'],
             category_id=product_data['category'],
             in_stock=True,
-            image_url=None
+            image_url=product_data.get('image_url')
         )
         
         db.session.add(product)
@@ -1060,3 +1135,336 @@ def seed_agents(clear):
     db.session.commit()
     click.echo(f'Agents: {created} created, {skipped} skipped.')
 
+
+@cli.command('seed-banners')
+@click.option('--clear', is_flag=True, help='Clear existing banners before seeding (optional)')
+@with_appcontext
+def seed_banners(clear):
+    """Populate the home page carousel with default hero banners."""
+    from backend.models.carousel import CarouselItem
+    import os
+    import shutil
+    from flask import current_app
+    
+    if clear:
+        deleted = CarouselItem.query.delete()
+        db.session.commit()
+        click.echo(f'Removed {deleted} existing banner(s).')
+        
+    created = 0
+    skipped = 0
+    
+    # We will copy the frontend assets to the backend uploads directory
+    uploads_dir = current_app.config.get('UPLOAD_FOLDER', 'uploads')
+    os.makedirs(uploads_dir, exist_ok=True)
+    
+    # Source images from frontend (since the container copies the whole repo to /app)
+    # The default images are in /app/frontend/src/assets/
+    frontend_assets_dir = os.path.join(current_app.root_path, 'frontend', 'src', 'assets')
+    
+    default_banners = [
+        {
+            'order': 1,
+            'badge': 'Transport',
+            'title': 'Reliable Rides,\nAnytime, Anywhere',
+            'subtitle': 'Book verified drivers across South Africa. Safe, affordable, and at your fingertips.',
+            'cta_text': 'Book a Ride',
+            'cta_link': '/transport',
+            'cta_color': 'bg-gradient-purple shadow-glow-purple',
+            'image_file': 'hero-transport.jpg'
+        },
+        {
+            'order': 2,
+            'badge': 'Professionals',
+            'title': 'Expert Help,\nOne Click Away',
+            'subtitle': 'Hire accredited lawyers, doctors, accountants, engineers and more — all verified.',
+            'cta_text': 'Find an Expert',
+            'cta_link': '/professionals',
+            'cta_color': 'bg-sa-blue shadow-lg',
+            'image_file': 'hero-professionals.jpg'
+        },
+        {
+            'order': 3,
+            'badge': 'Services',
+            'title': 'Home & Garden\nServices on Demand',
+            'subtitle': 'From cleaning to events, DSTV to repairs — trusted service providers at your door.',
+            'cta_text': 'Get a Service',
+            'cta_link': '/services',
+            'cta_color': 'bg-gradient-gold shadow-glow-gold',
+            'image_file': 'hero-services.jpg'
+        },
+        {
+            'order': 4,
+            'badge': 'Shop',
+            'title': 'Buy & Sell\nLocally with Ease',
+            'subtitle': 'Discover products from local sellers. A marketplace built for Mzansi.',
+            'cta_text': 'Start Shopping',
+            'cta_link': '/shop',
+            'cta_color': 'bg-sa-red shadow-lg',
+            'image_file': 'hero-shop.jpg'
+        }
+    ]
+    
+    for banner in default_banners:
+        if CarouselItem.query.filter_by(badge=banner['badge']).first():
+            click.echo(f"  Skip {banner['badge']} banner: already exists")
+            skipped += 1
+            continue
+            
+        # Try to copy the image
+        src_path = os.path.join(frontend_assets_dir, banner['image_file'])
+        dest_filename = f"carousel_seed_{banner['image_file']}"
+        dest_path = os.path.join(uploads_dir, dest_filename)
+        
+        image_url = None
+        try:
+            if os.path.exists(src_path):
+                shutil.copy2(src_path, dest_path)
+                image_url = f"/uploads/{dest_filename}"
+                click.echo(f"  Copied {banner['image_file']} to uploads.")
+            else:
+                click.echo(f"  Warning: Source image {src_path} not found.")
+        except Exception as e:
+            click.echo(f"  Warning: Could not copy image {banner['image_file']}: {e}")
+            
+        item = CarouselItem(
+            image_url=image_url,
+            cta_link=banner['cta_link'],
+            cta_text=banner['cta_text'],
+            title=banner['title'],
+            subtitle=banner['subtitle'],
+            badge=banner['badge'],
+            cta_color=banner['cta_color'],
+            order=banner['order'],
+            is_active=True
+        )
+        db.session.add(item)
+        created += 1
+        click.echo(f"  Added {banner['badge']} banner.")
+        
+    db.session.commit()
+    click.echo(f'Banners: {created} created, {skipped} skipped.')
+
+
+@cli.command('seed-landing-content')
+@click.option('--clear', is_flag=True, help='Clear existing data before seeding')
+@with_appcontext
+def seed_landing_content(clear):
+    """Seed default landing page testimonials and Why Choose Us features."""
+    from backend.models.testimonial import Testimonial
+    from backend.models.landing_feature import LandingFeature
+
+    if clear:
+        d1 = Testimonial.query.delete()
+        d2 = LandingFeature.query.delete()
+        db.session.commit()
+        click.echo(f'Cleared {d1} testimonials and {d2} features.')
+
+    # ── Landing Features (Why Choose Us) ─────────────────────────────────────
+    features_data = [
+        {'icon': 'ShieldCheck', 'title': 'Fully Verified', 'description': 'Every provider is vetted through SARS, Home Affairs, CIPC, and SAPS databases.', 'order': 1},
+        {'icon': 'Clock', 'title': 'Instant Booking', 'description': 'Book any service in seconds. No long calls, no waiting — just tap and go.', 'order': 2},
+        {'icon': 'BadgeCheck', 'title': 'Accredited Experts', 'description': 'Professional bodies validate credentials so you don\'t have to do due diligence.', 'order': 3},
+        {'icon': 'Headphones', 'title': 'Dedicated Support', 'description': 'Our Mzansi-based support team is available to help — any time, any issue.', 'order': 4},
+    ]
+    feat_created = 0
+    for fdata in features_data:
+        if LandingFeature.query.filter_by(title=fdata['title']).first():
+            click.echo(f"  Skip feature: {fdata['title']}")
+            continue
+        db.session.add(LandingFeature(**fdata, is_active=True))
+        feat_created += 1
+        click.echo(f"  Added feature: {fdata['title']}")
+    db.session.commit()
+
+    # ── Testimonials ──────────────────────────────────────────────────────────
+    testimonials_data = [
+        {'name': 'Sipho Dlamini', 'role': 'Homeowner, Johannesburg', 'rating': 5, 'text': 'I booked a plumber through MzansiServe and he arrived within the hour. Verified, professional, and affordable. Highly recommend!', 'order': 1},
+        {'name': 'Zanele Mokoena', 'role': 'Business Owner, Cape Town', 'rating': 5, 'text': 'The drivers on this platform are punctual and courteous. I use MzansiServe for all my business transport needs now.', 'order': 2},
+        {'name': 'Thabo Sithole', 'role': 'Software Engineer, Durban', 'rating': 5, 'text': 'Found an amazing accountant for my small business through the platform. The verification process gives me peace of mind.', 'order': 3},
+        {'name': 'Lerato Khumalo', 'role': 'Event Planner, Pretoria', 'rating': 5, 'text': 'I hired a caterer and DJ through MzansiServe for my client\'s event. Both were exceptional. This platform is a game-changer for SA events!', 'order': 4},
+    ]
+    test_created = 0
+    for tdata in testimonials_data:
+        if Testimonial.query.filter_by(name=tdata['name']).first():
+            click.echo(f"  Skip testimonial: {tdata['name']}")
+            continue
+        db.session.add(Testimonial(**tdata, is_active=True))
+        test_created += 1
+        click.echo(f"  Added testimonial: {tdata['name']}")
+    db.session.commit()
+
+    click.echo(f'Done! Features: {feat_created} created. Testimonials: {test_created} created.')
+
+
+@cli.command('seed-settings')
+@click.option('--clear', is_flag=True, help='Clear existing settings before seeding')
+@with_appcontext
+def seed_settings(clear):
+    """Seed default application settings."""
+    from backend.models.setting import AppSetting
+    
+    if clear:
+        deleted = AppSetting.query.delete()
+        db.session.commit()
+        click.echo(f'Removed {deleted} existing setting(s).')
+    
+    settings_data = [
+        {'key': 'callout_fee_amount', 'value': 150.0},
+        {'key': 'professional_callout_fee_amount', 'value': 250.0},
+        {'key': 'provider_callout_fee_amount', 'value': 150.0},
+        {'key': 'driver_admin_fee_rate', 'value': 0.10},
+        {'key': 'agent_commission_default', 'value': 20.0},
+        {'key': 'agent_commission_driver', 'value': 25.0},
+        {'key': 'agent_commission_professional', 'value': 30.0},
+        {'key': 'agent_commission_service-provider', 'value': 25.0},
+        {'key': 'agent_commission_client', 'value': 10.0},
+    ]
+    
+    created = 0
+    skipped = 0
+    
+    for s_data in settings_data:
+        existing = AppSetting.query.get(s_data['key'])
+        if existing:
+            click.echo(f"  Skip setting: {s_data['key']} (already exists)")
+            skipped += 1
+            continue
+            
+        setting = AppSetting(key=s_data['key'], value=s_data['value'])
+        db.session.add(setting)
+        created += 1
+        click.echo(f"  Added setting: {s_data['key']}")
+    
+    db.session.commit()
+    click.echo(f'Settings: {created} created, {skipped} skipped.')
+
+
+@cli.command('seed-demo-data')
+@with_appcontext
+def seed_demo_data():
+    """Seed the database with varied demo data for service providers and professionals."""
+    # ── Professionals ──
+    profs_data = [
+        {
+            'email': 'prof_lawyer@mzansiserve.co.za',
+            'full_name': 'Advocate Sipho Mdluli',
+            'profession': 'Legal Consultant',
+            'services': [
+                {'name': 'Legal Advice', 'description': 'Contract law and civil litigation advice.', 'hourly_rate': 1200.0},
+                {'name': 'Document Drafting', 'description': 'Drafting of wills, contracts, and legal letters.', 'hourly_rate': 850.0}
+            ],
+            'qualification': 'LLB, LLM (Wits)',
+            'body': 'Legal Practice Council (LPC)'
+        },
+        {
+            'email': 'prof_accountant@mzansiserve.co.za',
+            'full_name': 'Zanele Khumalo CA(SA)',
+            'profession': 'Chartered Accountant',
+            'services': [
+                {'name': 'Tax Consultation', 'description': 'SARS personal and business tax filing.', 'hourly_rate': 950.0},
+                {'name': 'Bookkeeping', 'description': 'Monthly management accounts and VAT returns.', 'hourly_rate': 650.0}
+            ],
+            'qualification': 'BAcc, CTA (UJ)',
+            'body': 'SAICA'
+        },
+        {
+            'email': 'prof_doctor@mzansiserve.co.za',
+            'full_name': 'Dr. Thabo Sithole',
+            'profession': 'General Practitioner',
+            'services': [
+                {'name': 'Virtual Consultation', 'description': '15-minute medical consultation via video call.', 'hourly_rate': 550.0},
+                {'name': 'Medical Report', 'description': 'Drafting of medical certificates and reports.', 'hourly_rate': 400.0}
+            ],
+            'qualification': 'MBChB (UCT)',
+            'body': 'HPCSA'
+        }
+    ]
+
+    # ── Service Providers ──
+    providers_data = [
+        {
+            'email': 'prov_cleaning@mzansiserve.co.za',
+            'full_name': 'Sarah Moremi',
+            'business': 'Sparkle Home Services',
+            'services': [
+                {'name': 'Standard Cleaning', 'description': 'Full house cleaning including dusting and mopping.', 'hourly_rate': 180.0},
+                {'name': 'Deep Cleaning', 'description': 'Intensive cleaning including carpets and windows.', 'hourly_rate': 350.0}
+            ]
+        },
+        {
+            'email': 'prov_plumbing@mzansiserve.co.za',
+            'full_name': 'Johannes van der Merwe',
+            'business': 'Jozi Plumbing Pros',
+            'services': [
+                {'name': 'Emergency Repairs', 'description': 'Fixing burst pipes and major leaks.', 'hourly_rate': 450.0},
+                {'name': 'Geyser Service', 'description': 'Annual maintenance and anode replacement.', 'hourly_rate': 600.0}
+            ]
+        },
+        {
+            'email': 'prov_electrical@mzansiserve.co.za',
+            'full_name': 'Lerato Nkosi',
+            'business': 'Nkosi Electrical Solutions',
+            'services': [
+                {'name': 'DB Board Audit', 'description': 'Checking and certifying electrical distribution boards.', 'hourly_rate': 750.0},
+                {'name': 'General Wiring', 'description': 'Installation of lights, plugs and switches.', 'hourly_rate': 300.0}
+            ]
+        }
+    ]
+
+    click.echo("Seeding demo professionals...")
+    for p in profs_data:
+        if User.query.filter_by(email=p['email']).first():
+            click.echo(f"  Skipped: {p['email']} (already exists)")
+            continue
+        
+        user = User(
+            email=p['email'],
+            role='professional',
+            is_approved=True,
+            is_active=True,
+            is_paid=True,
+            email_verified=True,
+            tracking_number=generate_tracking_number(),
+            data={
+                'full_name': p['full_name'],
+                'profession': p['profession'],
+                'professional_services': p['services'],
+                'highest_qualification': p['qualification'],
+                'professional_body': p['body']
+            }
+        )
+        user.set_password('password123')
+        db.session.add(user)
+        db.session.flush()
+        WalletService.get_or_create_wallet(user.id)
+        click.echo(f"  Created professional: {p['full_name']} ({p['profession']})")
+
+    click.echo("\nSeeding demo service providers...")
+    for p in providers_data:
+        if User.query.filter_by(email=p['email']).first():
+            click.echo(f"  Skipped: {p['email']} (already exists)")
+            continue
+        
+        user = User(
+            email=p['email'],
+            role='service-provider',
+            is_approved=True,
+            is_active=True,
+            is_paid=True,
+            email_verified=True,
+            tracking_number=generate_tracking_number(),
+            data={
+                'full_name': p['full_name'],
+                'business_name': p['business'],
+                'provider_services': p['services']
+            }
+        )
+        user.set_password('password123')
+        db.session.add(user)
+        db.session.flush()
+        WalletService.get_or_create_wallet(user.id)
+        click.echo(f"  Created service provider: {p['business']} ({p['full_name']})")
+
+    db.session.commit()
+    click.echo("\nDemo data seeding complete.")

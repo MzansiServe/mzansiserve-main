@@ -1,0 +1,182 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    /* Airbnb style - clean white background */
+    --background: 0 0% 100%;
+    --foreground: 0 0% 13%;
+    /* #222222 */
+
+    --card: 0 0% 100%;
+    --card-foreground: 0 0% 13%;
+
+    --popover: 0 0% 100%;
+    --popover-foreground: 0 0% 13%;
+
+    /* Mzansi Purple, but kept clean */
+    --primary: 260 54% 45%;
+    --primary-foreground: 0 0% 100%;
+
+    /* Light neutral Airbnb grays */
+    --secondary: 0 0% 96%;
+    /* #F7F7F7 */
+    --secondary-foreground: 0 0% 13%;
+
+    --muted: 0 0% 96%;
+    --muted-foreground: 0 0% 45%;
+    /* #717171 */
+
+    /* Accent */
+    --accent: 0 0% 96%;
+    --accent-foreground: 260 54% 45%;
+
+    --destructive: 0 84% 60%;
+    --destructive-foreground: 0 0% 100%;
+
+    --border: 0 0% 87%;
+    /* #DDDDDD */
+    --input: 0 0% 87%;
+    --ring: 260 54% 45%;
+
+    --radius: 12px;
+
+    /* SA Flag extended palette */
+    --sa-blue: 228 100% 29%;
+    --sa-red: 4 74% 54%;
+    --sa-green: 157 100% 24%;
+    --sa-purple: 260 54% 45%;
+    --sa-gold: 42 100% 54%;
+    --sa-black: 220 20% 8%;
+    --sa-white: 0 0% 99%;
+
+    /* Glassmorphism - refined */
+    --glass-bg: 0 0% 100% / 0.8;
+    --glass-border: 0 0% 87% / 0.5;
+    --glass-blur: 12px;
+
+    /* Shadows - Airbnb soft elevation */
+    --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.08);
+    --shadow-md: 0 6px 16px rgba(0, 0, 0, 0.12);
+    --shadow-lg: 0 12px 24px rgba(0, 0, 0, 0.15);
+    --shadow-xl: 0 24px 48px rgba(0, 0, 0, 0.2);
+    --shadow-glow-purple: 0 8px 24px -4px hsla(260, 54%, 45%, 0.25);
+    --shadow-glow-gold: 0 8px 24px -4px hsla(42, 100%, 54%, 0.2);
+
+    --sidebar-background: 0 0% 100%;
+    --sidebar-foreground: 0 0% 13%;
+    --sidebar-primary: 260 54% 45%;
+    --sidebar-primary-foreground: 0 0% 100%;
+    --sidebar-accent: 0 0% 96%;
+    --sidebar-accent-foreground: 260 54% 45%;
+    --sidebar-border: 0 0% 87%;
+    --sidebar-ring: 260 54% 45%;
+  }
+
+  .dark {
+    --background: 220 20% 6%;
+    --foreground: 0 0% 96%;
+    --card: 220 20% 8%;
+    --card-foreground: 0 0% 96%;
+    --popover: 220 20% 8%;
+    --popover-foreground: 0 0% 96%;
+    --primary: 260 54% 55%;
+    --primary-foreground: 0 0% 100%;
+    --secondary: 220 16% 14%;
+    --secondary-foreground: 0 0% 96%;
+    --muted: 220 16% 14%;
+    --muted-foreground: 220 10% 60%;
+    --accent: 260 54% 20%;
+    --accent-foreground: 260 54% 80%;
+    --destructive: 4 74% 42%;
+    --destructive-foreground: 0 0% 100%;
+    --border: 220 16% 18%;
+    --input: 220 16% 18%;
+    --ring: 260 54% 55%;
+    --sidebar-background: 240 5.9% 10%;
+    --sidebar-foreground: 240 4.8% 95.9%;
+    --sidebar-primary: 224.3 76.3% 48%;
+    --sidebar-primary-foreground: 0 0% 100%;
+    --sidebar-accent: 240 3.7% 15.9%;
+    --sidebar-accent-foreground: 240 4.8% 95.9%;
+    --sidebar-border: 240 3.7% 15.9%;
+    --sidebar-ring: 217.2 91.2% 59.8%;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+
+  body {
+    @apply bg-background text-foreground font-sans antialiased;
+    font-weight: 400;
+    letter-spacing: -0.01em;
+  }
+
+  /* Poppins weight ladder:
+     300 = light   (prose / captions)
+     400 = normal  (body copy)  ← default
+     500 = medium  (labels, nav, subheadings)
+     600 = semibold (headings)
+     700 = bold    (emphasis only)
+  */
+  h1,
+  h2,
+  h3,
+  h4,
+  h5,
+  h6 {
+    @apply font-sans tracking-tight;
+    font-weight: 600;
+    /* Poppins semibold — avoids heavy "bold" look */
+    letter-spacing: -0.02em;
+  }
+}
+
+@layer utilities {
+
+  /* ── Poppins weight override ───────────────────────────────────────────
+     Remap Tailwind's font-bold (700) to Poppins semibold (600) globally.
+     Use font-extrabold if you genuinely need 700.
+  ─────────────────────────────────────────────────────────────────────── */
+  .font-bold {
+    font-weight: 600 !important;
+  }
+
+  .glass {
+    background: hsl(var(--glass-bg));
+    backdrop-filter: blur(var(--glass-blur));
+    -webkit-backdrop-filter: blur(var(--glass-blur));
+    border: 1px solid hsl(var(--glass-border));
+  }
+
+  .shadow-glow-purple {
+    box-shadow: var(--shadow-glow-purple);
+  }
+
+  .shadow-glow-gold {
+    box-shadow: var(--shadow-glow-gold);
+  }
+
+  .text-gradient-sa {
+    background: linear-gradient(135deg, hsl(var(--sa-purple)), hsl(var(--sa-blue)));
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+
+  .bg-gradient-hero {
+    background: linear-gradient(135deg, hsl(var(--sa-black)) 0%, hsl(var(--sa-blue)) 100%);
+  }
+
+  .bg-gradient-purple {
+    background: linear-gradient(135deg, hsl(260 54% 45%), hsl(260 60% 55%));
+  }
+
+  .bg-gradient-gold {
+    background: linear-gradient(135deg, hsl(42 100% 54%), hsl(38 100% 48%));
+  }
+}

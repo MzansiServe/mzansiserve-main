@@ -15,6 +15,10 @@ class Agent(db.Model):
     surname = db.Column(db.Text, nullable=False)
     id_number = db.Column(db.Text, nullable=True)
     agent_id = db.Column(db.Text, unique=True, nullable=False, index=True)  # display code e.g. AGT001
+    phone = db.Column(db.Text, nullable=True)
+    municipality = db.Column(db.Text, nullable=True)
+    ward = db.Column(db.Text, nullable=True)
+    created_at = db.Column(db.DateTime(timezone=True), default=db.func.now())
 
     def to_dict(self):
         return {
@@ -23,4 +27,8 @@ class Agent(db.Model):
             'surname': self.surname,
             'id_number': self.id_number,
             'agent_id': self.agent_id,
+            'phone': self.phone,
+            'municipality': self.municipality,
+            'ward': self.ward,
+            'created_at': self.created_at.isoformat() if self.created_at else None,
         }

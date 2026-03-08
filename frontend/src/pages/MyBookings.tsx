@@ -1,0 +1,667 @@
+import { useState, useEffect } from "react";
+import { motion, AnimatePresence } from "framer-motion";
+import {
+  Calendar, MapPin, MessageSquare, Star,
+  ChevronRight, Loader2, Package,
+  History, ShieldAlert, X, CreditCard,
+  Car, ShoppingBag, Wrench, CheckCircle2,
+  XCircle, Clock, ArrowRight
+} from "lucide-react";
+import Navbar from "@/components/Navbar";
+import Footer from "@/components/Footer";
+import { Button } from "@/components/ui/button";
+import { useAuth } from "@/contexts/AuthContext";
+import { apiFetch, getImageUrl } from "@/lib/api";
+import { useToast } from "@/hooks/use-toast";
+import { ChatOverlay } from "@/components/ChatOverlay";
+import { RatingModal } from "@/components/dashboards/RatingModal";
+import { ProviderReviewModal } from "@/components/dashboards/ProviderReviewModal";
+import { BookingDetailsModal } from "@/components/dashboards/BookingDetailsModal";
+import { cn } from "@/lib/utils";
+
+type Tab = 'services' | 'rides' | 'orders';
+
+const MyBookings = () => {
+  const { user, isAuthenticated } = useAuth();
+  const { toast } = useToast();
+  const [activeTab, setActiveTab] = useState<Tab>('services');
+  const [requests, setRequests] = useState<any[]>([]);
+  const [orders, setOrders] = useState<any[]>([]);
+  const [searchTerm, setSearchTerm] = useState("");
+  const [loading, setLoading] = useState(true);
+  const [chatJob, setChatJob] = useState<{ id: string, name: string } | null>(null);
+  const [ratingJob, setRatingJob] = useState<{ id: string, name: string } | null>(null);
+  const [reportingJob, setReportingJob] = useState<{ id: string, name: string } | null>(null);
+  const [reviewJob, setReviewJob] = useState<{ id: string, name: string, type: 'professional' | 'provider' | 'cab' } | null>(null);
+  const [detailsJob, setDetailsJob] = useState<{ data: any, type: 'service' | 'ride' | 'order' } | null>(null);
+  const [isPaying, setIsPaying] = useState<string | null>(null);
+
+  const fetchAll = async () => {
+    setLoading(true);
+    try {
+      const [reqRes, ordRes] = await Promise.all([
+        apiFetch('/api/requests'),
+        apiFetch('/api/shop/orders'),
+      ]);
+      if (reqRes.success) setRequests(reqRes.data.requests || []);
+      if (ordRes.success) setOrders(ordRes.data.orders || []);
+    } catch (err) {
+      console.error("Failed to fetch history:", err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleAcceptQuote = async (requestId: string) => {
+    setIsPaying(requestId);
+    try {
+      const res = await apiFetch(`/api/requests/${requestId}/pay-quote`, { method: 'POST' });
+      if (res.success && res.data?.redirect_url) window.location.href = res.data.redirect_url;
+    } catch (err: any) {
+      toast({ title: "Payment Error", description: err.message || "Failed to initiate payment", variant: "destructive" });
+    } finally {
+      setIsPaying(null);
+    }
+  };
+
+  useEffect(() => {
+    if (isAuthenticated) fetchAll();
+  }, [isAuthenticated]);
+
+  // ── Split requests and apply search ──────────────────────────────────────
+  const lowerSearch = searchTerm.toLowerCase();
+
+  const filteredRequests = requests.filter(r => {
+    if (!searchTerm) return true;
+    const name = getProviderName(r).toLowerCase();
+    const serviceName = (r.details?.service_name || "").toLowerCase();
+    if (r.id.toLowerCase().includes(lowerSearch)) return true;
+    if (name.includes(lowerSearch)) return true;
+    if (serviceName.includes(lowerSearch)) return true;
+    if (r.status.toLowerCase().includes(lowerSearch)) return true;
+    return false;
+  });
+
+  const filteredOrders = orders.filter(o => {
+    if (!searchTerm) return true;
+    if (o.id.toLowerCase().includes(lowerSearch)) return true;
+    if (o.status.toLowerCase().includes(lowerSearch)) return true;
+    if (o.items?.some((i: any) => i.product_name && i.product_name.toLowerCase().includes(lowerSearch))) return true;
+    return false;
+  });
+
+  const serviceRequests = filteredRequests.filter(r => r.request_type !== 'cab');
+  const cabRides = filteredRequests.filter(r => r.request_type === 'cab');
+
+  const getStatusColor = (status: string) => {
+    switch (status?.toLowerCase()) {
+      case 'pending': return "bg-blue-50 text-blue-500 border-blue-100";
+      case 'accepted': return "bg-emerald-50 text-emerald-600 border-emerald-100";
+      case 'completed': case 'paid': case 'delivered': return "bg-slate-50 text-slate-500 border-slate-100";
+      case 'cancelled': case 'failed': return "bg-rose-50 text-rose-500 border-rose-100";
+      default: return "bg-amber-50 text-amber-600 border-amber-100";
+    }
+  };
+
+  const getProviderName = (req: any) => {
+    if (req.request_type === 'cab') return req.driver_name || "Assigned Driver";
+    return req.details?.provider_name || req.details?.professional_name || "Service Provider";
+  };
+
+  const safeLocation = (req: any) => {
+    const loc = req.location_data?.location || req.location_data?.pickup;
+    if (!loc) return "Address detailed in request";
+    if (typeof loc === "object") return loc.address || "Address detailed in request";
+    return loc;
+  };
+
+  const tabs: { key: Tab; label: string; icon: React.ReactNode; count: number }[] = [
+    { key: 'services', label: 'Services', icon: <Wrench className="h-4 w-4" />, count: serviceRequests.length },
+    { key: 'rides', label: 'Cab Rides', icon: <Car className="h-4 w-4" />, count: cabRides.length },
+    { key: 'orders', label: 'Shop Orders', icon: <ShoppingBag className="h-4 w-4" />, count: orders.length },
+  ];
+
+  if (loading) {
+    return (
+      <main className="min-h-screen bg-white flex flex-col items-center justify-center">
+        <Navbar />
+        <Loader2 className="h-10 w-10 animate-spin text-primary mb-6" />
+        <p className="font-bold text-slate-400">Loading your history...</p>
+      </main>
+    );
+  }
+
+  return (
+    <main className="min-h-screen bg-white flex flex-col">
+      <Navbar />
+
+      {/* ── Page header ── */}
+      <section className="pt-32 pb-12 bg-white relative overflow-hidden border-b border-slate-50">
+        <div className="absolute inset-0 bg-[url('data:image/svg+xml,%3Csvg width=\'6\' height=\'6\' viewBox=\'0 0 6 6\' xmlns=\'http://www.w3.org/2000/svg\'%3E%3Cg fill=\'%23EEF2FF\' fill-opacity=\'1\'%3E%3Cpath d=\'M5 0h1L0 6V5zM6 5v1H5z\'/%3E%3C/g%3E%3C/svg%3E')] opacity-70" />
+        <div className="container mx-auto px-6 max-w-5xl relative z-10">
+          <div className="flex flex-col md:flex-row md:items-end justify-between gap-6">
+            <div>
+              <span className="inline-block mb-4 text-[10px] font-bold uppercase tracking-[0.2em] text-primary">History</span>
+              <h1 className="text-4xl md:text-5xl font-bold text-[#222222] tracking-tight">My Bookings</h1>
+              <p className="text-xl text-slate-500 font-normal mt-3">Your services, rides and shop orders in one place</p>
+            </div>
+            <div className="flex flex-col sm:flex-row gap-4">
+              <div className="relative group w-full sm:w-80">
+                <div className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-primary transition-colors">
+                  <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="11" cy="11" r="8" /><path d="m21 21-4.3-4.3" /></svg>
+                </div>
+                <input
+                  type="text"
+                  className="w-full h-12 pl-12 pr-4 bg-white border border-slate-100 rounded-2xl focus:bg-slate-50 focus:border-primary/20 outline-none font-medium text-slate-700 transition-all shadow-sm"
+                  placeholder="Search bookings..."
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                />
+              </div>
+              <Button
+                variant="ghost"
+                onClick={fetchAll}
+                className="h-12 px-6 rounded-2xl bg-white border border-slate-100 shadow-sm font-bold text-slate-600 hover:bg-slate-50 shrink-0"
+              >
+                <History className="h-4 w-4 mr-2" /> Refresh
+              </Button>
+            </div>
+          </div>
+
+          {/* ── Tabs ── */}
+          <div className="flex gap-2 mt-10 flex-wrap">
+            {tabs.map(tab => (
+              <button
+                key={tab.key}
+                onClick={() => setActiveTab(tab.key)}
+                className={cn(
+                  "flex items-center gap-2 px-5 py-3 rounded-2xl font-bold text-sm transition-all",
+                  activeTab === tab.key
+                    ? "bg-primary text-white shadow-lg shadow-primary/20"
+                    : "bg-white border border-slate-100 text-slate-500 hover:border-primary/20 hover:text-primary"
+                )}
+              >
+                {tab.icon}
+                {tab.label}
+                <span className={cn(
+                  "ml-1 px-2 py-0.5 rounded-full text-[10px] font-black",
+                  activeTab === tab.key ? "bg-white/20 text-white" : "bg-slate-100 text-slate-500"
+                )}>
+                  {tab.count}
+                </span>
+              </button>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      <div className="flex-1 bg-white">
+        <div className="container mx-auto px-6 py-12 max-w-5xl">
+
+          {/* ══════════════ SERVICES TAB ══════════════ */}
+          {activeTab === 'services' && (
+            serviceRequests.length === 0 ? (
+              <EmptyState
+                icon={<Wrench className="h-12 w-12 text-slate-200" />}
+                title="No service bookings yet"
+                subtitle="Book a professional or service provider to get started."
+                actions={[
+                  { label: "Find Professionals", href: '/professionals' },
+                  { label: "Browse Services", href: '/services' },
+                ]}
+              />
+            ) : (
+              <div className="space-y-8">
+                {serviceRequests.map((req) => (
+                  <ServiceCard
+                    key={req.id}
+                    req={req}
+                    getStatusColor={getStatusColor}
+                    getProviderName={getProviderName}
+                    safeLocation={safeLocation}
+                    isPaying={isPaying}
+                    onChat={(r) => setChatJob({ id: r.id, name: getProviderName(r) })}
+                    onPay={handleAcceptQuote}
+                    onRate={(r) => setReviewJob({
+                      id: r.id,
+                      name: getProviderName(r),
+                      type: r.request_type === 'professional' ? 'professional' : 'provider'
+                    })}
+                    onReport={(r) => setReportingJob({ id: r.id, name: getProviderName(r) })}
+                    onView={(r: any) => setDetailsJob({ data: r, type: 'service' })}
+                  />
+                ))}
+              </div>
+            )
+          )}
+
+          {/* ══════════════ CAB RIDES TAB ══════════════ */}
+          {activeTab === 'rides' && (
+            cabRides.length === 0 ? (
+              <EmptyState
+                icon={<Car className="h-12 w-12 text-slate-200" />}
+                title="No cab rides yet"
+                subtitle="Book your first ride to see it here."
+                actions={[{ label: "Book a Ride", href: '/transport' }]}
+              />
+            ) : (
+              <div className="space-y-6">
+                {cabRides.map((req) => (
+                  <motion.div
+                    key={req.id}
+                    initial={{ opacity: 0, y: 20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    className="bg-white rounded-[2.5rem] border border-slate-50 shadow-sm hover:shadow-2xl hover:shadow-slate-200/60 transition-all duration-500 p-8 sm:p-10"
+                  >
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-6 mb-6">
+                      <div className="flex items-center gap-5">
+                        <div className="h-16 w-16 rounded-[1.5rem] bg-blue-50 text-blue-500 flex items-center justify-center shrink-0 shadow-inner">
+                          <Car className="h-8 w-8" />
+                        </div>
+                        <div>
+                          <div className="flex items-center gap-3 mb-1">
+                            <span className={cn("px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest border", getStatusColor(req.status))}>
+                              {req.status}
+                            </span>
+                            <span className="text-[10px] text-slate-400 font-bold uppercase tracking-[0.2em]">#{req.id.slice(-8)}</span>
+                          </div>
+                          <h3 className="text-2xl font-bold text-[#222222] tracking-tight">Cab Ride</h3>
+                          <p className="text-sm text-slate-500 mt-1">{new Date(req.scheduled_date).toLocaleDateString()} at {req.scheduled_time}</p>
+                        </div>
+                      </div>
+                      <div className="flex flex-wrap gap-3">
+                        {req.payment_status === 'paid' && !req.has_driver_rating && (
+                          <Button
+                            className="h-11 px-5 rounded-2xl bg-amber-500 hover:bg-amber-600 text-white font-bold shadow-md"
+                            onClick={() => setReviewJob({ id: req.id, name: getProviderName(req), type: 'cab' })}
+                          >
+                            <Star className="h-4 w-4 mr-2" /> Rate Driver
+                          </Button>
+                        )}
+                        <Button variant="ghost" className="h-11 px-5 rounded-2xl text-rose-500 bg-rose-50 hover:bg-rose-100 font-bold"
+                          onClick={() => setReportingJob({ id: req.id, name: getProviderName(req) })}>
+                          <ShieldAlert className="h-4 w-4 mr-2" /> Report
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          className="h-11 px-5 rounded-2xl text-primary bg-primary/5 hover:bg-primary/10 font-bold"
+                          onClick={() => setDetailsJob({ data: req, type: 'ride' })}
+                        >
+                          Details <ChevronRight className="h-4 w-4 ml-1" />
+                        </Button>
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-2 sm:grid-cols-3 gap-6 py-6 border-y border-slate-50">
+                      <div>
+                        <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">Driver</p>
+                        <p className="font-bold text-[#222222]">{req.driver_name || "Not assigned yet"}</p>
+                      </div>
+                      <div>
+                        <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">Amount</p>
+                        <p className="text-2xl font-black text-primary">
+                          R{(req.payment_amount || req.quote_amount || 0).toFixed(2)}
+                        </p>
+                      </div>
+                      <div>
+                        <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">Payment</p>
+                        <p className={cn("font-bold capitalize", req.payment_status === 'paid' ? 'text-emerald-600' : 'text-amber-500')}>
+                          {req.payment_status || 'Unpaid'}
+                        </p>
+                      </div>
+                    </div>
+
+                    <div className="mt-6 flex items-center gap-4 text-slate-400 text-sm">
+                      <div className="flex items-center gap-2">
+                        <MapPin className="h-4 w-4 shrink-0" />
+                        <span className="truncate">{safeLocation(req)}</span>
+                      </div>
+                      {req.location_data?.dropoff && (
+                        <>
+                          <ArrowRight className="h-4 w-4 shrink-0 text-slate-300" />
+                          <span className="truncate">
+                            {typeof req.location_data.dropoff === 'object'
+                              ? req.location_data.dropoff.address
+                              : req.location_data.dropoff}
+                          </span>
+                        </>
+                      )}
+                    </div>
+                  </motion.div>
+                ))}
+              </div>
+            )
+          )}
+
+          {/* ══════════════ SHOP ORDERS TAB ══════════════ */}
+          {activeTab === 'orders' && (
+            filteredOrders.length === 0 ? (
+              <EmptyState
+                icon={<ShoppingBag className="h-12 w-12 text-slate-200" />}
+                title={searchTerm ? "No orders found" : "No orders yet"}
+                subtitle={searchTerm ? "Try adjusting your search query." : "Head to the shop to browse products and place your first order."}
+                actions={searchTerm ? [] : [{ label: "Visit Shop", href: '/shop' }]}
+              />
+            ) : (
+              <div className="space-y-6">
+                {filteredOrders.map((order) => (
+                  <motion.div
+                    key={order.id}
+                    initial={{ opacity: 0, y: 20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    className="bg-white rounded-[2.5rem] border border-slate-50 shadow-sm hover:shadow-2xl hover:shadow-slate-200/60 transition-all duration-500 p-8 sm:p-10"
+                  >
+                    <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-6 mb-6">
+                      <div className="flex items-center gap-5">
+                        <div className="h-16 w-16 rounded-[1.5rem] bg-primary/5 text-primary flex items-center justify-center shrink-0 shadow-inner">
+                          <ShoppingBag className="h-8 w-8" />
+                        </div>
+                        <div>
+                          <div className="flex items-center gap-3 mb-1">
+                            <span className={cn("px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest border", getStatusColor(order.status))}>
+                              {order.status}
+                            </span>
+                            <span className="text-[10px] text-slate-400 font-bold uppercase tracking-[0.2em]">#{order.id.slice(-8)}</span>
+                          </div>
+                          <h3 className="text-2xl font-bold text-[#222222] tracking-tight">
+                            {order.items?.length || 0} Item{order.items?.length !== 1 ? 's' : ''}
+                          </h3>
+                          <p className="text-sm text-slate-500 mt-1">
+                            {order.placed_at ? new Date(order.placed_at).toLocaleDateString('en-ZA', { day: 'numeric', month: 'long', year: 'numeric' }) : ''}
+                          </p>
+                        </div>
+                      </div>
+                      <div className="text-right">
+                        <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">Total</p>
+                        <p className="text-3xl font-black text-primary">R{(order.total || 0).toFixed(2)}</p>
+                      </div>
+                    </div>
+
+                    {/* Order items */}
+                    {order.items && order.items.length > 0 && (
+                      <div className="py-6 border-y border-slate-50 space-y-3">
+                        {order.items.map((item: any, idx: number) => (
+                          <div key={idx} className="flex items-center justify-between">
+                            <div className="flex items-center gap-3">
+                              {item.image_url ? (
+                                <img
+                                  src={getImageUrl(item.image_url)}
+                                  alt={item.product_name}
+                                  className="h-11 w-11 rounded-xl object-cover bg-slate-50"
+                                />
+                              ) : (
+                                <div className="h-11 w-11 rounded-xl bg-slate-50 flex items-center justify-center">
+                                  <Package className="h-5 w-5 text-slate-300" />
+                                </div>
+                              )}
+                              <div>
+                                <p className="font-bold text-[#222222] text-sm">{item.product_name || 'Product'}</p>
+                                <p className="text-xs text-slate-400">Qty: {item.quantity}</p>
+                              </div>
+                            </div>
+                            {item.price && (
+                              <p className="font-bold text-[#222222] text-sm">R{(item.price * item.quantity).toFixed(2)}</p>
+                            )}
+                          </div>
+                        ))}
+                      </div>
+                    )}
+
+                    <div className="mt-6 flex items-center justify-between">
+                      <div className="flex items-center gap-2 text-sm text-slate-400">
+                        {order.status === 'paid' || order.status === 'delivered'
+                          ? <CheckCircle2 className="h-4 w-4 text-emerald-500" />
+                          : order.status === 'cancelled' ? <XCircle className="h-4 w-4 text-rose-500" />
+                            : <Clock className="h-4 w-4 text-amber-500" />}
+                        <span className="font-medium capitalize">{order.status}</span>
+                      </div>
+                      <Button
+                        variant="ghost"
+                        className="h-10 px-4 rounded-xl text-primary font-bold text-sm"
+                        onClick={() => setDetailsJob({ data: order, type: 'order' })}
+                      >
+                        View Details <ChevronRight className="h-4 w-4 ml-1" />
+                      </Button>
+                    </div>
+                  </motion.div>
+                ))}
+              </div>
+            )
+          )}
+        </div>
+      </div>
+
+      <Footer />
+
+      {/* ── Overlays & Modals ── */}
+      {chatJob && (
+        <ChatOverlay
+          requestId={chatJob.id}
+          recipientName={chatJob.name}
+          isOpen={!!chatJob}
+          onClose={() => setChatJob(null)}
+        />
+      )}
+
+      {ratingJob && (
+        <RatingModal
+          isOpen={!!ratingJob}
+          onClose={() => setRatingJob(null)}
+          jobId={ratingJob.id}
+          clientName={ratingJob.name}
+          onSuccess={fetchAll}
+        />
+      )}
+
+      {reviewJob && (
+        <ProviderReviewModal
+          isOpen={!!reviewJob}
+          onClose={() => setReviewJob(null)}
+          requestId={reviewJob.id}
+          requestType={reviewJob.type}
+          providerName={reviewJob.name}
+          onSuccess={fetchAll}
+        />
+      )}
+
+      {detailsJob && (
+        <BookingDetailsModal
+          isOpen={!!detailsJob}
+          onClose={() => setDetailsJob(null)}
+          data={detailsJob.data}
+          type={detailsJob.type}
+        />
+      )}
+
+      {/* Reporting modal */}
+      <AnimatePresence>
+        {reportingJob && (
+          <div className="fixed inset-0 z-[110] bg-slate-900/40 backdrop-blur-md flex items-center justify-center p-6">
+            <motion.div
+              initial={{ scale: 0.9, opacity: 0, y: 20 }}
+              animate={{ scale: 1, opacity: 1, y: 0 }}
+              exit={{ scale: 0.9, opacity: 0, y: 20 }}
+              className="bg-white rounded-[3rem] w-full max-w-lg overflow-hidden shadow-2xl"
+            >
+              <div className="p-10 sm:p-12">
+                <div className="flex items-center justify-between mb-10">
+                  <h3 className="text-3xl font-bold text-[#222222] tracking-tight">Report issue</h3>
+                  <button onClick={() => setReportingJob(null)} className="h-12 w-12 flex items-center justify-center bg-slate-50 hover:bg-slate-100 rounded-2xl transition-all">
+                    <X className="h-6 w-6 text-slate-400" />
+                  </button>
+                </div>
+                <div className="space-y-8">
+                  <div>
+                    <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-3">Reason for report</label>
+                    <div className="relative">
+                      <select id="reportReason" className="w-full h-16 rounded-2xl bg-slate-50 px-6 font-bold text-[#222222] outline-none appearance-none">
+                        <option value="no_show">Provider No-Show</option>
+                        <option value="unprofessional">Unprofessional Behavior</option>
+                        <option value="poor_service">Poor Service Quality</option>
+                        <option value="overcharged">Payment Issue / Overcharged</option>
+                        <option value="other">Other Issue</option>
+                      </select>
+                      <ChevronRight className="absolute right-6 top-1/2 -translate-y-1/2 h-5 w-5 text-slate-400 rotate-90 pointer-events-none" />
+                    </div>
+                  </div>
+                  <div>
+                    <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-3">What happened?</label>
+                    <textarea
+                      id="reportDesc"
+                      rows={5}
+                      className="w-full rounded-3xl bg-slate-50 p-6 font-medium text-[#222222] outline-none focus:ring-2 focus:ring-primary/20 resize-none leading-relaxed"
+                      placeholder="Please describe the issue in detail..."
+                    />
+                  </div>
+                  <Button
+                    className="w-full h-16 rounded-2xl bg-rose-500 hover:bg-rose-600 text-white font-bold text-xl shadow-lg shadow-rose-100"
+                    onClick={async () => {
+                      const reason = (document.getElementById('reportReason') as HTMLSelectElement).value;
+                      const desc = (document.getElementById('reportDesc') as HTMLTextAreaElement).value;
+                      if (!desc) { toast({ title: "Please provide a description", variant: "destructive" }); return; }
+                      try {
+                        const res = await apiFetch('/api/reports', { method: 'POST', data: { reason, description: desc, request_id: reportingJob.id } });
+                        if (res.success) {
+                          toast({ title: "Report Submitted", description: "Our team will investigate this issue." });
+                          setReportingJob(null);
+                        }
+                      } catch {
+                        toast({ title: "Error", description: "Failed to submit report", variant: "destructive" });
+                      }
+                    }}
+                  >
+                    Submit Report
+                  </Button>
+                </div>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+    </main>
+  );
+};
+
+// ── Sub-components ─────────────────────────────────────────────────────────────
+
+const EmptyState = ({ icon, title, subtitle, actions }: {
+  icon: React.ReactNode;
+  title: string;
+  subtitle: string;
+  actions: { label: string; href: string }[];
+}) => (
+  <div className="bg-white rounded-[3rem] border border-slate-50 p-16 text-center shadow-2xl shadow-slate-200/60">
+    <div className="w-24 h-24 bg-slate-50 rounded-[2rem] flex items-center justify-center mx-auto mb-8 shadow-inner">{icon}</div>
+    <h3 className="text-2xl font-bold text-[#222222]">{title}</h3>
+    <p className="text-slate-500 mt-4 text-lg max-w-sm mx-auto leading-relaxed font-normal">{subtitle}</p>
+    <div className="mt-10 flex flex-wrap justify-center gap-4">
+      {actions.map((a, i) => (
+        <Button
+          key={i}
+          className={cn("h-14 px-8 rounded-2xl font-bold", i === 0 ? "bg-primary text-white" : "bg-slate-50 text-[#222222]")}
+          onClick={() => window.location.href = a.href}
+        >
+          {a.label}
+        </Button>
+      ))}
+    </div>
+  </div>
+);
+
+const ServiceCard = ({
+  req, getStatusColor, getProviderName, safeLocation,
+  isPaying, onChat, onPay, onRate, onReport, onView
+}: any) => (
+  <motion.div
+    key={req.id}
+    initial={{ opacity: 0, y: 20 }}
+    animate={{ opacity: 1, y: 0 }}
+    className="group bg-white rounded-[2.5rem] border border-slate-50 shadow-sm hover:shadow-2xl hover:shadow-slate-200/60 transition-all duration-500 overflow-hidden"
+  >
+    <div className="p-8 sm:p-10">
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-8 mb-8">
+        <div className="flex items-center gap-5">
+          <div className="h-16 w-16 rounded-[1.5rem] bg-primary/5 text-primary flex items-center justify-center shrink-0 shadow-inner overflow-hidden border border-slate-100">
+            {req.provider_profile_image_url || req.service_image_url ? (
+              <img src={req.provider_profile_image_url || req.service_image_url} alt="Profile" className="w-full h-full object-cover" />
+            ) : (
+              <Wrench className="h-8 w-8" />
+            )}
+          </div>
+          <div>
+            <div className="flex items-center gap-3 mb-2">
+              <span className={cn("px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest border", getStatusColor(req.status))}>
+                {req.status}
+              </span>
+              <span className="text-[10px] text-slate-400 font-bold uppercase tracking-[0.2em]">#{req.id.slice(-8)}</span>
+            </div>
+            <h3 className="text-2xl font-bold text-[#222222] tracking-tight">
+              {req.details?.service_name || "Service Request"}
+            </h3>
+          </div>
+        </div>
+
+        <div className="flex flex-wrap gap-3">
+          {req.status === 'accepted' && (
+            <Button variant="ghost" className="h-12 px-6 rounded-2xl text-primary bg-primary/5 hover:bg-primary/10 font-bold"
+              onClick={() => onChat(req)}>
+              <MessageSquare className="h-4 w-4 mr-2" /> Chat
+            </Button>
+          )}
+          {req.status === 'pending' && req.quote_amount > 0 && (
+            <Button className="h-12 px-6 rounded-2xl bg-primary text-white font-bold shadow-lg shadow-primary/20"
+              onClick={() => onPay(req.id)} disabled={isPaying === req.id}>
+              {isPaying === req.id ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <CreditCard className="h-4 w-4 mr-2" />}
+              Accept & Pay Quote
+            </Button>
+          )}
+          {req.payment_status === 'paid' && !req.has_professional_rating && !req.has_provider_rating && (
+            <Button className="h-12 px-6 rounded-2xl bg-amber-500 hover:bg-amber-600 text-white font-bold shadow-lg shadow-amber-100"
+              onClick={() => onRate(req)}>
+              <Star className="h-4 w-4 mr-2" /> Rate Service
+            </Button>
+          )}
+          <Button variant="ghost" className="h-12 px-6 rounded-2xl text-rose-500 bg-rose-50 hover:bg-rose-100 font-bold"
+            onClick={() => onReport(req)}>
+            <ShieldAlert className="h-4 w-4 mr-2" /> Report
+          </Button>
+          <Button variant="ghost" className="h-12 px-6 rounded-2xl text-slate-500 bg-slate-50 hover:bg-slate-100 font-bold"
+            onClick={() => onView(req)}>
+            Details <ChevronRight className="h-4 w-4 ml-1" />
+          </Button>
+        </div>
+      </div>
+
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-10 py-8 border-y border-slate-50">
+        <div className="space-y-2">
+          <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Partner</p>
+          <p className="text-lg font-bold text-[#222222]">{getProviderName(req)}</p>
+        </div>
+        <div className="space-y-2">
+          <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Scheduled</p>
+          <p className="text-lg font-bold text-[#222222] flex items-center gap-2">
+            <Calendar className="h-4 w-4 text-slate-300" />
+            {new Date(req.scheduled_date).toLocaleDateString()} at {req.scheduled_time}
+          </p>
+        </div>
+        <div className="space-y-2">
+          <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">
+            {req.payment_status === 'paid' ? 'Amount Paid' : 'Quote Amount'}
+          </p>
+          <p className="text-3xl font-black text-primary">
+            R{(req.payment_status === 'paid' ? req.payment_amount : req.quote_amount)?.toFixed(2) || '0.00'}
+          </p>
+        </div>
+      </div>
+
+      <div className="mt-8 flex items-center gap-3 text-slate-400">
+        <div className="h-10 w-10 rounded-xl bg-slate-50 flex items-center justify-center shrink-0">
+          <MapPin className="h-5 w-5" />
+        </div>
+        <p className="text-base font-medium truncate">{safeLocation(req)}</p>
+      </div>
+    </div>
+  </motion.div>
+);
+
+export default MyBookings;

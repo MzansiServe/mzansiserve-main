@@ -1598,6 +1598,124 @@
                         </div>
                     </div>
                 </div>
+                <!-- Suspend User Modal -->
+                <div id="suspendUserModal"
+                    class="hidden fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-[110]">
+                    <div
+                        class="bg-white rounded-3xl shadow-2xl max-w-md w-full mx-4 overflow-hidden transform transition-all p-8">
+                        <div class="text-center">
+                            <div
+                                class="w-16 h-16 bg-orange-100 rounded-2xl flex items-center justify-center mx-auto mb-6 text-orange-600">
+                                <svg class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                        d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z">
+                                    </path>
+                                </svg>
+                            </div>
+                            <h3 class="text-xl font-bold text-gray-900 mb-2">Suspend User</h3>
+                            <p class="text-sm text-gray-500 mb-8">Are you sure you want to suspend <span
+                                    id="suspendUserEmailText" class="font-bold text-gray-900"></span>? They will lose
+                                access to all platform features immediately.</p>
+                            <input type="hidden" id="suspendUserId">
+                            <div class="flex gap-4">
+                                <button onclick="confirmSuspendUser()"
+                                    class="flex-1 bg-orange-600 hover:bg-orange-700 text-white h-12 rounded-xl font-bold transition-all shadow-md">Yes,
+                                    Suspend</button>
+                                <button onclick="closeSuspendUserModal()"
+                                    class="flex-1 border border-gray-200 text-gray-500 h-12 rounded-xl font-bold hover:bg-gray-50 transition-all">Cancel</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Delete User Modal -->
+                <div id="deleteUserModal"
+                    class="hidden fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-[110]">
+                    <div
+                        class="bg-white rounded-3xl shadow-2xl max-w-md w-full mx-4 overflow-hidden transform transition-all p-8">
+                        <div class="text-center">
+                            <div
+                                class="w-16 h-16 bg-red-100 rounded-2xl flex items-center justify-center mx-auto mb-6 text-red-600">
+                                <svg class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                        d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16">
+                                    </path>
+                                </svg>
+                            </div>
+                            <h3 class="text-xl font-bold text-gray-900 mb-2">Permanently Delete User</h3>
+                            <p class="text-sm text-gray-500 mb-8">This action <span
+                                    class="text-red-600 font-bold underline">cannot be undone</span>. All data
+                                associated with <span id="deleteUserEmailText" class="font-bold text-gray-900"></span>
+                                will be permanently erased.</p>
+                            <input type="hidden" id="deleteUserId">
+                            <div class="flex gap-4">
+                                <button onclick="confirmDeleteUser()"
+                                    class="flex-1 bg-red-600 hover:bg-red-700 text-white h-12 rounded-xl font-bold transition-all shadow-md">Yes,
+                                    Delete Forever</button>
+                                <button onclick="closeDeleteUserModal()"
+                                    class="flex-1 border border-gray-200 text-gray-500 h-12 rounded-xl font-bold hover:bg-gray-50 transition-all">Cancel</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Unsuspend User Modal -->
+                <div id="unsuspendUserModal"
+                    class="hidden fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-[110]">
+                    <div
+                        class="bg-white rounded-3xl shadow-2xl max-w-md w-full mx-4 overflow-hidden transform transition-all p-8">
+                        <div class="text-center">
+                            <div
+                                class="w-16 h-16 bg-green-100 rounded-2xl flex items-center justify-center mx-auto mb-6 text-green-600">
+                                <svg class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                        d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                                </svg>
+                            </div>
+                            <h3 class="text-xl font-bold text-gray-900 mb-2">Unsuspend User</h3>
+                            <p class="text-sm text-gray-500 mb-8">Are you sure you want to restore access for <span
+                                    id="unsuspendUserEmailText" class="font-bold text-gray-900"></span>? They will be
+                                able to log in and use the platform again.</p>
+                            <input type="hidden" id="unsuspendUserId">
+                            <div class="flex gap-4">
+                                <button onclick="confirmUnsuspendUser()"
+                                    class="flex-1 bg-green-600 hover:bg-green-700 text-white h-12 rounded-xl font-bold transition-all shadow-md">Yes,
+                                    Unsuspend</button>
+                                <button onclick="closeUnsuspendUserModal()"
+                                    class="flex-1 border border-gray-200 text-gray-500 h-12 rounded-xl font-bold hover:bg-gray-50 transition-all">Cancel</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Approve User Modal -->
+                <div id="approveUserModal"
+                    class="hidden fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-[110]">
+                    <div
+                        class="bg-white rounded-3xl shadow-2xl max-w-md w-full mx-4 overflow-hidden transform transition-all p-8">
+                        <div class="text-center">
+                            <div
+                                class="w-16 h-16 bg-blue-100 rounded-2xl flex items-center justify-center mx-auto mb-6 text-blue-600">
+                                <svg class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                        d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                                </svg>
+                            </div>
+                            <h3 class="text-xl font-bold text-gray-900 mb-2">Approve User</h3>
+                            <p class="text-sm text-gray-500 mb-8">Are you sure you want to approve <span
+                                    id="approveUserEmailText" class="font-bold text-gray-900"></span>? This will grant
+                                them access to verified platform services.</p>
+                            <input type="hidden" id="approveUserId">
+                            <div class="flex gap-4">
+                                <button onclick="confirmApproveUser()"
+                                    class="flex-1 bg-blue-600 hover:bg-blue-700 text-white h-12 rounded-xl font-bold transition-all shadow-md">Yes,
+                                    Approve</button>
+                                <button onclick="closeApproveUserModal()"
+                                    class="flex-1 border border-gray-200 text-gray-500 h-12 rounded-xl font-bold hover:bg-gray-50 transition-all">Cancel</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
 
                 <!-- Add/Edit Product Modal -->
                 <div id="productModal"
@@ -2009,9 +2127,13 @@
 </div>
 
 <script>
+    function getAdminToken() {
+        return localStorage.getItem('token') || localStorage.getItem('adminToken');
+    }
+
     // Check admin access
     async function checkAdminAccess() {
-        const token = localStorage.getItem('token');
+        const token = getAdminToken();
         if (!token) {
             showAccessDenied();
             return;
@@ -2076,7 +2198,7 @@
 
     // Load dashboard statistics
     async function loadStats() {
-        const token = localStorage.getItem('token');
+        const token = getAdminToken();
         if (!token) return;
 
         try {
@@ -2100,7 +2222,7 @@
 
     // Load users
     async function loadUsers(page = 0) {
-        const token = localStorage.getItem('token');
+        const token = getAdminToken();
         if (!token) return;
 
         try {
@@ -2125,6 +2247,7 @@
             const result = await response.json();
             if (result.success) {
                 usersTotal = result.data.total;
+                window.allUsers = result.data.users; // Global cache for modals
                 displayUsers(result.data.users);
                 updateUsersPagination(result.data.total, page);
             }
@@ -2177,6 +2300,7 @@
                     `<button onclick="openIdVerificationModal('${user.id}', '${user.email}', '${(user.file_urls[0] || '').replace(/'/g, "\\'")}')" class="text-blue-600 hover:text-blue-800">Verify ID</button>` : ''}
                     ${user.role === 'driver' ?
                     `<button onclick="openVehiclePhotosModal('${user.id}')" class="text-teal-600 hover:text-teal-800 ml-2">View car photos</button>` : ''}
+                    <button onclick="deleteUser('${user.id}')" class="text-red-600 hover:text-red-800 ml-2">Delete</button>
                 </td>
             </tr>
         `;
@@ -2214,7 +2338,7 @@
 
     // Load service requests
     async function loadRequests(page = 0) {
-        const token = localStorage.getItem('token');
+        const token = getAdminToken();
         if (!token) return;
 
         try {
@@ -2396,11 +2520,27 @@
     }
 
     // Approve user
+    // Approve user
     async function approveUser(userId) {
-        const token = localStorage.getItem('token');
-        if (!token) return;
+        const user = (window.allUsers || []).find(u => u.id == userId);
+        if (!user) {
+            console.error('User not found in local cache');
+            return;
+        }
 
-        if (!confirm('Are you sure you want to approve this user?')) return;
+        document.getElementById('approveUserId').value = userId;
+        document.getElementById('approveUserEmailText').textContent = user.email;
+        document.getElementById('approveUserModal').classList.remove('hidden');
+    }
+
+    function closeApproveUserModal() {
+        document.getElementById('approveUserModal').classList.add('hidden');
+    }
+
+    async function confirmApproveUser() {
+        const userId = document.getElementById('approveUserId').value;
+        const token = getAdminToken();
+        if (!token || !userId) return;
 
         try {
             const response = await fetch(`/api/admin/users/${userId}/approve`, {
@@ -2413,6 +2553,7 @@
             const result = await response.json();
             if (result.success) {
                 alert('User approved successfully');
+                closeApproveUserModal();
                 loadUsers(currentUsersPage);
             } else {
                 alert('Error: ' + (result.error?.message || 'Failed to approve user'));
@@ -2425,10 +2566,27 @@
 
     // Suspend user
     async function suspendUser(userId) {
-        const token = localStorage.getItem('token');
-        if (!token) return;
+        // allUsers is available in global scope if loaded by loadUsers
+        // We use result.data.users in loadUsers which we should store in allUsers
+        const user = (window.allUsers || []).find(u => u.id == userId);
+        if (!user) {
+            console.error('User not found in local cache');
+            return;
+        }
 
-        if (!confirm('Are you sure you want to suspend this user? They will not be able to access the platform.')) return;
+        document.getElementById('suspendUserId').value = userId;
+        document.getElementById('suspendUserEmailText').textContent = user.email;
+        document.getElementById('suspendUserModal').classList.remove('hidden');
+    }
+
+    function closeSuspendUserModal() {
+        document.getElementById('suspendUserModal').classList.add('hidden');
+    }
+
+    async function confirmSuspendUser() {
+        const userId = document.getElementById('suspendUserId').value;
+        const token = getAdminToken();
+        if (!token || !userId) return;
 
         try {
             const response = await fetch(`/api/admin/users/${userId}/suspend`, {
@@ -2441,6 +2599,7 @@
             const result = await response.json();
             if (result.success) {
                 alert('User suspended successfully');
+                closeSuspendUserModal();
                 loadUsers(currentUsersPage);
             } else {
                 alert('Error: ' + (result.error?.message || 'Failed to suspend user'));
@@ -2451,12 +2610,70 @@
         }
     }
 
-    // Unsuspend user
-    async function unsuspendUser(userId) {
-        const token = localStorage.getItem('token');
-        if (!token) return;
+    // Delete user
+    async function deleteUser(userId) {
+        const user = (window.allUsers || []).find(u => u.id == userId);
+        if (!user) {
+            console.error('User not found in local cache');
+            return;
+        }
 
-        if (!confirm('Are you sure you want to unsuspend this user? They will be able to access the platform again.')) return;
+        document.getElementById('deleteUserId').value = userId;
+        document.getElementById('deleteUserEmailText').textContent = user.email;
+        document.getElementById('deleteUserModal').classList.remove('hidden');
+    }
+
+    function closeDeleteUserModal() {
+        document.getElementById('deleteUserModal').classList.add('hidden');
+    }
+
+    async function confirmDeleteUser() {
+        const userId = document.getElementById('deleteUserId').value;
+        const token = getAdminToken();
+        if (!token || !userId) return;
+
+        try {
+            const response = await fetch(`/api/admin/users/${userId}`, {
+                method: 'DELETE',
+                headers: {
+                    'Authorization': `Bearer ${token}`
+                }
+            });
+
+            const result = await response.json();
+            if (result.success) {
+                alert('User deleted successfully');
+                closeDeleteUserModal();
+                loadUsers(currentUsersPage);
+            } else {
+                alert('Error: ' + (result.error?.message || 'Failed to delete user'));
+            }
+        } catch (error) {
+            console.error('Error deleting user:', error);
+            alert('Error deleting user: ' + error.message);
+        }
+    }
+
+    async function unsuspendUser(userId) {
+        const user = (window.allUsers || []).find(u => u.id == userId);
+        if (!user) {
+            console.error('User not found in local cache');
+            return;
+        }
+
+        document.getElementById('unsuspendUserId').value = userId;
+        document.getElementById('unsuspendUserEmailText').textContent = user.email;
+        document.getElementById('unsuspendUserModal').classList.remove('hidden');
+    }
+
+    function closeUnsuspendUserModal() {
+        document.getElementById('unsuspendUserModal').classList.add('hidden');
+    }
+
+    async function confirmUnsuspendUser() {
+        const userId = document.getElementById('unsuspendUserId').value;
+        const token = getAdminToken();
+        if (!token || !userId) return;
 
         try {
             const response = await fetch(`/api/admin/users/${userId}/unsuspend`, {
@@ -2469,6 +2686,7 @@
             const result = await response.json();
             if (result.success) {
                 alert('User unsuspended successfully');
+                closeUnsuspendUserModal();
                 loadUsers(currentUsersPage);
             } else {
                 alert('Error: ' + (result.error?.message || 'Failed to unsuspend user'));
@@ -2481,7 +2699,7 @@
 
     // Pending profile updates
     async function loadPendingProfileUpdates() {
-        const token = localStorage.getItem('token');
+        const token = getAdminToken();
         const el = document.getElementById('pendingUpdatesList');
         if (!token) { el.innerHTML = '<p class="text-red-500">Not logged in.</p>'; return; }
         el.innerHTML = '<p class="text-gray-500">Loading...</p>';
@@ -2526,7 +2744,7 @@
     }
 
     async function approvePendingUpdate(pendingId) {
-        const token = localStorage.getItem('token');
+        const token = getAdminToken();
         if (!token) return;
         if (!confirm('Apply this user\'s pending changes to their profile?')) return;
         try {
@@ -2547,7 +2765,7 @@
     }
 
     async function rejectPendingUpdate(pendingId) {
-        const token = localStorage.getItem('token');
+        const token = getAdminToken();
         if (!token) return;
         const reason = prompt('Rejection reason (optional):');
         if (reason === null) return;
@@ -2584,7 +2802,7 @@
             document.getElementById('idDocumentPreview').classList.remove('hidden');
         } else {
             // Try to load user data if URL not provided
-            const token = localStorage.getItem('token');
+            const token = getAdminToken();
             if (token) {
                 try {
                     const response = await fetch(`/api/admin/users?limit=1000&offset=0`, {
@@ -2659,7 +2877,7 @@
 
     // Verify user ID
     async function verifyUserId(userId, status, reason) {
-        const token = localStorage.getItem('token');
+        const token = getAdminToken();
         if (!token) return;
 
         try {
@@ -2724,7 +2942,7 @@
     }
 
     async function openVehiclePhotosModal(userId) {
-        const token = localStorage.getItem('token');
+        const token = getAdminToken();
         if (!token) return;
         try {
             const r = await fetch('/api/admin/users/' + userId + '/vehicle-images', { headers: { 'Authorization': 'Bearer ' + token } });
@@ -2811,7 +3029,7 @@
 
     // Products Management
     async function loadProducts(page = 0) {
-        const token = localStorage.getItem('token');
+        const token = getAdminToken();
         if (!token) return;
 
         try {
@@ -2852,7 +3070,7 @@
     }
 
     async function loadProductFilterCategories() {
-        const token = localStorage.getItem('token');
+        const token = getAdminToken();
         if (!token) return;
         const sel = document.getElementById('productFilterCategory');
         if (!sel) return;
@@ -2871,7 +3089,7 @@
         if (!subSel) return;
         subSel.innerHTML = '<option value="">All</option>';
         if (!categoryId) return;
-        const token = localStorage.getItem('token');
+        const token = getAdminToken();
         if (!token) return;
         try {
             const res = await fetch(`/api/shop/subcategories?category_id=${encodeURIComponent(categoryId)}`, { headers: { 'Authorization': `Bearer ${token}` } });
@@ -2971,7 +3189,7 @@
     }
 
     async function editProduct(productId) {
-        const token = localStorage.getItem('token');
+        const token = getAdminToken();
         if (!token) return;
 
         try {
@@ -3085,7 +3303,7 @@
             return;
         }
 
-        const token = localStorage.getItem('token');
+        const token = getAdminToken();
         if (!token) return;
 
         try {
@@ -3117,7 +3335,7 @@
 
     /** Populate the product modal's category dropdown (used in Add/Edit Product). */
     async function loadProductFormCategories() {
-        const token = localStorage.getItem('token');
+        const token = getAdminToken();
         if (!token) return;
 
         const categorySelect = document.getElementById('productCategory');
@@ -3152,7 +3370,7 @@
     async function saveProduct(event) {
         event.preventDefault();
 
-        const token = localStorage.getItem('token');
+        const token = getAdminToken();
         if (!token) return;
 
         const productId = document.getElementById('productFormId').value;
@@ -3230,7 +3448,7 @@
     }
 
     async function activateProduct(productId) {
-        const token = localStorage.getItem('token');
+        const token = getAdminToken();
         if (!token) return;
 
         if (!confirm('Are you sure you want to activate this product?')) return;
@@ -3257,7 +3475,7 @@
     }
 
     async function deactivateProduct(productId) {
-        const token = localStorage.getItem('token');
+        const token = getAdminToken();
         if (!token) return;
 
         if (!confirm('Are you sure you want to deactivate this product?')) return;
@@ -3298,7 +3516,7 @@
     async function updateInventoryQuantity(event) {
         event.preventDefault();
 
-        const token = localStorage.getItem('token');
+        const token = getAdminToken();
         if (!token) return;
 
         const productId = document.getElementById('inventoryProductId').value;
@@ -3330,7 +3548,7 @@
 
     // FAQ Management Functions
     async function loadFAQs() {
-        const token = localStorage.getItem('token');
+        const token = getAdminToken();
         if (!token) return;
 
         try {
@@ -3374,7 +3592,7 @@
 
     // Load Categories and Subcategories
     async function loadCategories() {
-        const token = localStorage.getItem('token');
+        const token = getAdminToken();
         if (!token) return;
 
         try {
@@ -3437,7 +3655,7 @@
 
     // Load Available Services
     async function loadAvailableServices() {
-        const token = localStorage.getItem('token');
+        const token = getAdminToken();
         if (!token) return;
 
         try {
@@ -3481,7 +3699,7 @@
 
     // Load User Sales
     async function loadUserSales() {
-        const token = localStorage.getItem('token');
+        const token = getAdminToken();
         if (!token) return;
 
         try {
@@ -3580,7 +3798,7 @@
 
     function deleteCategory(categoryId) {
         if (confirm('Are you sure you want to delete this category? This will also delete all associated subcategories.')) {
-            const token = localStorage.getItem('token');
+            const token = getAdminToken();
             fetch(`/api/admin/categories/${categoryId}`, {
                 method: 'DELETE',
                 headers: { 'Authorization': `Bearer ${token}` }
@@ -3602,7 +3820,7 @@
     }
 
     async function createCategory(title) {
-        const token = localStorage.getItem('token');
+        const token = getAdminToken();
         try {
             const response = await fetch('/api/admin/categories', {
                 method: 'POST',
@@ -3626,7 +3844,7 @@
     }
 
     async function updateCategory(categoryId, title) {
-        const token = localStorage.getItem('token');
+        const token = getAdminToken();
         try {
             const response = await fetch(`/api/admin/categories/${categoryId}`, {
                 method: 'PUT',
@@ -3664,7 +3882,7 @@
         document.getElementById('subcategoryCategorySelectWrap').classList.remove('hidden');
         document.getElementById('subcategoryCategoryId').value = '';
         document.getElementById('subcategoryTitle').value = '';
-        const token = localStorage.getItem('token');
+        const token = getAdminToken();
         fetch('/api/shop/categories', { headers: { 'Authorization': `Bearer ${token}` } })
             .then(res => res.json())
             .then(result => {
@@ -3698,7 +3916,7 @@
     }
 
     async function createSubcategory(categoryId, title) {
-        const token = localStorage.getItem('token');
+        const token = getAdminToken();
         try {
             const response = await fetch('/api/admin/subcategories', {
                 method: 'POST',
@@ -3724,7 +3942,7 @@
     async function editSubcategory(subcategoryId, currentTitle) {
         const title = prompt('Enter new subcategory title:', currentTitle || '');
         if (title === null || !title.trim()) return;
-        const token = localStorage.getItem('token');
+        const token = getAdminToken();
         try {
             const response = await fetch(`/api/admin/subcategories/${subcategoryId}`, {
                 method: 'PUT',
@@ -3749,7 +3967,7 @@
 
     async function deleteSubcategory(subcategoryId, subcategoryTitle) {
         if (!confirm(`Delete subcategory "${subcategoryTitle || subcategoryId}"? Products in this subcategory may be affected.`)) return;
-        const token = localStorage.getItem('token');
+        const token = getAdminToken();
         try {
             const response = await fetch(`/api/admin/subcategories/${subcategoryId}`, {
                 method: 'DELETE',
@@ -3782,7 +4000,7 @@
     }
 
     function editService(serviceId) {
-        const token = localStorage.getItem('token');
+        const token = getAdminToken();
         fetch(`/api/admin/service-types`, {
             headers: { 'Authorization': `Bearer ${token}` }
         })
@@ -3808,7 +4026,7 @@
 
     function deleteService(serviceId) {
         if (confirm('Are you sure you want to delete this service type?')) {
-            const token = localStorage.getItem('token');
+            const token = getAdminToken();
             fetch(`/api/admin/service-types/${serviceId}`, {
                 method: 'DELETE',
                 headers: { 'Authorization': `Bearer ${token}` }
@@ -3830,7 +4048,7 @@
     }
 
     async function createServiceType(name, category, description) {
-        const token = localStorage.getItem('token');
+        const token = getAdminToken();
         try {
             const response = await fetch('/api/admin/service-types', {
                 method: 'POST',
@@ -3860,7 +4078,7 @@
     }
 
     async function updateServiceType(serviceId, name, description, order, isActive) {
-        const token = localStorage.getItem('token');
+        const token = getAdminToken();
         try {
             const response = await fetch(`/api/admin/service-types/${serviceId}`, {
                 method: 'PUT',
@@ -3898,7 +4116,7 @@
     }
 
     function editFAQ(faqId) {
-        const token = localStorage.getItem('token');
+        const token = getAdminToken();
         if (!token) return;
 
         fetch(`/api/admin/faqs`, {
@@ -3934,7 +4152,7 @@
     async function saveFAQ(event) {
         event.preventDefault();
 
-        const token = localStorage.getItem('token');
+        const token = getAdminToken();
         if (!token) return;
 
         const faqId = document.getElementById('faqId').value;
@@ -3982,7 +4200,7 @@
     async function deleteFAQ(faqId) {
         if (!confirm('Are you sure you want to delete this FAQ?')) return;
 
-        const token = localStorage.getItem('token');
+        const token = getAdminToken();
         if (!token) return;
 
         try {
@@ -4007,7 +4225,7 @@
 
     // ---------- Carousel ----------
     async function loadCarousel() {
-        const token = localStorage.getItem('token');
+        const token = getAdminToken();
         if (!token) return;
         const tbody = document.getElementById('carouselTableBody');
         tbody.innerHTML = '<tr><td colspan="6" class="px-6 py-4 text-center text-gray-500">Loading...</td></tr>';
@@ -4057,7 +4275,7 @@
     }
 
     function editCarouselItem(itemId) {
-        const token = localStorage.getItem('token');
+        const token = getAdminToken();
         if (!token) return;
         fetch('/api/admin/carousel', { headers: { 'Authorization': `Bearer ${token}` } })
             .then(res => res.json())
@@ -4085,7 +4303,7 @@
 
     async function saveCarouselItem(event) {
         event.preventDefault();
-        const token = localStorage.getItem('token');
+        const token = getAdminToken();
         if (!token) return;
         const itemId = document.getElementById('carouselItemId').value;
         const ctaLink = document.getElementById('carouselCtaLink').value.trim() || null;
@@ -4122,7 +4340,7 @@
 
     async function deleteCarouselItem(itemId) {
         if (!confirm('Delete this carousel item?')) return;
-        const token = localStorage.getItem('token');
+        const token = getAdminToken();
         if (!token) return;
         try {
             const response = await fetch(`/api/admin/carousel/${itemId}`, {
@@ -4140,7 +4358,7 @@
 
     // ---------- Footer CMS ----------
     async function loadFooterCms() {
-        const token = localStorage.getItem('token');
+        const token = getAdminToken();
         if (!token) return;
         try {
             const response = await fetch('/api/admin/footer', {
@@ -4161,7 +4379,7 @@
 
     async function saveFooterCms(event) {
         event.preventDefault();
-        const token = localStorage.getItem('token');
+        const token = getAdminToken();
         if (!token) return;
         const companyName = document.getElementById('cmsCompanyName').value.trim();
         const email = document.getElementById('cmsEmail').value.trim() || null;
@@ -4196,7 +4414,7 @@
     // ---------- Recons ----------
     async function triggerRecon(event) {
         event.preventDefault();
-        const token = localStorage.getItem('token');
+        const token = getAdminToken();
         if (!token) return;
         const month = document.getElementById('reconMonth').value.trim();
         if (!month || !/^\d{4}-\d{2}$/.test(month)) {
@@ -4226,7 +4444,7 @@
 
     // ---------- Withdrawals Admin ----------
     async function loadWithdrawalsAdmin() {
-        const token = localStorage.getItem('token');
+        const token = getAdminToken();
         if (!token) return;
         const container = document.getElementById('withdrawalsList');
         try {
@@ -4253,7 +4471,7 @@
 
     async function updateWithdrawalStatus(wrId, status) {
         if (!status) return;
-        const token = localStorage.getItem('token');
+        const token = getAdminToken();
         if (!token) return;
         try {
             const r = await fetch('/api/admin/withdrawal-requests/' + wrId, {
@@ -4275,7 +4493,7 @@
 
     // ---------- Agents Admin ----------
     async function loadAgentsAdmin() {
-        const token = localStorage.getItem('token');
+        const token = getAdminToken();
         if (!token) return;
         const container = document.getElementById('agentsList');
         if (!container) return;
@@ -4300,7 +4518,7 @@
     }
 
     function editAgent(id) {
-        const token = localStorage.getItem('token');
+        const token = getAdminToken();
         if (!token) return;
         fetch('/api/admin/agents', { headers: { 'Authorization': 'Bearer ' + token } })
             .then(r => r.json())
@@ -4328,7 +4546,7 @@
 
     async function saveAgent(event) {
         event.preventDefault();
-        const token = localStorage.getItem('token');
+        const token = getAdminToken();
         if (!token) return;
         const editId = document.getElementById('agentEditId').value.trim();
         const payload = {
@@ -4359,7 +4577,7 @@
 
     async function deleteAgent(id) {
         if (!confirm('Delete this agent? Users who selected them will keep their selection but the agent record will be removed.')) return;
-        const token = localStorage.getItem('token');
+        const token = getAdminToken();
         if (!token) return;
         try {
             const r = await fetch('/api/admin/agents/' + id, { method: 'DELETE', headers: { 'Authorization': 'Bearer ' + token } });
@@ -4389,7 +4607,7 @@
     }
 
     async function loadLegalContent() {
-        const token = localStorage.getItem('token');
+        const token = getAdminToken();
         if (!token) return;
         for (var page of ['terms', 'privacy']) {
             try {
@@ -4408,7 +4626,7 @@
 
     async function saveLegalContent(event, page) {
         event.preventDefault();
-        const token = localStorage.getItem('token');
+        const token = getAdminToken();
         if (!token) return;
         var contentType = document.querySelector('input[name="' + page + 'ContentType"]:checked').value;
         var formData = new FormData();
@@ -4444,7 +4662,7 @@
 
     // ---------- Settings: Call-out Fees ----------
     async function loadSettingsCalloutFees() {
-        const token = localStorage.getItem('token');
+        const token = getAdminToken();
         if (!token) return;
         try {
             const response = await fetch('/api/admin/settings/callout-fees', {
@@ -4462,7 +4680,7 @@
 
     async function saveCalloutFees(event) {
         event.preventDefault();
-        const token = localStorage.getItem('token');
+        const token = getAdminToken();
         if (!token) return;
         const professionalFee = parseFloat(document.getElementById('settingsProfessionalCalloutFee').value);
         const providerFee = parseFloat(document.getElementById('settingsProviderCalloutFee').value);
@@ -4504,8 +4722,12 @@
     let driverServiceCount = 0;
 
     async function editUser(userId) {
-        const token = localStorage.getItem('token');
-        if (!token) return;
+        console.log('Editing user:', userId);
+        const token = getAdminToken();
+        if (!token) {
+            console.error('No admin token found');
+            return;
+        }
 
         try {
             const response = await fetch(`/api/admin/users/${userId}`, {
@@ -4518,6 +4740,27 @@
             if (result.success) {
                 const user = result.data.user;
                 const profileData = result.data.profile_data || {};
+
+                console.log('User data loaded:', user.id);
+
+                // Helper to safely set values
+                const setVal = (id, val) => {
+                    const el = document.getElementById(id);
+                    if (el) el.value = val || '';
+                    else console.warn(`Element not found: ${id}`);
+                };
+
+                const setChecked = (id, checked) => {
+                    const el = document.getElementById(id);
+                    if (el) el.checked = checked || false;
+                    else console.warn(`Element not found: ${id}`);
+                };
+
+                const toggleClass = (id, cls, force) => {
+                    const el = document.getElementById(id);
+                    if (el) el.classList.toggle(cls, force);
+                    else console.warn(`Element not found: ${id}`);
+                };
 
                 // Profile photo
                 const profileImg = document.getElementById('editUserProfilePhotoImg');
@@ -4540,78 +4783,80 @@
                 if (profilePhotoInput) profilePhotoInput.value = '';
 
                 // Set basic fields
-                document.getElementById('editUserId').value = user.id;
-                document.getElementById('editUserEmail').value = user.email;
-                document.getElementById('editUserRole').value = user.role;
-                document.getElementById('editUserFullName').value = profileData.full_name || '';
-                document.getElementById('editUserSurname').value = profileData.surname || '';
-                document.getElementById('editUserPhone').value = profileData.phone || '';
-                document.getElementById('editUserGender').value = profileData.gender || '';
-                document.getElementById('editUserSaCitizen').checked = profileData.sa_citizen || false;
-                document.getElementById('editUserSaId').value = profileData.sa_id || '';
-                document.getElementById('editUserSaIdContainer').classList.toggle('hidden', !profileData.sa_citizen);
+                setVal('editUserId', user.id);
+                setVal('editUserEmail', user.email);
+                setVal('editUserRole', user.role);
+                setVal('editUserFullName', profileData.full_name);
+                setVal('editUserSurname', profileData.surname);
+                setVal('editUserPhone', profileData.phone);
+                setVal('editUserGender', profileData.gender);
+                setChecked('editUserSaCitizen', profileData.sa_citizen);
+                setVal('editUserSaId', profileData.sa_id);
+                toggleClass('editUserSaIdContainer', 'hidden', !profileData.sa_citizen);
 
                 // Next of Kin
                 const nextOfKin = profileData.next_of_kin || {};
-                document.getElementById('editUserNextOfKinName').value = nextOfKin.full_name || '';
-                document.getElementById('editUserNextOfKinPhone').value = nextOfKin.contact_number || '';
-                document.getElementById('editUserNextOfKinEmail').value = nextOfKin.contact_email || '';
+                setVal('editUserNextOfKinName', nextOfKin.full_name);
+                setVal('editUserNextOfKinPhone', nextOfKin.contact_number);
+                setVal('editUserNextOfKinEmail', nextOfKin.contact_email);
 
                 // Status flags
-                document.getElementById('editUserIsPaid').checked = user.is_paid;
-                document.getElementById('editUserIsApproved').checked = user.is_approved;
-                document.getElementById('editUserIsActive').checked = user.is_active;
-                document.getElementById('editUserEmailVerified').checked = user.email_verified;
+                setChecked('editUserIsPaid', user.is_paid);
+                setChecked('editUserIsApproved', user.is_approved);
+                setChecked('editUserIsActive', user.is_active);
+                setChecked('editUserEmailVerified', user.email_verified);
 
                 // Show/hide role-specific fields
-                document.getElementById('editUserProfessionalFields').classList.add('hidden');
-                document.getElementById('editUserProviderFields').classList.add('hidden');
-                document.getElementById('editUserDriverFields').classList.add('hidden');
+                toggleClass('editUserProfessionalFields', 'hidden', user.role !== 'professional');
+                toggleClass('editUserProviderFields', 'hidden', user.role !== 'service-provider');
+                toggleClass('editUserDriverFields', 'hidden', user.role !== 'driver');
 
                 if (user.role === 'professional') {
-                    document.getElementById('editUserProfessionalFields').classList.remove('hidden');
-                    document.getElementById('editUserHighestQualification').value = profileData.highest_qualification || '';
-                    document.getElementById('editUserProfessionalBody').value = profileData.professional_body || '';
+                    setVal('editUserHighestQualification', profileData.highest_qualification);
+                    setVal('editUserProfessionalBody', profileData.professional_body);
 
                     // Load professional services
                     professionalServiceCount = 0;
                     const servicesContainer = document.getElementById('editUserProfessionalServices');
-                    servicesContainer.innerHTML = '';
-                    const services = profileData.professional_services || [];
-                    services.forEach(service => {
-                        addProfessionalService(service);
-                    });
+                    if (servicesContainer) {
+                        servicesContainer.innerHTML = '';
+                        const services = profileData.professional_services || [];
+                        services.forEach(service => {
+                            addProfessionalService(service);
+                        });
+                    }
                 } else if (user.role === 'service-provider') {
-                    document.getElementById('editUserProviderFields').classList.remove('hidden');
-
-                    // Load provider services from selected_services (UserSelectedService model)
+                    // Load provider services
                     providerServiceCount = 0;
                     const servicesContainer = document.getElementById('editUserProviderServices');
-                    servicesContainer.innerHTML = '';
-                    const services = profileData.selected_services || profileData.provider_services || [];
-                    services.forEach(service => {
-                        // Handle both UserSelectedService format and legacy format
-                        const serviceData = service.service_type ? {
-                            service_type_id: service.service_type.id || service.service_type_id,
-                            service_type: service.service_type,
-                            personalized_description: service.personalized_description || service.description
-                        } : service;
-                        addAdminProviderService(serviceData);
-                    });
+                    if (servicesContainer) {
+                        servicesContainer.innerHTML = '';
+                        const services = profileData.selected_services || profileData.provider_services || [];
+                        services.forEach(service => {
+                            const serviceData = service.service_type ? {
+                                service_type_id: service.service_type.id || service.service_type_id,
+                                service_type: service.service_type,
+                                personalized_description: service.personalized_description || service.description
+                            } : service;
+                            addAdminProviderService(serviceData);
+                        });
+                    }
                 } else if (user.role === 'driver') {
-                    document.getElementById('editUserDriverFields').classList.remove('hidden');
-
                     // Load driver services
                     driverServiceCount = 0;
                     const servicesContainer = document.getElementById('editUserDriverServices');
-                    servicesContainer.innerHTML = '';
-                    const services = profileData.driver_services || [];
-                    services.forEach(service => {
-                        addDriverService(service);
-                    });
+                    if (servicesContainer) {
+                        servicesContainer.innerHTML = '';
+                        const services = profileData.driver_services || [];
+                        services.forEach(service => {
+                            addDriverService(service);
+                        });
+                    }
                 }
 
-                document.getElementById('editUserModal').classList.remove('hidden');
+                const modal = document.getElementById('editUserModal');
+                if (modal) modal.classList.remove('hidden');
+                else throw new Error('editUserModal not found');
             } else {
                 alert('Failed to load user: ' + (result.error?.message || 'Unknown error'));
             }
@@ -4706,7 +4951,7 @@
 
         // Load available services if not already loaded
         if (adminAvailableServices.length === 0) {
-            const token = localStorage.getItem('token');
+            const token = getAdminToken();
             try {
                 const response = await fetch('/api/auth/service-types?category=service-provider&is_active=true', {
                     headers: { 'Authorization': `Bearer ${token}` }
@@ -4810,7 +5055,7 @@
     async function saveUserProfile(event) {
         event.preventDefault();
 
-        const token = localStorage.getItem('token');
+        const token = getAdminToken();
         if (!token) return;
 
         const userId = document.getElementById('editUserId').value;

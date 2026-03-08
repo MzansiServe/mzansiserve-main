@@ -126,14 +126,16 @@ class CabCheckoutSchema(Schema):
 
 
 class ProfessionalCheckoutSchema(Schema):
-    """Schema for creating a professional request and Yoco checkout (call-out fee)."""
+    """Schema for creating a professional or service provider request and Yoco checkout (call-out fee)."""
 
+    type = fields.Str(validate=validate.OneOf(['professional', 'provider']), load_default='professional')
     location = fields.Dict(required=True)  # { lat, lng, address }
     date = fields.Str(required=True)
     time = fields.Str(required=True)
-    preferences = fields.Dict(required=True)  # { professional_id, service_name }
-    payment_amount = fields.Decimal(required=True)  # call-out fee
+    payment_amount = fields.Decimal(required=True)  # call-out fee or service rate
+    preferences = fields.Dict()
     notes = fields.Str()
+    is_rfq = fields.Bool(load_default=False)
 
 
 @bp.route('/quote', methods=['POST'])
@@ -231,30 +233,61 @@ def create_request():
             payment_amount=payment_amount,
             payment_status='pending'
         )
-        
+
         if data.get('notes'):
             service_request.details['notes'] = data['notes']
-        
-        db.session.add(service_request)
-        
-        # Check wallet balance
+
+        # For service providers, verify wallet balance and deduct immediately
         wallet = Wallet.query.filter_by(user_id=user_id).first()
+        if not wallet:
+            wallet = WalletService.get_or_create_wallet(user_id)
+        
         wallet_balance = float(wallet.balance) if wallet and wallet.balance else 0.0
-        sufficient_funds = wallet_balance >= payment_amount
-        
+
+        if data['type'] == 'provider':
+            if wallet_balance < payment_amount:
+                return error_response('INSUFFICIENT_FUNDS', f'Insufficient wallet balance. Required: R{payment_amount:.2f}', {
+                    'balance': wallet_balance,
+                    'required': payment_amount
+                }, 400)
+            
+            # Deduct from wallet
+            try:
+                WalletService.add_transaction(
+                    wallet_id=wallet.id,
+                    user_id=user_id,
+                    transaction_type='payment',
+                    amount=payment_amount,
+                    external_id=request_id,
+                    description=f"Call-out fee for {data['type']} request {request_id}"
+                )
+                service_request.payment_status = 'paid'
+                # For providers, request is ready to be shown once paid
+                service_request.status = 'pending' 
+            except Exception as e:
+                db.session.rollback()
+                return error_response('PAYMENT_ERROR', f'Failed to process wallet payment: {str(e)}', None, 500)
+        else:
+            # Professionals and others might use different flows (e.g. Yoco)
+            # If created here, it stays unpaid until checkout completes
+            service_request.payment_status = 'pending'
+            service_request.status = 'unpaid'
+
+        db.session.add(service_request)
         db.session.commit()
-        
+
         return success_response({
             'id': request_id,
-            'status': 'pending',
+            'status': service_request.status,
+            'payment_status': service_request.payment_status,
             'payment_amount': payment_amount,
-            'wallet_balance': wallet_balance,
-            'sufficient_funds': sufficient_funds
+            'wallet_balance': float(wallet.balance)
         }, 'Service request created successfully', 201)
-        
+
     except ValidationError as e:
         return error_response('VALIDATION_ERROR', 'Invalid input data', e.messages, 400)
     except Exception as e:
+        db.session.rollback()
         current_app.logger.error(f"Create request error: {str(e)}")
         return error_response('INTERNAL_ERROR', 'Failed to create request', None, 500)
 
@@ -315,7 +348,7 @@ def create_cab_checkout():
         amount_cents = int(round(quote_amount * 100))
         external_id = f"request_{request_id}_{secrets.token_hex(6)}"
 
-        base_url = current_app.config.get('FRONTEND_URL', 'http://localhost:5000')
+        base_url = request.host_url.rstrip('/')
         success_url = f"{base_url}/api/payments/request-callback?callback_status=success&external_id={external_id}&request_id={request_id}"
         cancel_url = f"{base_url}/api/payments/request-callback?callback_status=cancel&external_id={external_id}&request_id={request_id}"
         failure_url = f"{base_url}/api/payments/request-callback?callback_status=failure&external_id={external_id}&request_id={request_id}"
@@ -376,11 +409,16 @@ def create_professional_checkout():
         user_id = get_jwt_identity()
         request_id = f"REQ-{secrets.token_hex(8).upper()}"
 
+        request_type = data.get('type', 'professional')
+
         location = data['location']
         location_data = {'location': location}
         payment_amount = float(data['payment_amount'])
-        # Enforce admin-configured professional call-out fee
-        setting = AppSetting.query.get('professional_callout_fee_amount') or AppSetting.query.get('callout_fee_amount')
+        
+        # Enforce admin-configured call-out fee
+        setting_key = 'professional_callout_fee_amount' if request_type == 'professional' else 'provider_callout_fee_amount'
+        setting = AppSetting.query.get(setting_key) or AppSetting.query.get('callout_fee_amount')
+        
         if setting:
             payment_amount = float(setting.value)
         else:
@@ -388,25 +426,85 @@ def create_professional_checkout():
 
         service_request = ServiceRequest(
             id=request_id,
-            request_type='professional',
+            request_type=request_type,
             requester_id=user_id,
             scheduled_date=data['date'],
             scheduled_time=data['time'],
             location_data=location_data,
             details=dict(data.get('preferences', {})),
             payment_amount=payment_amount,
-            payment_status='pending',
-            status='unpaid',
+            payment_status='pending' if data.get('is_rfq') else 'pending',
+            status='pending' if data.get('is_rfq') else 'unpaid',
         )
         if data.get('notes'):
             service_request.details['notes'] = data['notes']
+        
+        if data.get('is_rfq'):
+            service_request.details['is_rfq'] = True
+            service_request.payment_amount = 0 # No upfront payment for RFQ
+        else:
+            # Set provider_id from preferences if available (not an RFQ)
+            prefs = data.get('preferences', {})
+            pid = prefs.get('professional_id') or prefs.get('provider_id')
+            if pid:
+                try:
+                    from uuid import UUID as PUUID
+                    provider_uuid = PUUID(pid)
+                    service_request.provider_id = provider_uuid
+                    
+                    # --- VALIDATE AVAILABILITY ---
+                    provider_user = User.query.get(provider_uuid)
+                    if provider_user and provider_user.data and 'availability' in provider_user.data:
+                        availability = provider_user.data['availability']
+                        req_date = data['date'] # 'YYYY-MM-DD'
+                        req_time = data['time'] # 'HH:MM'
+                        
+                        # 1. Check blocked dates
+                        if req_date in (availability.get('blocked_dates') or []):
+                            return error_response('UNAVAILABLE', 'Provider is unavailable on this date.', None, 400)
+                            
+                        # 2. Check regular hours
+                        try:
+                            dt = datetime.strptime(req_date, '%Y-%m-%d')
+                            day_name = dt.strftime('%A').lower() # 'monday'
+                            day_config = availability.get('regular_hours', {}).get(day_name, {})
+                            if not day_config.get('enabled'):
+                                return error_response('UNAVAILABLE', f'Provider does not work on {day_name}s.', None, 400)
+                            
+                            start = day_config.get('start', '08:00')
+                            end = day_config.get('end', '17:00')
+                            if not (start <= req_time < end):
+                                return error_response('UNAVAILABLE', f'Provider is only available between {start} and {end} on {day_name}s.', None, 400)
+                        except Exception as e:
+                            current_app.logger.error(f"Availability check error (regular hours): {str(e)}")
+                            
+                        # 3. Check busy slots (existing bookings)
+                        busy = ServiceRequest.query.filter(
+                            ServiceRequest.provider_id == provider_uuid,
+                            ServiceRequest.scheduled_date == req_date,
+                            ServiceRequest.scheduled_time == req_time,
+                            ServiceRequest.status.in_(['accepted', 'completed', 'paid'])
+                        ).first()
+                        if busy:
+                            return error_response('UNAVAILABLE', 'This time slot is already booked.', None, 400)
+                    
+                except (ValueError, TypeError):
+                    pass
 
         db.session.add(service_request)
         db.session.flush()
 
+        if data.get('is_rfq'):
+            db.session.commit()
+            return success_response({
+                'request_id': request_id,
+                'status': 'pending',
+                'is_rfq': True
+            }, 'Request for quote submitted successfully.')
+
         amount_cents = int(round(payment_amount * 100))
         external_id = f"request_{request_id}_{secrets.token_hex(6)}"
-        base_url = current_app.config.get('FRONTEND_URL', 'http://localhost:5000')
+        base_url = request.host_url.rstrip('/')
         success_url = f"{base_url}/api/payments/request-callback?callback_status=success&external_id={external_id}&request_id={request_id}"
         cancel_url = f"{base_url}/api/payments/request-callback?callback_status=cancel&external_id={external_id}&request_id={request_id}"
         failure_url = f"{base_url}/api/payments/request-callback?callback_status=failure&external_id={external_id}&request_id={request_id}"
@@ -433,7 +531,7 @@ def create_professional_checkout():
                 'redirect_url': checkout['redirect_url'],
                 'external_id': external_id,
             },
-            'Professional request created. Redirect to checkout.',
+            'Service request created. Redirect to checkout.',
         )
     except ValidationError as e:
         db.session.rollback()
@@ -645,14 +743,30 @@ def list_requests():
             d['has_professional_rating'] = r.id in rated_professional_ids
             d['has_provider_rating'] = r.id in rated_provider_ids
             # For cab requests with an accepted driver, include driver display info
-            if r.request_type == 'cab' and r.provider_id and r.provider:
-                driver_user = r.provider
-                pdata = driver_user.data or {}
+            if r.provider_id and r.provider:
+                provider_user = r.provider
+                pdata = provider_user.data or {}
                 first = (pdata.get('full_name') or '').strip()
                 last = (pdata.get('surname') or '').strip()
-                d['driver_name'] = f"{first} {last}".strip() or 'Driver'
-                d['driver_profile_image_url'] = driver_user.profile_image_url
-                d['driver_id'] = str(driver_user.id)
+                name = f"{first} {last}".strip() or 'Provider'
+                
+                if r.request_type == 'cab':
+                    d['driver_name'] = name
+                    d['driver_profile_image_url'] = provider_user.profile_image_url
+                    d['driver_id'] = str(provider_user.id)
+                elif r.request_type in ('professional', 'provider'):
+                    # Use business name for service providers if available
+                    if r.request_type == 'provider' and pdata.get('business_name'):
+                        name = pdata.get('business_name')
+                    d['provider_name'] = name
+                    d['provider_profile_image_url'] = provider_user.profile_image_url
+                    d['provider_banner_url'] = provider_user.banner_url if hasattr(provider_user, 'banner_url') else None
+                    d['provider_id_assigned'] = str(provider_user.id)
+            
+            # Also attach service images if they exist in preferences
+            if r.details and 'service_image_url' in r.details:
+                d['service_image_url'] = r.details['service_image_url']
+            
             requests_data.append(d)
         return success_response({
             'requests': requests_data,
@@ -681,6 +795,23 @@ def get_request(request_id):
         current_app.logger.error(f"Get request error: {str(e)}")
         return error_response('INTERNAL_ERROR', 'Failed to get request', None, 500)
 
+@bp.route('/provider/<uuid:provider_id>/busy-slots', methods=['GET'])
+def get_busy_slots(provider_id):
+    """Get busy time slots for a provider on a specific date"""
+    date_str = request.args.get('date')
+    if not date_str:
+        return error_response('MISSING_DATE', 'Date is required', None, 400)
+    
+    # Query accepted/paid/completed requests for this provider on this date
+    busy_requests = ServiceRequest.query.filter(
+        ServiceRequest.provider_id == provider_id,
+        ServiceRequest.scheduled_date == date_str,
+        ServiceRequest.status.in_(['accepted', 'completed', 'paid'])
+    ).all()
+    
+    slots = [r.scheduled_time for r in busy_requests]
+    return success_response({'busy_slots': slots})
+
 @bp.route('/<request_id>/accept', methods=['POST'])
 @require_auth
 def accept_request(request_id):
@@ -704,6 +835,94 @@ def accept_request(request_id):
     except Exception as e:
         current_app.logger.error(f"Accept request error: {str(e)}")
         return error_response('INTERNAL_ERROR', 'Failed to accept request', None, 500)
+
+@bp.route('/<request_id>/quote', methods=['POST'])
+@require_auth
+def submit_quote(request_id):
+    """Submit a quote for an RFQ request (provider)"""
+    try:
+        user_id = get_jwt_identity()
+        service_request = ServiceRequest.query.get(request_id)
+        
+        if not service_request:
+            return error_response('NOT_FOUND', 'Service request not found', None, 404)
+        
+        # Only pending/unpaid requests can be quoted (or maybe custom logic)
+        # For now, allow quoting if status is pending and it's an RFQ
+        
+        data = request.json or {}
+        quote_amount = data.get('quote_amount')
+        
+        if quote_amount is None:
+            return error_response('VALIDATION_ERROR', 'quote_amount is required', None, 400)
+            
+        service_request.quote_amount = float(quote_amount)
+        # Store who quoted it if we want to track multiple quotes, 
+        # but for now, the first one who quotes might "own" it or we just store the amount.
+        # Usually, the first one to accept/quote gets it in this simple model.
+        
+        # If it's an RFQ, the status stays pending until client accepts quote.
+        
+        db.session.commit()
+        return success_response(service_request.to_dict(), 'Quote submitted successfully')
+        
+    except Exception as e:
+        current_app.logger.error(f"Submit quote error: {str(e)}")
+        return error_response('INTERNAL_ERROR', 'Failed to submit quote', None, 500)
+
+@bp.route('/<request_id>/pay-quote', methods=['POST'])
+@require_auth
+def pay_quote(request_id):
+    """Initiate payment for an accepted quote"""
+    try:
+        user_id = get_jwt_identity()
+        service_request = ServiceRequest.query.get(request_id)
+        
+        if not service_request:
+            return error_response('NOT_FOUND', 'Service request not found', None, 404)
+        
+        if str(service_request.requester_id) != user_id:
+            return error_response('FORBIDDEN', 'Only the requester can pay for the quote', None, 403)
+            
+        if not service_request.quote_amount or service_request.quote_amount <= 0:
+            return error_response('INVALID_STATE', 'No valid quote amount found for this request', None, 400)
+            
+        # Update payment_amount to the quoted amount
+        service_request.payment_amount = service_request.quote_amount
+        db.session.flush()
+
+        amount_cents = int(round(float(service_request.payment_amount) * 100))
+        external_id = f"quote_pay_{request_id}_{secrets.token_hex(6)}"
+        base_url = request.host_url.rstrip('/')
+        success_url = f"{base_url}/api/payments/request-callback?callback_status=success&external_id={external_id}&request_id={request_id}"
+        cancel_url = f"{base_url}/api/payments/request-callback?callback_status=cancel&external_id={external_id}&request_id={request_id}"
+        failure_url = f"{base_url}/api/payments/request-callback?callback_status=failure&external_id={external_id}&request_id={request_id}"
+
+        checkout = PaymentService.create_checkout(
+            amount=amount_cents,
+            currency='ZAR',
+            external_id=external_id,
+            success_url=success_url,
+            cancel_url=cancel_url,
+            failure_url=failure_url,
+        )
+
+        db.session.commit()
+
+        return success_response(
+            {
+                'request_id': request_id,
+                'checkout_id': checkout['checkout_id'],
+                'redirect_url': checkout['redirect_url'],
+                'external_id': external_id,
+            },
+            'Quote payment initiated. Redirect to checkout.',
+        )
+        
+    except Exception as e:
+        db.session.rollback()
+        current_app.logger.error(f"Pay quote error: {str(e)}")
+        return error_response('INTERNAL_ERROR', 'Failed to initiate quote payment', None, 500)
 
 @bp.route('/<request_id>/cancel', methods=['POST'])
 @require_auth
@@ -762,15 +981,15 @@ def cancel_request(request_id):
 
 
 def _require_cab_requester(service_request, user_id):
-    """Ensure request is cab, accepted, and user is the requester."""
+    """Ensure request is cab, accepted, and user is the requester or assigned driver."""
     if not service_request:
         return 'NOT_FOUND', 'Service request not found', 404
     if service_request.request_type != 'cab':
         return 'INVALID_REQUEST', 'Not a cab request', 400
     if service_request.status != 'accepted':
         return 'INVALID_REQUEST', 'Request must be accepted', 400
-    if str(service_request.requester_id) != user_id:
-        return 'FORBIDDEN', 'Only requester can perform this action', 403
+    if str(service_request.requester_id) != user_id and str(service_request.provider_id) != user_id:
+        return 'FORBIDDEN', 'Only requester or assigned driver can perform this action', 403
     return None, None, None
 
 
@@ -881,9 +1100,23 @@ def rate_driver(request_id):
         existing = DriverRating.query.filter_by(service_request_id=request_id).first()
         if existing:
             return error_response('INVALID_REQUEST', 'This ride has already been rated', None, 400)
+        driver_id = service_request.provider_id
+        if not driver_id:
+            # Fallback for cases where provider_id might be stored in details (though less likely for cabs)
+            pid = (service_request.details or {}).get('driver_id')
+            if pid:
+                try:
+                    from uuid import UUID as PUUID
+                    driver_id = PUUID(pid)
+                except:
+                    pass
+
+        if not driver_id:
+            return error_response('INVALID_REQUEST', 'No driver assigned to this ride can be rated', 400)
+
         driver_rating = DriverRating(
             service_request_id=request_id,
-            driver_id=service_request.provider_id,
+            driver_id=driver_id,
             requester_id=service_request.requester_id,
             rating=rating,
             review_text=review_text,
@@ -990,13 +1223,11 @@ def get_client_info(request_id):
         service_request = ServiceRequest.query.get(request_id)
         if not service_request:
             return error_response('NOT_FOUND', 'Service request not found', None, 404)
-        if service_request.request_type != 'cab':
-            return error_response('INVALID_REQUEST', 'Not a cab request', 400)
-        # Driver can view client info for: (1) their accepted/completed ride, or (2) pending request (browsing available)
-        if user.role != 'driver':
-            return error_response('FORBIDDEN', 'Only drivers can view client info', 403)
+        # Provider can view client info for: (1) their accepted/completed ride, or (2) pending request (browsing available)
+        if user.role not in ('driver', 'professional', 'service-provider'):
+            return error_response('FORBIDDEN', 'Only providers can view client info', 403)
         if str(service_request.provider_id) != user_id and service_request.status != 'pending':
-            return error_response('FORBIDDEN', 'Only the driver for this ride can view client info', 403)
+            return error_response('FORBIDDEN', 'Only the assigned provider can view client info', 403)
         client = service_request.requester
         if not client:
             return error_response('INVALID_REQUEST', 'No client assigned to this request', 400)
@@ -1028,7 +1259,7 @@ def get_client_info(request_id):
 @bp.route('/<request_id>/rate-client', methods=['POST'])
 @require_auth
 def rate_client(request_id):
-    """Driver rates the client (requester) after a completed cab ride."""
+    """Provider rates the client (requester) after a completed service."""
     try:
         user_id = get_jwt_identity()
         service_request = ServiceRequest.query.get(request_id)
@@ -1037,7 +1268,7 @@ def rate_client(request_id):
         if service_request.request_type != 'cab':
             return error_response('INVALID_REQUEST', 'Not a cab request', 400)
         if str(service_request.provider_id) != user_id:
-            return error_response('FORBIDDEN', 'Only the driver can rate the client', 403)
+            return error_response('FORBIDDEN', 'Only the assigned provider can rate the client', 403)
         if service_request.status not in ('accepted', 'completed'):
             return error_response('INVALID_REQUEST', 'Request must be accepted or completed to rate', 400)
         existing = ClientRating.query.filter_by(service_request_id=request_id).first()
@@ -1074,28 +1305,28 @@ def rate_client(request_id):
 
 
 def _require_professional_requester(service_request, user_id):
-    """Ensure request is professional, accepted, and user is the requester."""
+    """Ensure request is professional, accepted, and user is the requester or assigned professional."""
     if not service_request:
         return 'NOT_FOUND', 'Service request not found', 404
     if service_request.request_type != 'professional':
         return 'INVALID_REQUEST', 'Not a professional request', 400
     if service_request.status != 'accepted':
         return 'INVALID_REQUEST', 'Request must be accepted', 400
-    if str(service_request.requester_id) != user_id:
-        return 'FORBIDDEN', 'Only the requester can perform this action', 403
+    if str(service_request.requester_id) != user_id and str(service_request.provider_id) != user_id:
+        return 'FORBIDDEN', 'Only the requester or assigned professional can perform this action', 403
     return None, None, None
 
 
 def _require_provider_requester(service_request, user_id):
-    """Ensure request is provider, accepted, and user is the requester."""
+    """Ensure request is provider, accepted, and user is the requester or assigned provider."""
     if not service_request:
         return 'NOT_FOUND', 'Service request not found', 404
     if service_request.request_type != 'provider':
         return 'INVALID_REQUEST', 'Not a service provider request', 400
     if service_request.status != 'accepted':
         return 'INVALID_REQUEST', 'Request must be accepted', 400
-    if str(service_request.requester_id) != user_id:
-        return 'FORBIDDEN', 'Only the requester can perform this action', 403
+    if str(service_request.requester_id) != user_id and str(service_request.provider_id) != user_id:
+        return 'FORBIDDEN', 'Only the requester or assigned service provider can perform this action', 403
     return None, None, None
 
 
@@ -1157,11 +1388,11 @@ def rate_professional(request_id):
             return error_response('INVALID_REQUEST', 'Not a professional request', 400)
         if str(service_request.requester_id) != user_id:
             return error_response('FORBIDDEN', 'Only the requester can rate the professional', 403)
-        if service_request.status not in ('accepted', 'completed'):
-            return error_response('INVALID_REQUEST', 'Request must be completed to rate', 400)
+        if service_request.status not in ('pending', 'accepted', 'completed'):
+            return error_response('INVALID_REQUEST', 'Request must be paid to rate', 400)
+        if service_request.payment_status != 'paid':
+            return error_response('INVALID_REQUEST', 'Payment must be completed before rating', 400)
         details = service_request.details or {}
-        if not details.get('professional_has_arrived'):
-            return error_response('INVALID_REQUEST', 'Mark professional as arrived before rating', 400)
         existing = ProfessionalRating.query.filter_by(service_request_id=request_id).first()
         if existing:
             return error_response('INVALID_REQUEST', 'You have already rated this professional', 400)
@@ -1176,14 +1407,34 @@ def rate_professional(request_id):
         if not (1 <= rating <= 5):
             return error_response('INVALID_REQUEST', 'Rating must be between 1 and 5', None, 400)
         review_text = (data.get('review_text') or '').strip() or None
+        prof_id = service_request.provider_id
+        if not prof_id:
+            # Fallback for existing requests where provider_id might be missing from direct column
+            pid = details.get('professional_id') or details.get('provider_id')
+            if pid:
+                try:
+                    from uuid import UUID as PUUID
+                    prof_id = PUUID(pid)
+                except:
+                    pass
+        
+        if not prof_id:
+            return error_response('INVALID_REQUEST', 'No professional associated with this request to rate', 400)
+
         prof_rating = ProfessionalRating(
             service_request_id=request_id,
-            professional_id=service_request.provider_id,
+            professional_id=prof_id,
             requester_id=user_id,
             rating=rating,
             review_text=review_text,
         )
         db.session.add(prof_rating)
+        
+        details_dict = dict(details)
+        details_dict['professional_rating'] = rating
+        details_dict['professional_review'] = review_text
+        service_request.details = details_dict
+        
         db.session.commit()
         return success_response({
             'request': service_request.to_dict(),
@@ -1253,11 +1504,11 @@ def rate_provider(request_id):
             return error_response('INVALID_REQUEST', 'Not a service provider request', 400)
         if str(service_request.requester_id) != user_id:
             return error_response('FORBIDDEN', 'Only the requester can rate the service provider', 403)
-        if service_request.status not in ('accepted', 'completed'):
-            return error_response('INVALID_REQUEST', 'Request must be completed to rate', 400)
+        if service_request.status not in ('pending', 'accepted', 'completed'):
+            return error_response('INVALID_REQUEST', 'Request must be paid to rate', 400)
+        if service_request.payment_status != 'paid':
+            return error_response('INVALID_REQUEST', 'Payment must be completed before rating', 400)
         details = service_request.details or {}
-        if not details.get('provider_has_arrived'):
-            return error_response('INVALID_REQUEST', 'Mark service provider as arrived before rating', 400)
         existing = ProviderRating.query.filter_by(service_request_id=request_id).first()
         if existing:
             return error_response('INVALID_REQUEST', 'You have already rated this service provider', 400)
@@ -1272,14 +1523,34 @@ def rate_provider(request_id):
         if not (1 <= rating <= 5):
             return error_response('INVALID_REQUEST', 'Rating must be between 1 and 5', None, 400)
         review_text = (data.get('review_text') or '').strip() or None
+        prov_id = service_request.provider_id
+        if not prov_id:
+            # Fallback for existing requests where provider_id might be missing from direct column
+            pid = details.get('provider_id') or details.get('professional_id')
+            if pid:
+                try:
+                    from uuid import UUID as PUUID
+                    prov_id = PUUID(pid)
+                except:
+                    pass
+        
+        if not prov_id:
+            return error_response('INVALID_REQUEST', 'No provider associated with this request to rate', 400)
+
         prov_rating = ProviderRating(
             service_request_id=request_id,
-            provider_id=service_request.provider_id,
+            provider_id=prov_id,
             requester_id=user_id,
             rating=rating,
             review_text=review_text,
         )
         db.session.add(prov_rating)
+        
+        details_dict = dict(details)
+        details_dict['provider_rating'] = rating
+        details_dict['provider_review'] = review_text
+        service_request.details = details_dict
+        
         db.session.commit()
         return success_response({
             'request': service_request.to_dict(),
@@ -1290,3 +1561,39 @@ def rate_provider(request_id):
         current_app.logger.error(f"Rate provider error: {str(e)}")
         return error_response('INTERNAL_ERROR', 'Failed to submit rating', None, 500)
 
+
+@bp.route('/reviews/<provider_id>', methods=['GET'])
+def get_provider_reviews(provider_id):
+    """Get all anonymous reviews for a provider or professional (public endpoint)."""
+    try:
+        from uuid import UUID as PUUID
+        try:
+            uid = PUUID(provider_id)
+        except ValueError:
+            return error_response('INVALID_ID', 'Invalid provider id', None, 400)
+
+        prov_ratings = ProviderRating.query.filter_by(provider_id=uid).order_by(ProviderRating.created_at.desc()).all()
+        prof_ratings = ProfessionalRating.query.filter_by(professional_id=uid).order_by(ProfessionalRating.created_at.desc()).all()
+
+        def _fmt(r):
+            return {
+                'id': str(r.id),
+                'rating': r.rating,
+                'review_text': r.review_text,
+                'created_at': r.created_at.isoformat() if r.created_at else None,
+            }
+
+        reviews = [_fmt(r) for r in prov_ratings] + [_fmt(r) for r in prof_ratings]
+        reviews.sort(key=lambda x: x['created_at'] or '', reverse=True)
+
+        total = len(reviews)
+        avg = round(sum(r['rating'] for r in reviews) / total, 1) if total else 0
+
+        return success_response({
+            'reviews': reviews,
+            'total': total,
+            'average_rating': avg,
+        }, 'Reviews fetched successfully')
+    except Exception as e:
+        current_app.logger.error(f"Get provider reviews error: {str(e)}")
+        return error_response('INTERNAL_ERROR', 'Failed to fetch reviews', None, 500)

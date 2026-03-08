@@ -1,0 +1,32 @@
+FROM node:20-alpine AS build
+
+WORKDIR /app
+
+# Install dependencies first for better caching
+COPY package.json package-lock.json* bun.lockb* ./
+RUN npm ci || npm install
+
+# Copy source code
+COPY . .
+
+# Set build arguments
+ARG VITE_API_URL
+ENV VITE_API_URL=$VITE_API_URL
+
+# Build the app
+RUN npm run build
+
+# Production stage
+FROM node:20-alpine
+
+WORKDIR /app
+
+# Install serve
+RUN npm install -g serve
+
+# Copy built assets
+COPY --from=build /app/dist ./dist
+
+EXPOSE 8080
+
+CMD ["serve", "-s", "dist", "-l", "8080"]

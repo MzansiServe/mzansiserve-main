@@ -14,6 +14,7 @@ from backend.utils.response import success_response, error_response
 from backend.utils.decorators import require_auth
 from backend.utils.auth import validate_sa_id
 from backend.services.payment_service import PaymentService
+from backend.services.agent_service import AgentService
 
 bp = Blueprint('profile', __name__)
 
@@ -21,30 +22,30 @@ bp = Blueprint('profile', __name__)
 REGISTRATION_FEE_AMOUNT = 10000  # R100.00
 
 # After approval, only these profile fields may be changed (and require admin approval to apply)
-ALLOWED_AFTER_APPROVAL_COMMON = {'phone', 'next_of_kin'}
+ALLOWED_AFTER_APPROVAL_COMMON = {'phone', 'next_of_kin', 'full_name', 'surname', 'gender'}
 ALLOWED_AFTER_APPROVAL_BY_ROLE = {
-    'driver': {'driver_services', 'proof_of_residence_url', 'driver_license_url'},
-    'service-provider': {'provider_services', 'proof_of_residence_url', 'driver_license_url'},
+    'driver': {'driver_services', 'proof_of_residence_url', 'driver_license_url', 'operating_areas', 'availability'},
+    'service-provider': {'provider_services', 'proof_of_residence_url', 'driver_license_url', 'operating_areas', 'availability'},
     'professional': {
         'professional_services', 'proof_of_residence_url', 'highest_qualification',
-        'professional_body', 'qualification_urls'
+        'professional_body', 'qualification_urls', 'operating_areas', 'availability'
     },
-    'client': set(),
+    'client': {'full_name', 'surname', 'phone', 'gender', 'next_of_kin'},
 }
 
 class NextOfKinSchema(Schema):
-    full_name = fields.Str(allow_none=True, missing=None)
-    contact_number = fields.Str(allow_none=True, missing=None)
-    contact_email = fields.Email(allow_none=True, missing=None)
+    full_name = fields.Str(allow_none=True, load_default=None)
+    contact_number = fields.Str(allow_none=True, load_default=None)
+    contact_email = fields.Email(allow_none=True, load_default=None)
 
 
 class ServiceSchema(Schema):
     """Represents a service offered by a professional or service provider."""
 
     name = fields.Str(required=True)
-    description = fields.Str(allow_none=True, missing=None)
+    description = fields.Str(allow_none=True, load_default=None)
     # Hourly rate is mainly for professionals; optional for service providers.
-    hourly_rate = fields.Float(allow_none=True, missing=None)
+    hourly_rate = fields.Float(allow_none=True, load_default=None)
 
 
 class DriverServiceSchema(Schema):
@@ -52,26 +53,28 @@ class DriverServiceSchema(Schema):
 
     car_make = fields.Str(required=True)
     car_model = fields.Str(required=True)
-    car_year = fields.Int(allow_none=True, missing=None)
-    registration_number = fields.Str(allow_none=True, missing=None)
+    car_year = fields.Int(allow_none=True, load_default=None)
+    registration_number = fields.Str(allow_none=True, load_default=None)
     car_type = fields.Str(required=True)  # standard, premium, suv; pricing is admin-configured
 
 
 class UpdateProfileSchema(Schema):
-    full_name = fields.Str(allow_none=True, missing=None)
-    surname = fields.Str(allow_none=True, missing=None)
-    phone = fields.Str(allow_none=True, missing=None)
-    gender = fields.Str(allow_none=True, missing=None)
-    sa_citizen = fields.Bool(allow_none=True, missing=False)
-    sa_id = fields.Str(allow_none=True, missing=None)
-    next_of_kin = fields.Nested(NextOfKinSchema, allow_none=True, missing=None)
+    full_name = fields.Str(allow_none=True, load_default=None)
+    surname = fields.Str(allow_none=True, load_default=None)
+    phone = fields.Str(allow_none=True, load_default=None)
+    gender = fields.Str(allow_none=True, load_default=None)
+    sa_citizen = fields.Bool(allow_none=True, load_default=False)
+    sa_id = fields.Str(allow_none=True, load_default=None)
+    next_of_kin = fields.Nested(NextOfKinSchema, allow_none=True, load_default=None)
     # Professional metadata
-    highest_qualification = fields.Str(allow_none=True, missing=None)
-    professional_body = fields.Str(allow_none=True, missing=None)
+    highest_qualification = fields.Str(allow_none=True, load_default=None)
+    professional_body = fields.Str(allow_none=True, load_default=None)
+    operating_areas = fields.List(fields.Str(), allow_none=True, load_default=None)
+    availability = fields.Dict(allow_none=True, load_default=None)
     # Role-specific fields
-    professional_services = fields.List(fields.Nested(ServiceSchema), allow_none=True, missing=None)
-    provider_services = fields.List(fields.Nested(ServiceSchema), allow_none=True, missing=None)
-    driver_services = fields.List(fields.Nested(DriverServiceSchema), allow_none=True, missing=None)
+    professional_services = fields.List(fields.Nested(ServiceSchema), allow_none=True, load_default=None)
+    provider_services = fields.List(fields.Nested(ServiceSchema), allow_none=True, load_default=None)
+    driver_services = fields.List(fields.Nested(DriverServiceSchema), allow_none=True, load_default=None)
 
 @bp.route('', methods=['GET'])
 @require_auth
@@ -129,7 +132,7 @@ def update_profile():
         user = User.query.get(user_id)
         if not user:
             return error_response('USER_NOT_FOUND', 'User not found', None, 404)
-        if not user.is_approved:
+        if not user.is_approved and user.role != 'client':
             return error_response(
                 'NOT_APPROVED',
                 'Your account is pending approval. You can view your profile but cannot make changes or upload documents until your account is approved.',
@@ -153,16 +156,17 @@ def update_profile():
             else:
                 request_data['sa_citizen'] = False
             
-            # Handle next_of_kin from form data (JSON string)
-            if 'next_of_kin' in request.form:
-                try:
-                    next_of_kin_str = request.form['next_of_kin']
-                    if next_of_kin_str:
-                        request_data['next_of_kin'] = json.loads(next_of_kin_str)
-                    else:
-                        request_data['next_of_kin'] = None
-                except (json.JSONDecodeError, ValueError):
-                    request_data['next_of_kin'] = None
+            # Handle JSON objects from form data
+            for json_key in ['next_of_kin', 'operating_areas', 'availability']:
+                if json_key in request.form:
+                    try:
+                        val_str = request.form[json_key]
+                        if val_str:
+                            request_data[json_key] = json.loads(val_str)
+                        else:
+                            request_data[json_key] = None
+                    except (json.JSONDecodeError, ValueError):
+                        request_data[json_key] = None
             
             # Handle role-specific services from form data (JSON strings)
             for service_key in ['professional_services', 'provider_services', 'driver_services']:
@@ -193,6 +197,11 @@ def update_profile():
                 request_data['next_of_kin'] = None
         
         data = schema.load(request_data)
+
+        # Enforce max 5 operating areas
+        if data.get('operating_areas') and len(data['operating_areas']) > 5:
+            return error_response('VALIDATION_ERROR', 'A maximum of 5 operating areas can be selected.', None, 400)
+
         current_app.logger.info(f"Profile update data: {data}")
 
         # After approval: only allowed fields may be changed; changes go to pending (shadow) until admin approves
@@ -222,7 +231,7 @@ def update_profile():
             payload['phone'] = data['phone']
         if 'next_of_kin' in data:
             payload['next_of_kin'] = data['next_of_kin']
-        for key in ('driver_services', 'professional_services', 'provider_services', 'highest_qualification', 'professional_body'):
+        for key in ('driver_services', 'professional_services', 'provider_services', 'highest_qualification', 'professional_body', 'operating_areas', 'availability'):
             if key in allowed_keys and key in data and data[key] is not None:
                 payload[key] = data[key]
         if 'qualification_urls' in allowed_keys and data.get('qualification_urls') is not None:
@@ -258,6 +267,21 @@ def update_profile():
                 payload['qualification_urls'] = qual_urls
         if not payload:
             return error_response('NO_CHANGES', 'No allowed changes provided.', None, 400)
+            
+        # If client, update directly
+        if user.role == 'client':
+            user_data = user.data or {}
+            for k, v in payload.items():
+                if k == 'next_of_kin':
+                    user_data['next_of_kin'] = v
+                else:
+                    user_data[k] = v
+                    
+            # Update top-level data as well if needed
+            user.data = user_data
+            db.session.commit()
+            return success_response(user.to_dict(), 'Profile updated successfully.')
+
         pending = PendingProfileUpdate(user_id=user.id, payload=payload, status='pending')
         db.session.add(pending)
         db.session.commit()
@@ -274,8 +298,49 @@ def update_profile():
         return error_response('INTERNAL_ERROR', 'Failed to update profile', None, 500)
 
 
-@bp.route('/professionals', methods=['GET'])
+@bp.route('/upload-photo', methods=['POST'])
 @require_auth
+def upload_profile_photo():
+    """Upload or update profile photo directly (no admin approval needed for photo)"""
+    try:
+        user_id = get_jwt_identity()
+        user = User.query.get(user_id)
+        if not user:
+            return error_response('USER_NOT_FOUND', 'User not found', None, 404)
+
+        if 'photo' not in request.files:
+            return error_response('MISSING_FILES', 'No photo provided', None, 400)
+
+        file = request.files['photo']
+        if not file or not file.filename:
+            return error_response('INVALID_FILE', 'Invalid file', None, 400)
+
+        if not allowed_image_file(file.filename):
+            return error_response('INVALID_TYPE', 'Only JPG, JPEG and PNG images are allowed', None, 400)
+
+        upload_folder = current_app.config.get('UPLOAD_FOLDER')
+        if not os.path.exists(upload_folder):
+            os.makedirs(upload_folder)
+
+        file_ext = file.filename.rsplit('.', 1)[1].lower()
+        unique_filename = f"profile_{user.id.hex}_{uuid.uuid4().hex[:8]}.{file_ext}"
+        filepath = os.path.join(upload_folder, unique_filename)
+        file.save(filepath)
+
+        # Update user profile image URL
+        user.profile_image_url = f"/uploads/{unique_filename}"
+        db.session.commit()
+
+        return success_response({
+            'profile_image_url': user.profile_image_url
+        }, 'Profile photo updated successfully')
+
+    except Exception as e:
+        current_app.logger.error(f"Upload photo error: {str(e)}")
+        return error_response('INTERNAL_ERROR', 'Failed to upload photo', None, 500)
+
+
+@bp.route('/professionals', methods=['GET'])
 def list_professionals():
     """
     List professionals, including their services and hourly rates.
@@ -348,8 +413,38 @@ def list_professionals():
         current_app.logger.error(f"List professionals error: {str(e)}")
         return error_response('INTERNAL_ERROR', 'Failed to list professionals', None, 500)
 
+@bp.route('/professional/<uuid:prof_id>', methods=['GET'])
+def get_professional(prof_id):
+    """Get details of a single professional"""
+    try:
+        prof = User.query.filter_by(id=prof_id, role='professional', is_active=True, is_approved=True, is_paid=True).first()
+        if not prof:
+            return error_response('NOT_FOUND', 'Professional not found', None, 404)
+        
+        services = (prof.data or {}).get('professional_services') or []
+        
+        # Compute minimum hourly rate
+        min_rate = None
+        for svc in services:
+            try:
+                rate = svc.get('hourly_rate')
+                if rate is not None:
+                    rate_val = float(rate)
+                    if min_rate is None or rate_val < min_rate:
+                        min_rate = rate_val
+            except (TypeError, ValueError):
+                continue
+
+        return success_response({
+            'professional': prof.to_dict(),
+            'services': services,
+            'min_hourly_rate': min_rate
+        })
+    except Exception as e:
+        current_app.logger.error(f"Get professional error: {str(e)}")
+        return error_response('INTERNAL_ERROR', 'Failed to get professional', None, 500)
+
 @bp.route('/service-providers', methods=['GET'])
-@require_auth
 def list_service_providers():
     """
     List service providers, including their services.
@@ -392,6 +487,24 @@ def list_service_providers():
     except Exception as e:
         current_app.logger.error(f"List service providers error: {str(e)}")
         return error_response('INTERNAL_ERROR', 'Failed to list service providers', None, 500)
+
+@bp.route('/service-provider/<uuid:provider_id>', methods=['GET'])
+def get_service_provider(provider_id):
+    """Get details of a single service provider"""
+    try:
+        provider = User.query.filter_by(id=provider_id, role='service-provider', is_active=True, is_approved=True, is_paid=True).first()
+        if not provider:
+            return error_response('NOT_FOUND', 'Service provider not found', None, 404)
+        
+        services = (provider.data or {}).get('provider_services') or []
+        
+        return success_response({
+            'provider': provider.to_dict(),
+            'services': services
+        })
+    except Exception as e:
+        current_app.logger.error(f"Get service provider error: {str(e)}")
+        return error_response('INTERNAL_ERROR', 'Failed to get service provider', None, 500)
 
 @bp.route('/pay-registration-fee', methods=['POST'])
 @require_auth
@@ -492,6 +605,10 @@ def payment_callback():
                             if payment.status == 'pending' and payment.amount * 100 >= REGISTRATION_FEE_AMOUNT:
                                 user.is_paid = True
                                 payment.status = 'completed'
+                                
+                                # Award commission to agent if applicable
+                                AgentService.award_commission(user)
+                                
                                 db.session.commit()
                                 current_app.logger.info(f"User {user.id} registration fee paid successfully")
                                 

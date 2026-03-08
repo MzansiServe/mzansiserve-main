@@ -65,6 +65,12 @@ class ShopProduct(db.Model):
     subcategory_id = db.Column(db.Text, db.ForeignKey('shop_subcategories.id', ondelete='SET NULL'))
     in_stock = db.Column(db.Boolean, default=True)
     status = db.Column(db.Text, default='active', nullable=False)  # 'active' or 'inactive'
+    product_type = db.Column(db.Text, default='simple', nullable=False) # 'simple', 'variable', 'grouped', 'external'
+    attributes = db.Column(JSONB, default=[])
+    variations = db.Column(JSONB, default=[])
+    grouped_products = db.Column(JSONB, default=[])
+    external_url = db.Column(db.Text)
+    button_text = db.Column(db.Text, default='Buy Product')
     image_url = db.Column(db.Text)  # Legacy field, kept for backward compatibility
     created_at = db.Column(db.DateTime(timezone=True), default=datetime.utcnow)
     updated_at = db.Column(db.DateTime(timezone=True), default=datetime.utcnow, onupdate=datetime.utcnow)
@@ -73,6 +79,7 @@ class ShopProduct(db.Model):
     
     __table_args__ = (
         db.CheckConstraint("status IN ('active', 'inactive')", name='check_product_status'),
+        db.CheckConstraint("product_type IN ('simple', 'variable', 'grouped', 'external')", name='check_product_type'),
     )
     
     def to_dict(self):
@@ -90,6 +97,12 @@ class ShopProduct(db.Model):
             'subcategory_id': self.subcategory_id,
             'in_stock': self.in_stock,
             'status': self.status,
+            'product_type': self.product_type,
+            'attributes': self.attributes,
+            'variations': self.variations,
+            'grouped_products': self.grouped_products,
+            'external_url': self.external_url,
+            'button_text': self.button_text,
             'image_url': self.image_url,
             'inventory': inventory_data,
             'images': [img.to_dict() for img in self.images] if hasattr(self, 'images') else [],

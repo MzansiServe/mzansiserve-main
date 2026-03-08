@@ -15,11 +15,11 @@ class AddressSchema(Schema):
     city = fields.Str(required=True)
     province = fields.Str(required=True)
     postal_code = fields.Str(required=True)
-    country = fields.Str(missing='South Africa')
+    country = fields.Str(load_default='South Africa')
     unit_number = fields.Str(allow_none=True)
     building_name = fields.Str(allow_none=True)
     delivery_instructions = fields.Str(allow_none=True)
-    is_default = fields.Bool(missing=False)
+    is_default = fields.Bool(load_default=False)
 
 @bp.route('', methods=['GET'])
 @require_auth

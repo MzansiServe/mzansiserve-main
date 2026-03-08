@@ -29,7 +29,7 @@ class Config:
     MAIL_USE_TLS = True
     MAIL_USERNAME = os.environ.get('SMTP_USER')
     MAIL_PASSWORD = os.environ.get('SMTP_PASSWORD')
-    DEFAULT_FROM_EMAIL = os.environ.get('DEFAULT_FROM_EMAIL') or 'noreply@mzansiserve.com'
+    DEFAULT_FROM_EMAIL = os.environ.get('DEFAULT_FROM_EMAIL') or 'noreply@mzansiserve.co.za'
     
     # Payments
     PAYPAL_CLIENT_ID = os.environ.get('PAYPAL_CLIENT_ID')
@@ -46,7 +46,8 @@ class Config:
     FLASK_ENV = os.environ.get('FLASK_ENV') or 'development'
     FLASK_DEBUG = os.environ.get('FLASK_DEBUG') == '1'
 
-    FRONTEND_URL = os.environ.get('FRONTEND_URL') or 'http://localhost:5006'
+    FRONTEND_URL = os.environ.get('FRONTEND_URL') or 'http://localhost:8080'
+    BACKEND_URL = os.environ.get('BACKEND_URL') or 'http://localhost:5006'
 
     # Google Maps
     GOOGLE_MAPS_API_KEY = os.environ.get('GOOGLE_MAPS_API_KEY') or ''

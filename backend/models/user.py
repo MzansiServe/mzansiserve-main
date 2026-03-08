@@ -3,7 +3,7 @@ User Models
 """
 import uuid
 import bcrypt
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from flask_login import UserMixin
 from sqlalchemy.dialects.postgresql import UUID, JSONB, CITEXT
 from backend.extensions import db
@@ -50,7 +50,7 @@ class User(UserMixin, db.Model):
     
     __table_args__ = (
         db.UniqueConstraint('email', 'role', name='uq_user_email_role'),
-        db.CheckConstraint("role IN ('client', 'driver', 'professional', 'service-provider', 'admin')", name='check_role'),
+        db.CheckConstraint("role IN ('client', 'driver', 'professional', 'service-provider', 'admin', 'agent')", name='check_role'),
         db.CheckConstraint("id_verification_status IN ('pending', 'verified', 'rejected')", name='check_id_verification_status'),
     )
     
@@ -79,6 +79,9 @@ class User(UserMixin, db.Model):
             'id': str(self.id),
             'email': self.email,
             'role': self.role,
+            'name': self.data.get('full_name', '') if self.data else '',
+            'full_name': self.data.get('full_name', '') if self.data else '',
+            'phone': self.data.get('phone', '') if self.data else '',
             'is_admin': self.is_admin,
             'is_paid': self.is_paid,
             'is_approved': self.is_approved,
@@ -115,7 +118,8 @@ class PasswordResetToken(db.Model):
     
     def is_valid(self):
         """Check if token is valid"""
-        return not self.used and datetime.utcnow() < self.expires_at
+        now = datetime.now(timezone.utc) if self.expires_at.tzinfo else datetime.utcnow()
+        return not self.used and now < self.expires_at
 
 
 class EmailVerificationToken(db.Model):
@@ -133,7 +137,8 @@ class EmailVerificationToken(db.Model):
     
     def is_valid(self):
         """Check if token is valid"""
-        return not self.used and datetime.utcnow() < self.expires_at
+        now = datetime.now(timezone.utc) if self.expires_at.tzinfo else datetime.utcnow()
+        return not self.used and now < self.expires_at
 
 
 class Wallet(db.Model):

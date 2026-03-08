@@ -106,10 +106,10 @@ class EmailService:
     @staticmethod
     def send_verification_email(user, token):
         """Send email verification email"""
-        verification_url = current_app.config.get('FRONTEND_URL', 'http://localhost:5000') + \
-                          f"/verify-email?token={token}"
+        frontend_url = current_app.config.get('FRONTEND_URL', 'http://localhost').rstrip('/')
+        verification_url = f"{frontend_url}/verify-email?token={token}"
         first_name = _first_name(user)
-        subject = "Verify Your Email Address – Welcome to MzansiServe"
+        subject = "Verify Your Email Address - Welcome to MzansiServe"
         body = f"""Hi {first_name},
 
 Welcome to MzansiServe
@@ -147,15 +147,23 @@ www.mzansiserve.co.za"""
     @staticmethod
     def send_password_reset_email(user, token):
         """Send password reset email"""
-        reset_url = current_app.config.get('FRONTEND_URL', 'http://localhost:5000') + \
-                   f"/reset-password?token={token}"
+        frontend_url = current_app.config.get('FRONTEND_URL', 'http://localhost').rstrip('/')
+        reset_url = f"{frontend_url}/reset-password?token={token}"
         
-        body = f"Reset your password by clicking the link: {reset_url}"
-        body_html = render_template('emails/reset_password.html', user=user, reset_url=reset_url)
+        first_name = _first_name(user)
+        subject = "Reset Your Password - MzansiServe"
+        body = f"Hi {first_name},\n\nReset your password by clicking the link: {reset_url}"
+        body_html = f"""<html><body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333 text-align: center;">
+<p>Hi {first_name},</p>
+<p>You requested to reset your password. Click the button below to set a new password:</p>
+<p><a href="{reset_url}" style="display:inline-block;background:#2563eb;color:#fff;padding:10px 20px;text-decoration:none;border-radius:6px;">Reset My Password</a></p>
+<p>If you did not request this, you can safely ignore this email.</p>
+<p>Warm regards,<br>MzansiServe Team</p>
+</body></html>"""
         
         email = EmailService.queue_email(
             recipient=user.email,
-            subject="Reset Your Password - MzansiServe",
+            subject=subject,
             body=body,
             body_html=body_html,
             metadata={'type': 'password_reset', 'user_id': str(user.id)}
@@ -167,8 +175,9 @@ www.mzansiserve.co.za"""
     def send_registration_confirmation(user):
         """Send email informing user they have successfully registered (payment may still be pending)."""
         first_name = _first_name(user)
-        login_url = current_app.config.get('FRONTEND_URL', 'http://localhost:5000') + '/login'
-        subject = "Registration Successful – Welcome to MzansiServe!"
+        frontend_url = current_app.config.get('FRONTEND_URL', 'http://localhost').rstrip('/')
+        login_url = f"{frontend_url}/login"
+        subject = "Registration Successful - Welcome to MzansiServe!"
         body = f"""Hi {first_name},
 
 Great news! Your registration on MzansiServe was successful
@@ -179,9 +188,9 @@ Your account is now active, and you can start exploring:
 - Online shopping
 - Secure payments
 
-Login anytime here: {login_url} or directly from the mzansiserve mobile app, www.MzansiServe.com or www.mzansiserve.co.za
+Login anytime here: {login_url} or directly from the mzansiserve mobile app, www.mzansiServe.com or www.mzansiserve.co.za
 
-Thank you for choosing MzansiServe — made for Mzansi, built for you
+Thank you for choosing MzansiServe - made for Mzansi, built for you
 
 Kind regards,
 MzansiServe Team"""
@@ -190,8 +199,8 @@ MzansiServe Team"""
 <p>Great news! Your registration on MzansiServe was successful</p>
 <p>Your account is now active, and you can start exploring:</p>
 <ul><li>Local professionals &amp; service providers</li><li>Driver bookings</li><li>Online shopping</li><li>Secure payments</li></ul>
-<p>Login anytime here: <a href="{login_url}">{login_url}</a> or directly from the mzansiserve mobile app, <a href="https://www.mzansiserve.co.za">www.MzansiServe.com</a> or <a href="https://www.mzansiserve.co.za">www.mzansiserve.co.za</a></p>
-<p>Thank you for choosing MzansiServe — made for Mzansi, built for you</p>
+<p>Login anytime here: <a href="{login_url}">{login_url}</a> or directly from the mzansiserve mobile app, <a href="https://www.mzansiserve.co.za">www.mzansiserve.co.za</a> or <a href="https://www.mzansiserve.co.za">www.mzansiserve.co.za</a></p>
+<p>Thank you for choosing MzansiServe - made for Mzansi, built for you</p>
 <p>Kind regards,<br>MzansiServe Team</p>
 </body></html>"""
         email = EmailService.queue_email(
@@ -210,7 +219,7 @@ MzansiServe Team"""
         first_name = _first_name(user)
         payment_date = datetime.utcnow().strftime('%Y-%m-%d')
         reference = getattr(user, 'tracking_number', None) or 'Registration'
-        subject = "Payment Received – Registration Confirmed"
+        subject = "Payment Received - Registration Confirmed"
         body = f"""Hi {first_name},
 
 Thank you! We have successfully received your registration payment of:
@@ -251,7 +260,7 @@ billing@mzansiserve.co.za"""
         if isinstance(delivery_address, dict):
             parts = [delivery_address.get('street'), delivery_address.get('city'), delivery_address.get('postal_code')]
             delivery_address = ', '.join(p for p in parts if p) or 'N/A'
-        subject = "Order Confirmed – Thank You for Shopping with MzansiServe"
+        subject = "Order Confirmed - Thank You for Shopping with MzansiServe"
         body = f"""Hi {first_name},
 
 Thank you for your purchase on MzansiServe Shop
@@ -295,7 +304,7 @@ MzansiServe Shop Team"""
         if service_request.scheduled_time:
             booking_date = f"{booking_date} {service_request.scheduled_time}".strip()
         booking_date = booking_date or 'N/A'
-        subject = "Call-Out Payment Confirmed – Service Booking Successful"
+        subject = "Call-Out Payment Confirmed - Service Booking Successful"
         body = f"""Hi {first_name},
 
 Your call-out payment has been successfully processed
@@ -403,9 +412,10 @@ MzansiServe Team
     def send_user_approval_notification(user):
         """Send user approval notification email"""
         first_name = _first_name(user)
-        dashboard_url = current_app.config.get('FRONTEND_URL', 'http://localhost:5000') + '/dashboard'
+        frontend_url = current_app.config.get('FRONTEND_URL', 'http://localhost').rstrip('/')
+        dashboard_url = f"{frontend_url}/dashboard"
         account_type = (user.role or 'member').replace('-', ' ').title()
-        subject = "Account Approved – Welcome to MzansiServe!"
+        subject = "Account Approved - Welcome to MzansiServe!"
         body = f"""Hi {first_name},
 
 Congratulations
@@ -439,7 +449,7 @@ MzansiServe Team"""
         """Send user suspension notification email. reason is optional (e.g. from admin)."""
         first_name = _first_name(user)
         suspension_reason = (reason or '').strip() or 'Please contact support for details.'
-        subject = "Account Suspended – Important Notice"
+        subject = "Account Suspended - Important Notice"
         body = f"""Hi {first_name},
 
 We regret to inform you that your MzansiServe account has been temporarily suspended.
