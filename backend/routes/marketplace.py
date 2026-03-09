@@ -6,21 +6,21 @@ from backend.utils.decorators import require_auth
 from flask_jwt_extended import get_jwt_identity
 import uuid
 
-bp = Blueprint('marketplace', __name__)
+bp = Blueprint('ads', __name__)
 
 @bp.route('/categories', methods=['GET'])
 def list_categories():
-    """List marketplace categories"""
+    """List ads categories"""
     try:
         categories = MarketplaceCategory.query.all()
         return success_response({'categories': [c.to_dict() for c in categories]})
     except Exception as e:
-        current_app.logger.error(f"List marketplace categories error: {str(e)}")
+        current_app.logger.error(f"List ads categories error: {str(e)}")
         return error_response('INTERNAL_ERROR', 'Failed to list categories', None, 500)
 
 @bp.route('/ads', methods=['GET'])
 def list_ads():
-    """List marketplace ads with filters"""
+    """List ads ads with filters"""
     try:
         category_slug = request.args.get('category')
         search = request.args.get('search')
@@ -67,7 +67,7 @@ def list_ads():
             'offset': offset
         })
     except Exception as e:
-        current_app.logger.error(f"List marketplace ads error: {str(e)}")
+        current_app.logger.error(f"List ads ads error: {str(e)}")
         return error_response('INTERNAL_ERROR', 'Failed to list ads', None, 500)
 
 @bp.route('/ads/<ad_id>', methods=['GET'])

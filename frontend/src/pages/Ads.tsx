@@ -11,10 +11,10 @@ export default function Ads() {
     const navigate = useNavigate();
     const [search, setSearch] = useState("");
 
-    // Fetch Marketplace Ads
+    // Fetch ads Ads
     const { data: adsRes, isLoading: loadingAds } = useQuery({
-        queryKey: ["marketplace-ads"],
-        queryFn: () => apiFetch("/api/marketplace/ads?limit=500"),
+        queryKey: ["ads-ads"],
+        queryFn: () => apiFetch("/api/ads/ads?limit=500"),
     });
 
     // Fetch Active Banner Ads (to inject natively)
@@ -30,12 +30,12 @@ export default function Ads() {
         mkAds.forEach((ad: any) => {
             const imgSrc = ad.images?.[0] ? (getImageUrl(ad.images[0])) : null;
             items.push({
-                item_type: 'marketplace',
+                item_type: 'ads',
                 id: ad.id,
                 title: ad.title,
                 price: ad.price,
                 image: imgSrc,
-                category: ad.category_name || 'Marketplace',
+                category: ad.category_name || 'Ads',
                 seller: ad.user?.name || 'User',
                 location: ad.city || ad.province || 'Mzansi',
                 date: ad.created_at,
@@ -76,8 +76,8 @@ export default function Ads() {
     }, [combinedItems, search]);
 
     const handleItemClick = (item: any) => {
-        if (item.item_type === 'marketplace') {
-            navigate(`/marketplace/ad/${item.id}`);
+        if (item.item_type === 'ads') {
+            navigate(`/ads/ad/${item.id}`);
         } else if (item.item_type === 'banner_ad') {
             apiFetch(`/api/ads/${item.id}/click`, { method: 'POST' }).finally(() => {
                 if (item.raw.target_url) window.open(item.raw.target_url, "_blank");
@@ -96,7 +96,7 @@ export default function Ads() {
                         Latest Ads
                     </h1>
                     <p className="text-slate-500 text-lg mb-8 max-w-2xl mx-auto">
-                        Discover classifieds, promotions, and marketplace ads from our community.
+                        Discover classifieds, promotions, and ads ads from our community.
                     </p>
                     <div className="max-w-xl mx-auto flex items-center bg-white rounded-2xl shadow-sm border border-slate-200 px-4 focus-within:ring-2 ring-primary/20 transition-all">
                         <Search className="text-slate-400 w-5 h-5 mr-3 shrink-0" />

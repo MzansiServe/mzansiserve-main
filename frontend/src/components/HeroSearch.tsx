@@ -62,7 +62,7 @@ const HeroSearch = () => {
             transition={{ duration: 0.6, delay: 0.1 }}
             className="text-xl md:text-2xl text-slate-500 font-normal max-w-2xl mx-auto leading-relaxed"
           >
-            The all-in-one marketplace for South Africa. Book rides, hire experts, and shop local brands.
+            The all-in-one ads for South Africa. Book rides, hire experts, and shop local brands.
           </motion.p>
         </div>
 

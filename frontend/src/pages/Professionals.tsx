@@ -147,7 +147,7 @@ const Professionals = () => {
                 <ArrowLeft className="h-8 w-8 text-rose-500" />
               </div>
               <h3 className="text-xl font-bold text-[#222222] mb-2">Connection Error</h3>
-              <p className="text-slate-500 font-normal">We couldn't reach the marketplace. Please try again.</p>
+              <p className="text-slate-500 font-normal">We couldn't reach the ads. Please try again.</p>
               <Button
                 variant="ghost"
                 className="mt-6 text-primary font-bold hover:bg-primary/5 rounded-xl"

@@ -203,7 +203,7 @@ const ServiceSections = () => {
           },
           {
             id: "shop",
-            badge: "E-Commerce Marketplace",
+            badge: "E-Commerce ads",
             title: "Shop Local, Support Mzansi",
             subtitle: "Browse thousands of products from verified local sellers.",
             accentClass: "group-hover:text-sa-red",

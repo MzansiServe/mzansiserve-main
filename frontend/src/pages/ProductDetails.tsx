@@ -283,7 +283,7 @@ const ProductDetails = () => {
                   </div>
                   <div>
                     <p className="text-[10px] text-slate-400 uppercase font-black tracking-widest mb-0.5">Verified seller</p>
-                    <p className="text-base font-bold text-[#222222]">{product.seller_name || "Official Marketplace"}</p>
+                    <p className="text-base font-bold text-[#222222]">{product.seller_name || "Official ads"}</p>
                   </div>
                 </div>
 

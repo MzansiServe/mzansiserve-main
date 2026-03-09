@@ -52,7 +52,7 @@ interface Category {
     icon: string;
 }
 
-const Marketplace = () => {
+const ads = () => {
     const navigate = useNavigate();
     const [searchParams, setSearchParams] = useSearchParams();
     const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
@@ -65,15 +65,15 @@ const Marketplace = () => {
 
     // Fetch Categories
     const { data: categoriesRes } = useQuery({
-        queryKey: ["marketplace-categories"],
-        queryFn: () => apiFetch("/api/marketplace/categories"),
+        queryKey: ["ads-categories"],
+        queryFn: () => apiFetch("/api/ads/categories"),
     });
 
     // Fetch Ads
     const { data: adsRes, isLoading: loadingAds } = useQuery({
-        queryKey: ["marketplace-ads", search, categorySlug, city, currentPage],
+        queryKey: ["ads-ads", search, categorySlug, city, currentPage],
         queryFn: () => {
-            let url = `/api/marketplace/ads?limit=12&offset=${(currentPage - 1) * 12}`;
+            let url = `/api/ads/ads?limit=12&offset=${(currentPage - 1) * 12}`;
             if (search) url += `&search=${search}`;
             if (categorySlug !== "all") url += `&category=${categorySlug}`;
             if (city) url += `&city=${city}`;
@@ -112,7 +112,7 @@ const Marketplace = () => {
                             animate={{ opacity: 1, y: 0 }}
                         >
                             <Badge className="mb-4 bg-primary/10 text-primary border-none text-xs font-bold px-3 py-1">
-                                <Sparkles className="w-3 h-3 mr-1" /> MZANSI MARKETPLACE
+                                <Sparkles className="w-3 h-3 mr-1" /> MZANSI ads
                             </Badge>
                             <h1 className="text-4xl md:text-6xl font-black text-[#1e293b] mb-6 tracking-tight">
                                 Buy & Sell in <span className="text-primary italic">Mzansi</span>
@@ -207,7 +207,7 @@ const Marketplace = () => {
                         </Button>
                         <Button
                             className="rounded-xl bg-primary hover:bg-primary/90 text-white font-bold gap-2"
-                            onClick={() => navigate('/marketplace/post')}
+                            onClick={() => navigate('/ads/post')}
                         >
                             <Plus className="w-4 h-4" /> Post Ad
                         </Button>
@@ -230,7 +230,7 @@ const Marketplace = () => {
                                 animate={{ opacity: 1, scale: 1 }}
                                 whileHover={{ y: -5 }}
                                 className={`group bg-white border border-slate-100 rounded-[2rem] overflow-hidden transition-all hover:shadow-2xl hover:shadow-slate-200 cursor-pointer ${viewMode === 'list' ? "flex h-48" : ""}`}
-                                onClick={() => navigate(`/marketplace/ad/${ad.id}`)}
+                                onClick={() => navigate(`/ads/ad/${ad.id}`)}
                             >
                                 <div className={`relative ${viewMode === 'list' ? "w-64 shrink-0" : "aspect-[4/3]"}`}>
                                     <img
@@ -340,4 +340,4 @@ const Marketplace = () => {
     );
 };
 
-export default Marketplace;
+export default ads;

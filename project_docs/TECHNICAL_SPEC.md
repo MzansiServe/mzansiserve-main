@@ -24,7 +24,7 @@
 ## Executive Summary
 
 ### Project Overview
-MzansiServe is a service marketplace platform connecting users with vetted service providers (cabs, professionals, service providers). The platform includes user registration, service request management, payment processing, e-commerce shop, and admin dashboards.
+MzansiServe is a service ads platform connecting users with vetted service providers (cabs, professionals, service providers). The platform includes user registration, service request management, payment processing, e-commerce shop, and admin dashboards.
 
 ### Migration Goals
 - **Convert** from Node.js/Express backend to fullstack Flask (Python) with server-side rendering

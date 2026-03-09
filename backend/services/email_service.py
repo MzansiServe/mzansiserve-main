@@ -120,7 +120,7 @@ To complete your registration, please verify your email address by clicking the 
 
 If you did not create this account, you can safely ignore this email.
 
-Thank you for joining South Africa's trusted marketplace for services, professionals, drivers, and shops.
+Thank you for joining South Africa's trusted ads for services, professionals, drivers, and shops.
 
 Warm regards,
 MzansiServe Support Team
@@ -131,7 +131,7 @@ www.mzansiserve.co.za"""
 <p>To complete your registration, please verify your email address by clicking the button below:</p>
 <p><a href="{verification_url}" style="display:inline-block;background:#2563eb;color:#fff;padding:10px 20px;text-decoration:none;border-radius:6px;">Verify My Email</a></p>
 <p>If you did not create this account, you can safely ignore this email.</p>
-<p>Thank you for joining South Africa's trusted marketplace for services, professionals, drivers, and shops.</p>
+<p>Thank you for joining South Africa's trusted ads for services, professionals, drivers, and shops.</p>
 <p>Warm regards,<br>MzansiServe Support Team<br><a href="https://www.mzansiserve.co.za">www.mzansiserve.co.za</a></p>
 </body></html>"""
         email = EmailService.queue_email(

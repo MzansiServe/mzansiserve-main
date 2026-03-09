@@ -40,8 +40,8 @@ import MyBookings from "./pages/MyBookings";
 import Terms from "./pages/Terms";
 import Privacy from "./pages/Privacy";
 import Cookies from "./pages/Cookies";
-import Marketplace from "./pages/Marketplace";
-import MarketplaceAdDetails from "./pages/MarketplaceAdDetails";
+import ads from "./pages/ads";
+import MarketplaceAdDetails from "./pages/adsAdDetails";
 import PostAd from "./pages/PostAd";
 import Ads from "./pages/Ads";
 
@@ -74,8 +74,8 @@ const App = () => (
               <Route path="/forgot-password" element={<ForgotPassword />} />
               <Route path="/reset-password" element={<ResetPassword />} />
               <Route path="/verify-email" element={<VerifyEmail />} />
-              <Route path="/marketplace" element={<Marketplace />} />
-              <Route path="/marketplace/ad/:id" element={<MarketplaceAdDetails />} />
+              <Route path="/ads" element={<ads />} />
+              <Route path="/ads/ad/:id" element={<MarketplaceAdDetails />} />
               <Route path="/ads" element={<Ads />} />
 
               {/* ── Auth-required routes ───────────────────────── */}
@@ -124,7 +124,7 @@ const App = () => (
                   <Profile />
                 </PrivateRoute>
               } />
-              <Route path="/marketplace/post" element={
+              <Route path="/ads/post" element={
                 <PrivateRoute>
                   <PostAd />
                 </PrivateRoute>

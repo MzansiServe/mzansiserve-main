@@ -24,7 +24,7 @@ export default function Cart() {
                 Your Cart is Empty
             </Typography>
             <Typography variant="body" color={COLORS.gray[500]} align="center" style={{ marginTop: SPACING.sm, paddingHorizontal: SPACING.xl }}>
-                Browse our marketplace to find products you'll love.
+                Browse our ads to find products you'll love.
             </Typography>
             <Button
                 title="Start Shopping"

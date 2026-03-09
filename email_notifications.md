@@ -11,7 +11,7 @@ Verify My Email: {{verification_link}}
 
 If you did not create this account, you can safely ignore this email.
 
-Thank you for joining South Africa’s trusted marketplace for services, professionals, drivers, and shops.
+Thank you for joining South Africa’s trusted ads for services, professionals, drivers, and shops.
 
 Warm regards,
 MzansiServe Support Team

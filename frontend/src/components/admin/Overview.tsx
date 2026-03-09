@@ -181,7 +181,7 @@ const Overview: React.FC<OverviewProps> = ({
           <MetricCard
             label="Total Platform Revenue"
             value={`R${(stats?.revenue?.total || 0).toLocaleString()}`}
-            caption="Combined marketplace earnings"
+            caption="Combined ads earnings"
             icon={RevenueIcon}
             color="primary"
             trend="+12.4%"

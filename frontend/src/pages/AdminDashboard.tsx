@@ -95,7 +95,7 @@ const NAV_STRUCTURE = [
     },
     {
         type: "group",
-        label: "Marketplace",
+        label: "Ads",
         icon: Package,
         children: [
             { id: "products", label: "Products", icon: Package },
