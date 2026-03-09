@@ -1,4 +1,4 @@
-# MzansiServe Flask Application
+# MzansiServe Flask Application and React
 
 A service marketplace platform connecting users with vetted service providers (cabs, professionals, service providers).
 
