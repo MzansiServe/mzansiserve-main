@@ -40,8 +40,7 @@ import MyBookings from "./pages/MyBookings";
 import Terms from "./pages/Terms";
 import Privacy from "./pages/Privacy";
 import Cookies from "./pages/Cookies";
-import ads from "./pages/ads";
-import MarketplaceAdDetails from "./pages/adsAdDetails";
+import MarketplaceAdDetails from "./pages/MarketplaceAdDetails";
 import PostAd from "./pages/PostAd";
 import Ads from "./pages/Ads";
 
@@ -74,9 +73,8 @@ const App = () => (
               <Route path="/forgot-password" element={<ForgotPassword />} />
               <Route path="/reset-password" element={<ResetPassword />} />
               <Route path="/verify-email" element={<VerifyEmail />} />
-              <Route path="/ads" element={<ads />} />
-              <Route path="/ads/ad/:id" element={<MarketplaceAdDetails />} />
               <Route path="/ads" element={<Ads />} />
+              <Route path="/ads/ad/:id" element={<MarketplaceAdDetails />} />
 
               {/* ── Auth-required routes ───────────────────────── */}
               <Route path="/services" element={
