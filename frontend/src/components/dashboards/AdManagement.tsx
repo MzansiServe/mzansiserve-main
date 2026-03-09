@@ -278,7 +278,7 @@ export const AdManagement = () => {
                         >
                             <MenuItem value="homepage_hero">Homepage Hero Gap</MenuItem>
                             <MenuItem value="shop_directory">Shop Directory Banner</MenuItem>
-                            <MenuItem value="marketplace_sidebar">Marketplace Sidebar</MenuItem>
+                            <MenuItem value="marketplace_sidebar">ads Sidebar</MenuItem>
                         </TextField>
 
                         {formData.image_url && (

@@ -4,7 +4,7 @@ from backend.models import ShopProduct, User, MarketplaceAd, MarketplaceCategory
 import click
 
 with app.app_context():
-    print("Clearing demo products and marketplace ads...")
+    print("Clearing demo products and ads ads...")
     # Delete demo products by matching the default ones in seed_all
     default_names = ['Smartphone', 'Laptop', 'Headphones', 'Smartwatch', 'T-Shirt', 'Jeans', 'Coffee Maker', 'Blender']
     db.session.query(ShopProduct).filter(ShopProduct.name.in_(default_names)).delete(synchronize_session=False)

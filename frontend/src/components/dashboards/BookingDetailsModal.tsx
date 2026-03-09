@@ -166,7 +166,7 @@ export const BookingDetailsModal = ({ isOpen, onClose, data, type }: BookingDeta
                                             <p className="font-bold text-[#222222]">
                                                 {data.driver_name || data.details?.provider_name || data.details?.professional_name || "Pending Assignment"}
                                             </p>
-                                            <p className="text-xs text-slate-500">Verified Marketplace Partner</p>
+                                            <p className="text-xs text-slate-500">Verified ads Partner</p>
                                         </div>
                                         {data.provider_id && (
                                             <div className="ml-auto">

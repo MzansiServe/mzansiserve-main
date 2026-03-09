@@ -4,7 +4,7 @@ from backend.extensions import db
 from sqlalchemy.dialects.postgresql import UUID, JSONB
 
 class MarketplaceCategory(db.Model):
-    """Marketplace Category (e.g., Cars, Electronics, Property)"""
+    """ads Category (e.g., Cars, Electronics, Property)"""
     __tablename__ = 'marketplace_categories'
     
     id = db.Column(db.String(36), primary_key=True, default=lambda: f"MCAT-{uuid.uuid4().hex[:8].upper()}")

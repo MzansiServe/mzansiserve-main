@@ -130,10 +130,10 @@ export default function Shop() {
     queryFn: () => apiFetch("/api/shop/categories"),
   });
 
-  // Fetch Marketplace Categories
+  // Fetch ads Categories
   const { data: mkpCategoriesRes } = useQuery({
-    queryKey: ["marketplace-categories"],
-    queryFn: () => apiFetch("/api/marketplace/categories"),
+    queryKey: ["ads-categories"],
+    queryFn: () => apiFetch("/api/ads/categories"),
   });
 
   // Fetch Shop Products
@@ -142,10 +142,10 @@ export default function Shop() {
     queryFn: () => apiFetch("/api/shop/products?limit=500"),
   });
 
-  // Fetch Marketplace Ads
+  // Fetch ads Ads
   const { data: adsRes, isLoading: loadingAds } = useQuery({
-    queryKey: ["marketplace-ads"],
-    queryFn: () => apiFetch("/api/marketplace/ads?limit=500"),
+    queryKey: ["ads-ads"],
+    queryFn: () => apiFetch("/api/ads/ads?limit=500"),
   });
 
   // Fetch Active Banner Ads (to inject natively)
@@ -193,12 +193,12 @@ export default function Shop() {
     mkAds.forEach((ad: any) => {
       const imgSrc = ad.images?.[0] ? (getImageUrl(ad.images[0])) : null;
       items.push({
-        item_type: 'marketplace',
+        item_type: 'ads',
         id: ad.id,
         title: ad.title,
         price: ad.price,
         image: imgSrc,
-        category: ad.category_name || 'Marketplace',
+        category: ad.category_name || 'Ads',
         category_id: ad.category_id || ad.category_slug || ad.category_name, // fallback for matching
         seller: ad.user?.name || 'User',
         location: ad.city || ad.province || 'Mzansi',
@@ -263,7 +263,7 @@ export default function Shop() {
     // Advanced Filters
     if (sourceFilter !== "all") {
       if (sourceFilter === "shop") result = result.filter(i => i.item_type === "shop");
-      if (sourceFilter === "mkp") result = result.filter(i => i.item_type === "marketplace");
+      if (sourceFilter === "mkp") result = result.filter(i => i.item_type === "ads");
       if (sourceFilter === "ads") result = result.filter(i => i.item_type === "banner_ad");
     }
 
@@ -335,8 +335,8 @@ export default function Shop() {
   const handleItemClick = (item: any) => {
     if (item.item_type === 'shop') {
       navigate(`/shop/product/${item.id}`);
-    } else if (item.item_type === 'marketplace') {
-      navigate(`/marketplace/ad/${item.id}`);
+    } else if (item.item_type === 'ad') {
+      navigate(`/ads/ad/${item.id}`);
     } else if (item.item_type === 'banner_ad') {
       // Record click then navigate
       apiFetch(`/api/ads/${item.id}/click`, { method: 'POST' }).finally(() => {
@@ -505,7 +505,7 @@ export default function Shop() {
                       <SelectContent>
                         <SelectItem value="all">All Sources</SelectItem>
                         <SelectItem value="shop">Shop Products Only</SelectItem>
-                        <SelectItem value="mkp">Marketplace Only</SelectItem>
+                        <SelectItem value="mkp">ads Only</SelectItem>
                         <SelectItem value="ads">Sponsored Ads</SelectItem>
                       </SelectContent>
                     </Select>
@@ -555,7 +555,7 @@ export default function Shop() {
             </Sheet>
             <Button
               className="rounded-xl flex-1 sm:flex-none bg-primary hover:bg-primary/90 text-white font-bold gap-2"
-              onClick={() => navigate('/marketplace/post')}
+              onClick={() => navigate('/ads/post')}
             >
               <Plus className="w-4 h-4" /> Post Ad
             </Button>
@@ -596,7 +596,7 @@ export default function Shop() {
                   </div>
                   <div className="absolute top-4 left-4 z-10 flex flex-col gap-2">
                     <Badge className={`bg-white/90 backdrop-blur-md text-[#222222] border-none text-[10px] font-bold px-2 py-0.5 rounded-lg shadow-sm w-fit uppercase ${item.item_type === 'banner_ad' ? 'ring-2 ring-amber-400' : ''}`}>
-                      {item.item_type === 'shop' ? 'Shop Product' : item.item_type === 'marketplace' ? 'Ad' : 'Sponsored Ad'}
+                      {item.item_type === 'shop' ? 'Shop Product' : item.item_type === 'ads' ? 'Ad' : 'Sponsored Ad'}
                     </Badge>
                   </div>
                   <button
@@ -651,7 +651,7 @@ export default function Shop() {
                       </span>
                     </div>
                     <div className="flex gap-1 shrink-0">
-                      {item.item_type === 'marketplace' && (
+                      {item.item_type === 'ads' && (
                         <>
                           <Button variant="ghost" size="icon" className="h-8 w-8 rounded-full text-slate-400 hover:text-primary hover:bg-primary/5">
                             <MessageSquare className="w-4 h-4" />

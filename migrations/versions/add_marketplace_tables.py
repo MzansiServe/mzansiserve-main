@@ -1,4 +1,4 @@
-"""add marketplace tables
+"""add ads tables
 
 Revision ID: add_marketplace_001
 Revises: 68eb0932a016

@@ -34,7 +34,7 @@ export default function Shop() {
   const renderHeader = () => (
     <View style={styles.header}>
       <View style={styles.titleRow}>
-        <Typography variant="h2" weight="bold">Marketplace</Typography>
+        <Typography variant="h2" weight="bold">ads</Typography>
         <View style={{ flexDirection: 'row' }}>
           <TouchableOpacity style={[styles.iconButton, { marginRight: SPACING.sm }]}>
             <Filter color={COLORS.gray[800]} size={20} />
@@ -106,7 +106,7 @@ export default function Shop() {
       <View style={styles.center}>
         <ActivityIndicator size="large" color={COLORS.primary} />
         <Typography variant="body" color={COLORS.gray[500]} style={{ marginTop: 12 }}>
-          Loading marketplace...
+          Loading classified ads...
         </Typography>
       </View>
     );

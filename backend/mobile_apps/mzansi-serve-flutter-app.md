@@ -6,7 +6,7 @@ Technical specification and project quote for a Flutter app that mirrors the exi
 
 ## 1. Executive Summary
 
-The MzansiServe backend is a Flask API serving a service marketplace (cabs, professionals, service providers). This document specifies a **native Flutter mobile app** (iOS and Android) that reuses all existing API endpoints, authentication, and business logic. No backend changes are required beyond ensuring CORS/configuration allow mobile clients where applicable.
+The MzansiServe backend is a Flask API serving a service ads (cabs, professionals, service providers). This document specifies a **native Flutter mobile app** (iOS and Android) that reuses all existing API endpoints, authentication, and business logic. No backend changes are required beyond ensuring CORS/configuration allow mobile clients where applicable.
 
 **Delivery:** 3 weeks from kick-off.  
 **Quote:** See Section 7.

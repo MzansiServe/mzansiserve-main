@@ -53,8 +53,8 @@ const MarketplaceAdDetails = () => {
     const [initializingChat, setInitializingChat] = useState(false);
 
     const { data: adRes, isLoading, error } = useQuery({
-        queryKey: ["marketplace-ad", id],
-        queryFn: () => apiFetch(`/api/marketplace/ads/${id}`),
+        queryKey: ["ads-ad", id],
+        queryFn: () => apiFetch(`/api/ads/ads/${id}`),
         enabled: !!id
     });
 
@@ -67,7 +67,7 @@ const MarketplaceAdDetails = () => {
     if (error || !adRes?.success) return (
         <div className="min-h-screen flex flex-col items-center justify-center">
             <h2 className="text-2xl font-bold mb-4">Ad not found</h2>
-            <Button onClick={() => navigate('/marketplace')}>Back to Marketplace</Button>
+            <Button onClick={() => navigate('/ads')}>Back to ads</Button>
         </div>
     );
 
@@ -89,7 +89,7 @@ const MarketplaceAdDetails = () => {
                 description: "Please login to message the seller",
                 variant: "destructive"
             });
-            navigate("/login", { state: { from: `/marketplace/ad/${id}` } });
+            navigate("/login", { state: { from: `/ads/ad/${id}` } });
             return;
         }
 
@@ -137,9 +137,9 @@ const MarketplaceAdDetails = () => {
                         <Button
                             variant="ghost"
                             className="text-slate-500 hover:text-primary pl-0 gap-2"
-                            onClick={() => navigate('/marketplace')}
+                            onClick={() => navigate('/ads')}
                         >
-                            <ArrowLeft size={18} /> Back to Marketplace
+                            <ArrowLeft size={18} /> Back to ads
                         </Button>
                         <div className="flex gap-2">
                             <Button variant="outline" size="icon" className="rounded-full h-10 w-10 border-slate-200" onClick={handleShare}>

@@ -166,7 +166,7 @@ def mark_read(request_id):
 @bp.route('/initialize-ad-chat', methods=['POST'])
 @require_auth
 def initialize_ad_chat():
-    """Find or create a ServiceRequest context for a marketplace ad chat"""
+    """Find or create a ServiceRequest context for a ads ad chat"""
     try:
         user_id = get_jwt_identity()
         data = request.json

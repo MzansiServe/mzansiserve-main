@@ -21,7 +21,7 @@ const sections = [
         content: `"User" means any individual or entity that accesses or uses the Platform.
 "Client" means a User who books or requests services through the Platform.
 "Service Provider" means a registered professional, driver, tradesperson, or any other person offering services via the Platform.
-"Services" means any professional, domestic, transport, or marketplace service listed on the Platform.
+"Services" means any professional, domestic, transport, or ads service listed on the Platform.
 "Booking" means a confirmed reservation of a Service made through the Platform.`,
     },
     {
@@ -36,7 +36,7 @@ const sections = [
     {
         id: "services",
         title: "Service Listings & Bookings",
-        content: `MzansiServe acts as a marketplace intermediary connecting Clients with Service Providers. We do not directly provide the services listed and are not a party to contracts entered into between Clients and Service Providers.
+        content: `MzansiServe acts as a ads intermediary connecting Clients with Service Providers. We do not directly provide the services listed and are not a party to contracts entered into between Clients and Service Providers.
 
     All Service Providers are independently verified through relevant South African regulatory databases including SARS, CIPC, Home Affairs, and SAPS where applicable. However, MzansiServe does not guarantee the quality, safety, or legality of any service provided.
 

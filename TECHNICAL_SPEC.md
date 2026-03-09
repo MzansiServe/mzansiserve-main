@@ -24,7 +24,7 @@
 ## Executive Summary
 
 ### Project Overview
-MzansiServe is a service marketplace platform connecting users with vetted service providers (cabs, professionals, service providers). The platform includes user registration, service request management, payment processing, e-commerce shop, and admin dashboards.
+MzansiServe is a service ads platform connecting users with vetted service providers (cabs, professionals, service providers). The platform includes user registration, service request management, payment processing, e-commerce shop, and admin dashboards.
 
 ### Migration Goals
 - **Convert** from Node.js/Express backend to fullstack Flask (Python) with server-side rendering
@@ -2055,7 +2055,7 @@ refactor make home page:
 - "Welcome to MzansiServe" section
   - "Convert into a carousel"
     - Section fades in from top
-      - As it currently reads (Your trusted service marketplace), and the buttons
+      - As it currently reads (Your trusted service ads), and the buttons
     - "Driver Services" section
       - "Sedan & Luxury Cars Vans & Trucks Distance-based pricing Verified drivers Insurance covered"
     - "Professional Services" section

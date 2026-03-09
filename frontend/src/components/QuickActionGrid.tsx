@@ -33,10 +33,10 @@ const actions = [
         iconBg: "bg-gradient-to-br from-primary to-primary/80",
     },
     {
-        title: "Marketplace",
+        title: "Ads",
         subtitle: "Classified Ads",
         icon: Tag,
-        href: "/marketplace",
+        href: "/ads",
         iconBg: "bg-gradient-to-br from-primary to-primary/80",
     },
 ];

@@ -138,7 +138,7 @@ def seed_all():
          'From cleaning to events, DSTV to repairs — trusted providers at your door.',
          'Get a Service',  '/services',    'bg-gradient-gold shadow-glow-gold',     'hero-services.jpg'),
         (4, 'Shop',        'Buy & Sell\nLocally with Ease',
-         'Discover products from local sellers. A marketplace built for Mzansi.',
+         'Discover products from local sellers. A ads built for Mzansi.',
          'Start Shopping', '/shop',        'bg-sa-red shadow-lg',                  'hero-shop.jpg'),
     ]
     ban_c = 0
@@ -309,9 +309,9 @@ def seed_all():
     db.session.commit()
     click.echo(f'   {user_c} demo users created.\n')
 
-    # ── 11. Marketplace Categories ──────────────────────────────────────────
-    click.echo('[11/12] Marketplace categories…')
-    from backend.models.marketplace import MarketplaceCategory, MarketplaceAd
+    # ── 11. ads Categories ──────────────────────────────────────────
+    click.echo('[11/12] ads categories…')
+    from backend.models.ads import MarketplaceCategory, MarketplaceAd
     m_cats = [
         ('Vehicles', 'vehicles', 'Car'),
         ('Property', 'property', 'Home'),
@@ -328,10 +328,10 @@ def seed_all():
             db.session.add(MarketplaceCategory(name=name, slug=slug, icon=icon))
             mcat_c += 1
     db.session.commit()
-    click.echo(f'   {mcat_c} marketplace categories created.\n')
+    click.echo(f'   {mcat_c} ads categories created.\n')
 
-    # ── 12. Marketplace Ads ────────────────────────────────────────────────
-    click.echo('[12/12] Marketplace ads…')
+    # ── 12. ads Ads ────────────────────────────────────────────────
+    click.echo('[12/12] ads ads…')
     admin_user = User.query.filter_by(email=ADMIN_EMAIL).first()
     if admin_user:
         example_ads = [
@@ -387,7 +387,7 @@ def seed_all():
                     ))
                     mad_c += 1
         db.session.commit()
-        click.echo(f'   {mad_c} marketplace ads created.\n')
+        click.echo(f'   {mad_c} ads ads created.\n')
 
         # ── 12. Demo Bookings (for Admin) ───────────────────────────────────
         click.echo('[12/12] Demo bookings & orders…')

@@ -144,7 +144,7 @@ export default function ProductDetails() {
                     <View style={styles.section}>
                         <Typography variant="subtitle" weight="bold" style={{ marginBottom: SPACING.sm }}>Description</Typography>
                         <Typography variant="body" color={COLORS.gray[600]} style={{ lineHeight: 22 }}>
-                            {product.description || "No description available for this product. Our Marketplace items are curated for quality and value."}
+                            {product.description || "No description available for this product. Our ads items are curated for quality and value."}
                         </Typography>
                     </View>
 

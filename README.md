@@ -1,6 +1,6 @@
 # MzansiServe Flask Application
 
-A service marketplace platform connecting users with vetted service providers (cabs, professionals, service providers).
+A service ads platform connecting users with vetted service providers (cabs, professionals, service providers).
 
 ### Features (high level)
 

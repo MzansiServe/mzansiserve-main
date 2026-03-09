@@ -129,7 +129,7 @@ const Services = () => {
         <div className="container mx-auto px-6 relative z-10">
           <div className="flex flex-col md:flex-row md:items-end justify-between gap-8 max-w-6xl mx-auto">
             <div className="flex-1">
-              <span className="inline-block mb-3 text-[10px] font-black uppercase tracking-[0.2em] text-primary bg-primary/5 px-3 py-1 rounded-full border border-primary/10">The Marketplace</span>
+              <span className="inline-block mb-3 text-[10px] font-black uppercase tracking-[0.2em] text-primary bg-primary/5 px-3 py-1 rounded-full border border-primary/10">The ads</span>
               <h1 className="text-4xl md:text-5xl font-bold text-[#222222] mb-4 tracking-tighter leading-tight">
                 Find exactly <br />
                 <span className="text-primary">what you need.</span>
@@ -187,7 +187,7 @@ const Services = () => {
           {isLoading && (
             <div className="py-16 flex flex-col items-center justify-center gap-6 text-slate-400">
               <div className="h-10 w-10 rounded-full border-4 border-primary border-t-transparent animate-spin" />
-              <p className="text-xs font-bold uppercase tracking-widest">Searching Marketplace...</p>
+              <p className="text-xs font-bold uppercase tracking-widest">Searching ads...</p>
             </div>
           )}
 
@@ -197,7 +197,7 @@ const Services = () => {
                 <ArrowLeft className="h-8 w-8 text-rose-500" />
               </div>
               <h3 className="text-xl font-bold text-[#222222] mb-2">Connection Error</h3>
-              <p className="text-slate-500 font-normal">We're having trouble connecting to the marketplace.</p>
+              <p className="text-slate-500 font-normal">We're having trouble connecting to the ads.</p>
               <Button
                 variant="ghost"
                 className="mt-6 h-12 px-8 rounded-2xl bg-primary text-white font-bold"
@@ -235,7 +235,7 @@ const Services = () => {
                 className="mt-10 h-14 px-10 rounded-2xl bg-slate-50 text-[#222222] font-bold"
                 onClick={() => { setSearch(""); setCategory("all"); setSubcategory("all"); setLocation("all"); }}
               >
-                Reset Marketplace
+                Reset ads
               </Button>
             </div>
           )}

@@ -31,8 +31,8 @@ This document serves as the master checklist to ensure that the Expo/Android app
     - [ ] Payment Gateway Integration (Yoco/Webview).
     - [ ] Order Success/Failure redirection.
 
-## 5. Marketplace Flow
-- [ ] **Browse Ads:** View all marketplace ads.
+## 5. ads Flow
+- [ ] **Browse Ads:** View all ads ads.
 - [ ] **Ad Details:** View specific ad details with contact info.
 - [ ] **Post Ad:** Auth-protected CTA to upload images and description for a new ad.
 

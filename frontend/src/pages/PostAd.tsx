@@ -36,8 +36,8 @@ const PostAd = () => {
     });
 
     const { data: categoriesRes } = useQuery({
-        queryKey: ["marketplace-categories"],
-        queryFn: () => apiFetch("/api/marketplace/categories"),
+        queryKey: ["ads-categories"],
+        queryFn: () => apiFetch("/api/ads/categories"),
     });
 
     const categories = categoriesRes?.data?.categories || [];
@@ -70,7 +70,7 @@ const PostAd = () => {
         setIsSubmitting(true);
 
         try {
-            const res = await apiFetch("/api/marketplace/ads", {
+            const res = await apiFetch("/api/ads/ads", {
                 method: "POST",
                 body: JSON.stringify({
                     ...formData,
@@ -83,7 +83,7 @@ const PostAd = () => {
                     title: "Success",
                     description: "Your ad has been posted and is now live!"
                 });
-                navigate(`/marketplace/ad/${res.data.id}`);
+                navigate(`/ads/ad/${res.data.id}`);
             } else {
                 toast({
                     variant: "destructive",
@@ -111,7 +111,7 @@ const PostAd = () => {
                     <Button
                         variant="ghost"
                         className="mb-8 text-slate-500 hover:text-primary pl-0 gap-2"
-                        onClick={() => navigate('/marketplace')}
+                        onClick={() => navigate('/ads')}
                     >
                         <ArrowLeft size={18} /> Cancel
                     </Button>
@@ -277,7 +277,7 @@ const PostAd = () => {
                                                 <Info size={20} />
                                             </div>
                                             <p className="text-xs text-slate-600 leading-relaxed">
-                                                Buyers will see your contact details to reach out. By posting, you agree to our Marketplace Terms.
+                                                Buyers will see your contact details to reach out. By posting, you agree to our ads Terms.
                                             </p>
                                         </div>
 

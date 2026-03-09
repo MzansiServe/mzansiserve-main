@@ -33,7 +33,7 @@ from backend.models.report import Report
 from backend.models.agent_commission import AgentCommission
 from backend.models.ad_inquiry import AdInquiry
 from backend.models.advert import Advert
-from backend.models.marketplace import MarketplaceCategory, MarketplaceAd
+from backend.models.ads import MarketplaceCategory, MarketplaceAd
 
 __all__ = [
     'User',

@@ -60,7 +60,7 @@ const Footer = () => {
       { label: "Professional Services", to: "/professionals", isProtected: true },
       { label: "Home & Garden Services", to: "/services", isProtected: true },
       { label: "E-Commerce Shop", to: "/shop", isProtected: true },
-      { label: "Marketplace Ads", to: "/marketplace" },
+      { label: "Classified Ads", to: "/ads" },
     ],
     Account: [
       { label: "Login", to: "/login", show: !isAuthenticated },
@@ -147,7 +147,7 @@ const Footer = () => {
                 </span>
               </Link>
               <p className="text-slate-600 text-[15px] leading-relaxed max-w-sm">
-                South Africa's comprehensive service marketplace. Book transport, hire professionals, request services, and shop — all in one trusted platform.
+                South Africa's comprehensive service ads. Book transport, hire professionals, request services, and shop — all in one trusted platform.
               </p>
 
               {/* Social links */}
