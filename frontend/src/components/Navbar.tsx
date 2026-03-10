@@ -13,10 +13,10 @@ import CartDrawer from "./CartDrawer";
 const navLinks = [
   { label: "Home", to: "/" },
   { label: "Shop", to: "/shop" },
-  { label: "Ads", to: "/ads" },
   { label: "Request Cab", to: "/transport", requiresAuth: true },
   { label: "Professionals", to: "/professionals", requiresAuth: true },
   { label: "Services", to: "/services", requiresAuth: true },
+  { label: "Adverts", to: "/ads" }
 ];
 
 const Navbar = () => {
