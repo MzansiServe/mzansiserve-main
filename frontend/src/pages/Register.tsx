@@ -256,6 +256,7 @@ const Register = () => {
 
     // File-level checks (shown in top banner — not per-field)
     if (!form.role) { setServerError("Please select a role to register as"); return; }
+    if (!files.profile_photo) { setServerError("Profile photo is required"); return; }
     if (!files.id_document) { setServerError("ID document is required"); return; }
     if (form.role === "driver" && (!files.proof_of_residence || !files.drivers_license)) {
       setServerError("Drivers need Proof of Residence and Driver's License"); return;
@@ -751,7 +752,7 @@ const Register = () => {
                 <section className="space-y-5 pt-6 border-t border-slate-50">
                   <p className={sectionLabel}><ShieldCheck className="w-4 h-4" /> Verification Documents</p>
                   <div className="grid gap-6 sm:grid-cols-2">
-                    <FileUploadArea label="Profile Photo (Optional)" field="profile_photo" accept="image/*" />
+                    <FileUploadArea label="Profile Photo" field="profile_photo" accept="image/*" required />
                     <FileUploadArea label="ID Document / Passport" field="id_document" accept=".pdf,.jpg,.jpeg,.png" required />
                     {(form.role === "driver" || form.role === "professional" || form.role === "service-provider") && (
                       <FileUploadArea label="Proof of Residence" field="proof_of_residence" accept=".pdf,.jpg,.jpeg,.png" required />

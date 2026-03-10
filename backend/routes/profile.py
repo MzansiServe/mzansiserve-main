@@ -527,7 +527,7 @@ def pay_registration_fee():
         external_id = f"reg_fee_{user_id_hex}_{uuid.uuid4().hex[:8]}"
         
         # Create checkout session
-        base_url = current_app.config.get('FRONTEND_URL', 'http://localhost:5000')
+        base_url = current_app.config.get('BACKEND_URL', 'https://mzansiserve.co.za')
         checkout_result = PaymentService.create_checkout(
             amount=REGISTRATION_FEE_AMOUNT,
             currency='ZAR',
@@ -560,15 +560,16 @@ def payment_callback():
         
         # Only process success callbacks
         if callback_status != 'success':
-            # Redirect to profile with error message
+            frontend_url = current_app.config.get('FRONTEND_URL', 'https://mzansiserve.co.za')
             return current_app.make_response((
-                f'<html><body><script>window.location.href="/profile?payment=error";</script></body></html>',
+                f'<html><body><script>window.location.href="{frontend_url}/profile?payment=error";</script></body></html>',
                 302
             ))
         
         if not external_id:
+            frontend_url = current_app.config.get('FRONTEND_URL', 'https://mzansiserve.co.za')
             return current_app.make_response((
-                f'<html><body><script>window.location.href="/profile?payment=error";</script></body></html>',
+                f'<html><body><script>window.location.href="{frontend_url}/profile?payment=error";</script></body></html>',
                 302
             ))
         
@@ -576,8 +577,9 @@ def payment_callback():
         payment = Payment.query.filter_by(external_id=external_id).first()
         if not payment:
             current_app.logger.error(f"Payment not found for external_id: {external_id}")
+            frontend_url = current_app.config.get('FRONTEND_URL', 'https://mzansiserve.co.za')
             return current_app.make_response((
-                f'<html><body><script>window.location.href="/profile?payment=error";</script></body></html>',
+                f'<html><body><script>window.location.href="{frontend_url}/profile?payment=error";</script></body></html>',
                 302
             ))
         
@@ -613,8 +615,9 @@ def payment_callback():
                                 current_app.logger.info(f"User {user.id} registration fee paid successfully")
                                 
                                 # Redirect to profile with success message
+                                frontend_url = current_app.config.get('FRONTEND_URL', 'https://mzansiserve.co.za')
                                 return current_app.make_response((
-                                    f'<html><body><script>window.location.href="/profile?payment=success";</script></body></html>',
+                                    f'<html><body><script>window.location.href="{frontend_url}/profile?payment=success";</script></body></html>',
                                     302
                                 ))
                             else:
@@ -623,15 +626,17 @@ def payment_callback():
                     current_app.logger.error(f"Error parsing user_id from external_id: {e}")
         
         # Redirect to profile with error message
+        frontend_url = current_app.config.get('FRONTEND_URL', 'https://mzansiserve.co.za')
         return current_app.make_response((
-            f'<html><body><script>window.location.href="/profile?payment=error";</script></body></html>',
+            f'<html><body><script>window.location.href="{frontend_url}/profile?payment=error";</script></body></html>',
             302
         ))
         
     except Exception as e:
         current_app.logger.error(f"Payment callback error: {str(e)}")
+        frontend_url = current_app.config.get('FRONTEND_URL', 'https://mzansiserve.co.za')
         return current_app.make_response((
-            f'<html><body><script>window.location.href="/profile?payment=error";</script></body></html>',
+            f'<html><body><script>window.location.href="{frontend_url}/profile?payment=error";</script></body></html>',
             302
         ))
 

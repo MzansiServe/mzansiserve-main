@@ -46,8 +46,8 @@ class Config:
     FLASK_ENV = os.environ.get('FLASK_ENV') or 'development'
     FLASK_DEBUG = os.environ.get('FLASK_DEBUG') == '1'
 
-    FRONTEND_URL = os.environ.get('FRONTEND_URL') or 'http://localhost:8080'
-    BACKEND_URL = os.environ.get('BACKEND_URL') or 'http://localhost:5006'
+    FRONTEND_URL = os.environ.get('FRONTEND_URL') or 'https://mzansiserve.co.za'
+    BACKEND_URL = os.environ.get('BACKEND_URL') or 'https://mzansiserve.co.za'
 
     # Google Maps
     GOOGLE_MAPS_API_KEY = os.environ.get('GOOGLE_MAPS_API_KEY') or ''
