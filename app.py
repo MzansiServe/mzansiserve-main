@@ -79,8 +79,7 @@ def create_app(config_class=Config):
     app.register_blueprint(chat.bp, url_prefix='/api/chat')
     app.register_blueprint(reports.bp, url_prefix='/api/reports')
     app.register_blueprint(ads.bp, url_prefix='/api/ads')
-    app.register_blueprint(ads.bp, url_prefix='/api/ads')
-    
+
     @app.context_processor
     def inject_google_maps_api_key():
         return {'google_maps_api_key': app.config.get('GOOGLE_MAPS_API_KEY', '')}
