@@ -426,7 +426,7 @@ def wallet_top_up():
         wallet = WalletService.get_or_create_wallet(user_id)
         
         # Create checkout session
-        base_url = current_app.config.get('FRONTEND_URL', 'http://localhost:5000')
+        base_url = current_app.config.get('FRONTEND_URL', 'https://mzansiserve.co.za')
         checkout_result = PaymentService.create_checkout(
             amount=amount_cents,
             currency=currency,

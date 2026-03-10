@@ -384,7 +384,7 @@ def initiate_registration_payment():
         
         # Create checkout session
         REGISTRATION_FEE_AMOUNT = 10000  # R100.00 in cents
-        backend_url = current_app.config.get('BACKEND_URL', 'http://localhost:5006')
+        backend_url = current_app.config.get('BACKEND_URL', 'https://mzansiserve.co.za')
         
         checkout_result = PaymentService.create_checkout(
             amount=REGISTRATION_FEE_AMOUNT,
@@ -867,7 +867,7 @@ def registration_payment_callback():
         
         logger.info("registration_callback: status=%s external_id=%s", callback_status, external_id)
         
-        frontend_url = current_app.config.get('FRONTEND_URL', 'http://localhost:8080')
+        frontend_url = current_app.config.get('FRONTEND_URL', 'https://mzansiserve.co.za')
         
         if not external_id:
             return current_app.make_response((
@@ -949,7 +949,7 @@ def registration_payment_callback():
         
     except Exception as e:
         logger.exception("registration_callback: failed")
-        frontend_url_fallback = current_app.config.get('FRONTEND_URL', 'http://localhost:8080') if current_app else 'http://localhost:8080'
+        frontend_url_fallback = current_app.config.get('FRONTEND_URL', 'https://mzansiserve.co.za')
         return current_app.make_response((
             f'<html><body><script>window.location.href="{frontend_url_fallback}/?payment=error";</script></body></html>',
             302
