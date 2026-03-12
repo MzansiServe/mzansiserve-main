@@ -33,8 +33,9 @@ class Config:
     
     # Payments
     PAYPAL_CLIENT_ID = os.environ.get('PAYPAL_CLIENT_ID')
-    PAYPAL_SECRET = os.environ.get('PAYPAL_SECRET')
-    PAYPAL_BASE_URL = os.environ.get('PAYPAL_BASE_URL') or 'https://api-m.sandbox.paypal.com'
+    PAYPAL_CLIENT_SECRET = os.environ.get('PAYPAL_CLIENT_SECRET')
+    PAYPAL_API_URL = os.environ.get('PAYPAL_API_URL') or 'https://api-m.sandbox.paypal.com'
+    PAYPAL_MODE = os.environ.get('PAYPAL_MODE') or 'sandbox'
     YOCO_SECRET_KEY = os.environ.get('YOCO_SECRET_KEY')
     YOCO_API_URL = 'https://payments.yoco.com'
     
