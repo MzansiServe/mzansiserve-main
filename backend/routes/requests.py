@@ -122,6 +122,7 @@ class CabCheckoutSchema(Schema):
     preferences = fields.Dict()
     payment_amount = fields.Decimal(required=True)
     distance_km = fields.Float()
+    provider = fields.Str(validate=validate.OneOf(['yoco', 'paypal']), load_default='yoco')
     notes = fields.Str()
 
 
@@ -134,6 +135,7 @@ class ProfessionalCheckoutSchema(Schema):
     time = fields.Str(required=True)
     payment_amount = fields.Decimal(required=True)  # call-out fee or service rate
     preferences = fields.Dict()
+    provider = fields.Str(validate=validate.OneOf(['yoco', 'paypal']), load_default='yoco')
     notes = fields.Str()
     is_rfq = fields.Bool(load_default=False)
 
