@@ -1,18 +1,27 @@
 import React, { useState } from 'react';
 import { View, StyleSheet, ScrollView, TouchableOpacity, Alert } from 'react-native';
 import { useRouter } from 'expo-router';
-import { ArrowLeft, CheckCircle, MapPin, CreditCard } from 'lucide-react-native';
+import { ArrowLeft, CheckCircle, MapPin, CreditCard, ExternalLink } from 'lucide-react-native';
 import { COLORS, SPACING, SIZES, SHADOWS } from '../constants/Theme';
 import { Typography } from '../components/UI/Typography';
 import { useCart } from '../contexts/CartContext';
 import { Button } from '../components/UI/Button';
 import { Input } from '../components/UI/Input';
 
+// Mock Image for PayPal Logo (since we don't have the asset)
+const PayPalLogo = () => (
+    <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+        <Typography variant="subtitle" weight="bold" color="#003087">Pay</Typography>
+        <Typography variant="subtitle" weight="bold" color="#009cde">Pal</Typography>
+    </View>
+);
+
 export default function Checkout() {
     const router = useRouter();
     const { total, clearCart } = useCart();
     const [loading, setLoading] = useState(false);
     const [success, setSuccess] = useState(false);
+    const [paymentMethod, setPaymentMethod] = useState<'card' | 'paypal'>('card');
 
     const handlePlaceOrder = () => {
         // In a real app this would call an API
@@ -77,13 +86,45 @@ export default function Checkout() {
                             Payment Method
                         </Typography>
                     </View>
-                    <View style={styles.card}>
-                        <Input placeholder="Card Number" defaultValue="**** **** **** 4242" keyboardType="numeric" icon={<CreditCard color={COLORS.gray[400]} size={20} />} />
-                        <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginTop: SPACING.sm }}>
-                            <Input placeholder="MM/YY" defaultValue="12/26" containerStyle={{ flex: 1, marginRight: SPACING.sm }} />
-                            <Input placeholder="CVC" defaultValue="123" keyboardType="numeric" secureTextEntry containerStyle={{ flex: 1 }} />
-                        </View>
+                    <View style={styles.paymentMethodContainer}>
+                        <TouchableOpacity 
+                            style={[styles.paymentMethodOption, paymentMethod === 'card' && styles.paymentMethodActive]}
+                            onPress={() => setPaymentMethod('card')}
+                        >
+                            <CreditCard color={paymentMethod === 'card' ? COLORS.primary : COLORS.gray[400]} size={24} />
+                            <Typography variant="body" weight="medium" style={{ marginTop: 4 }}>Card</Typography>
+                        </TouchableOpacity>
+
+                        <TouchableOpacity 
+                            style={[styles.paymentMethodOption, paymentMethod === 'paypal' && styles.paymentMethodActive]}
+                            onPress={() => setPaymentMethod('paypal')}
+                        >
+                            <PayPalLogo />
+                            <Typography variant="body" weight="medium" style={{ marginTop: 4 }}>PayPal</Typography>
+                        </TouchableOpacity>
                     </View>
+
+                    {paymentMethod === 'card' ? (
+                        <View style={styles.card}>
+                            <Input placeholder="Card Number" defaultValue="**** **** **** 4242" keyboardType="numeric" icon={<CreditCard color={COLORS.gray[400]} size={20} />} />
+                            <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginTop: SPACING.sm }}>
+                                <Input placeholder="MM/YY" defaultValue="12/26" containerStyle={{ flex: 1, marginRight: SPACING.sm }} />
+                                <Input placeholder="CVC" defaultValue="123" keyboardType="numeric" secureTextEntry containerStyle={{ flex: 1 }} />
+                            </View>
+                        </View>
+                    ) : (
+                        <View style={styles.card}>
+                            <Typography variant="body" color={COLORS.gray[600]} style={{ marginBottom: SPACING.md }}>
+                                You will be redirected to PayPal to complete your purchase securely.
+                            </Typography>
+                            <View style={styles.paypalInfo}>
+                                <ExternalLink size={16} color={COLORS.gray[400]} />
+                                <Typography variant="label" color={COLORS.gray[500]} style={{ marginLeft: 8 }}>
+                                    Secure checkout via PayPal
+                                </Typography>
+                            </View>
+                        </View>
+                    )}
                 </View>
 
             </ScrollView>
@@ -94,12 +135,13 @@ export default function Checkout() {
                     <Typography variant="h2" weight="bold" color={COLORS.primary}>R{total.toFixed(2)}</Typography>
                 </View>
                 <Button
-                    title="Complete Purchase"
+                    title={paymentMethod === 'paypal' ? "Pay with PayPal" : "Complete Purchase"}
                     fullWidth
                     size="lg"
                     onPress={handlePlaceOrder}
                     loading={loading}
-                    icon={<CheckCircle size={20} color={COLORS.white} />}
+                    icon={paymentMethod === 'paypal' ? <ExternalLink size={20} color={COLORS.white} /> : <CheckCircle size={20} color={COLORS.white} />}
+                    variant={paymentMethod === 'paypal' ? 'primary' : 'primary'}
                 />
             </View>
         </View>
@@ -174,4 +216,30 @@ const styles = StyleSheet.create({
         alignItems: 'center',
         marginBottom: SPACING.md,
     },
+    paymentMethodContainer: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        marginBottom: SPACING.md,
+    },
+    paymentMethodOption: {
+        flex: 0.48,
+        backgroundColor: COLORS.white,
+        borderRadius: SIZES.radius.md,
+        padding: SPACING.md,
+        alignItems: 'center',
+        borderWidth: 2,
+        borderColor: 'transparent',
+        ...SHADOWS.sm,
+    },
+    paymentMethodActive: {
+        borderColor: COLORS.primary,
+        backgroundColor: COLORS.primary + '05',
+    },
+    paypalInfo: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        backgroundColor: COLORS.gray[50],
+        padding: SPACING.sm,
+        borderRadius: SIZES.radius.sm,
+    }
 });
