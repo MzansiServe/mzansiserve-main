@@ -41,20 +41,23 @@ class PaymentService:
         )
     
     @staticmethod
-    def update_payment_status(external_id, status, metadata=None):
-        """Update payment status in the database"""
+    def get_payment_status(external_id: str) -> str:
+        """Get payment status from the correct provider"""
         payment = Payment.query.filter_by(external_id=external_id).first()
         if not payment:
-            logger.warning("update_payment_status: payment not found external_id=%s", external_id)
-            return None
-        payment.status = status
-        if metadata:
-            if not payment.meta_data:
-                payment.meta_data = {}
-            payment.meta_data.update(metadata)
-        db.session.commit()
-        logger.debug("update_payment_status: external_id=%s status=%s", external_id, status)
-        return payment
+            logger.warning("get_payment_status: payment not found external_id=%s", external_id)
+            return 'not_found'
+            
+        provider_name = payment.payment_method or 'yoco'
+        try:
+            p = PaymentService._get_provider(provider_name)
+            return p.get_payment_status(external_id)
+        except Exception as e:
+            logger.error("get_payment_status: error with provider %s: %s", provider_name, str(e))
+            return payment.status
+
+    @staticmethod
+    def update_payment_status(external_id, status, metadata=None):
 
     @staticmethod
     def create_subscription(user_id, plan_id, success_url, cancel_url, provider='paypal'):

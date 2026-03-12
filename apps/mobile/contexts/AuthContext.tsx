@@ -20,7 +20,7 @@ export interface User {
 interface AuthContextType {
   user: User | null;
   login: (email: string, password: string, role: string) => Promise<{ success: boolean; data?: any; error?: string }>;
-  register: (name: string, email: string, password: string, role: string) => Promise<{ success: boolean; data?: any; error?: string }>;
+  register: (data: FormData | Record<string, any>) => Promise<{ success: boolean; data?: any; error?: string }>;
   logout: () => Promise<void>;
   setUser: (user: User | null) => void;
   isAuthenticated: boolean;
@@ -74,12 +74,22 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     }
   }, []);
 
-  const register = useCallback(async (fullName: string, email: string, password: string, role: string) => {
+  const register = useCallback(async (data: FormData | Record<string, any>) => {
     try {
-      const response = await apiClient.post("/auth/register", { full_name: fullName, email, password, role });
+      const isFormData = data instanceof FormData;
+      const endpoint = isFormData ? "/auth/register-with-payment" : "/auth/register";
+      
+      const payload = isFormData ? data : { ...data, role: data.role || "client" };
+      const config = isFormData ? { headers: { 'Content-Type': 'multipart/form-data' } } : {};
+
+      const response = await apiClient.post(endpoint, payload, config);
       const result = response.data;
 
       if (result.success) {
+        if (result.data?.token) {
+          await SecureStore.setItemAsync("token", result.data.token);
+          setUser(result.data.user);
+        }
         return { success: true, data: result.data };
       }
       return { success: false, error: result.message || "Registration failed" };

@@ -565,14 +565,16 @@ def pay_registration_fee():
 def payment_callback():
     """Handle payment callback from Yoco"""
     try:
-        callback_status = request.args.get('callback_status') or request.args.get('status')
         external_id = request.args.get('external_id')
         provider = request.args.get('provider', 'yoco')
         
-        current_app.logger.info(f"Payment callback received: status={callback_status}, external_id={external_id}, provider={provider}")
+        # Verify payment status with provider
+        verified_status = PaymentService.get_payment_status(external_id)
+        
+        current_app.logger.info(f"Payment callback received: status={verified_status}, external_id={external_id}, provider={provider}")
         
         # Only process success callbacks
-        if callback_status != 'success':
+        if verified_status != 'completed':
             frontend_url = current_app.config.get('FRONTEND_URL', 'https://mzansiserve.co.za')
             return current_app.make_response((
                 f'<html><body><script>window.location.href="{frontend_url}/profile?payment=error";</script></body></html>',
