@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
 import { apiFetch, API_BASE_URL, getImageUrl } from "@/lib/api";
+import { useCart } from "@/contexts/CartContext";
 import { useAuth } from "@/contexts/AuthContext";
 import { cn } from "@/lib/utils";
 import { motion } from "framer-motion";
@@ -58,6 +59,13 @@ const ShoppingHistory = () => {
 
     const params = new URLSearchParams(location.search);
     const paymentStatus = params.get("payment");
+    const { clearCart } = useCart();
+
+    useEffect(() => {
+        if (paymentStatus === "success") {
+            clearCart();
+        }
+    }, [paymentStatus, clearCart]);
 
     useEffect(() => {
         if (!searchTerm) {

@@ -234,10 +234,23 @@ def paypal_callback():
             payment = Payment.query.filter_by(external_id=external_id).first()
             if payment:
                 payment.status = 'completed'
-                db.session.commit()
                 
-            # Determine success redirect based on external_id prefix
-            if external_id.startswith('ORD-'):
+                # If this is a shop order, update its status
+                if external_id.startswith('ORD-'):
+                    from backend.models.shop import Order
+                    order = Order.query.get(external_id)
+                    if order:
+                        order.status = 'paid'
+                        order.payment_id = str(payment.id)
+                        
+                        # Update inventory
+                        try:
+                            from backend.services.inventory_service import update_inventory_on_order_payment
+                            update_inventory_on_order_payment(order)
+                        except Exception as e:
+                            current_app.logger.error(f"Inventory update failed for PayPal order {external_id}: {str(e)}")
+                
+                db.session.commit()
                 return current_app.make_response((
                     f'<html><body><script>window.location.href="{frontend_url}/shopping-history?payment=success&provider=paypal";</script></body></html>',
                     302
