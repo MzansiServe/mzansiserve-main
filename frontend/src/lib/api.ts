@@ -93,12 +93,12 @@ export async function apiFetch<T = any>(
 
         let errorMessage = "An error occurred";
         if (result) {
-            if (typeof result.error === 'object' && result.error !== null) {
+            if (result.message) {
+                errorMessage = result.message;
+            } else if (typeof result.error === 'object' && result.error !== null) {
                 errorMessage = result.error.message;
             } else if (typeof result.error === 'string') {
                 errorMessage = result.error;
-            } else if (result.message) {
-                errorMessage = result.message;
             }
         } else {
             errorMessage = response.statusText;
