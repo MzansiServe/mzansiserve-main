@@ -520,6 +520,7 @@ def create_professional_checkout():
             success_url=success_url,
             cancel_url=cancel_url,
             failure_url=failure_url,
+                    provider=data.get('provider', 'yoco')
         )
 
         payment = Payment.query.filter_by(external_id=external_id).first()
