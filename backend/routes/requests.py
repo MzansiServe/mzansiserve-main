@@ -122,6 +122,7 @@ class CabCheckoutSchema(Schema):
     preferences = fields.Dict()
     payment_amount = fields.Decimal(required=True)
     distance_km = fields.Float()
+    provider = fields.Str(validate=validate.OneOf(['yoco', 'paypal']), load_default='yoco')
     notes = fields.Str()
 
 
@@ -134,6 +135,7 @@ class ProfessionalCheckoutSchema(Schema):
     time = fields.Str(required=True)
     payment_amount = fields.Decimal(required=True)  # call-out fee or service rate
     preferences = fields.Dict()
+    provider = fields.Str(validate=validate.OneOf(['yoco', 'paypal']), load_default='yoco')
     notes = fields.Str()
     is_rfq = fields.Bool(load_default=False)
 
@@ -360,7 +362,9 @@ def create_cab_checkout():
             success_url=success_url,
             cancel_url=cancel_url,
             failure_url=failure_url,
+            provider=data.get('provider', 'yoco')
         )
+
 
         # Optionally, link payment ID on the request for easier tracking
         payment = Payment.query.filter_by(external_id=external_id).first()
@@ -516,6 +520,7 @@ def create_professional_checkout():
             success_url=success_url,
             cancel_url=cancel_url,
             failure_url=failure_url,
+                    provider=data.get('provider', 'yoco')
         )
 
         payment = Payment.query.filter_by(external_id=external_id).first()
@@ -536,6 +541,9 @@ def create_professional_checkout():
     except ValidationError as e:
         db.session.rollback()
         return error_response('VALIDATION_ERROR', 'Invalid input data', e.messages, 400)
+    except ValueError as e:
+        db.session.rollback()
+        return error_response('INVALID_REQUEST', str(e), None, 400)
     except Exception as e:
         db.session.rollback()
         current_app.logger.error(f"Create professional checkout error: {str(e)}")

@@ -345,40 +345,4 @@ def get_order(order_id):
         current_app.logger.error(f"Get order error: {str(e)}")
         return error_response('INTERNAL_ERROR', 'Failed to get order', None, 500)
 
-@bp.route('/orders/<order_id>/complete', methods=['PATCH'])
-@require_auth
-def complete_order(order_id):
-    """Complete a pending order (mark as paid)"""
-    try:
-        from flask_jwt_extended import get_jwt_identity
-        user_id = get_jwt_identity()
-        
-        order = Order.query.get(order_id)
-        
-        if not order:
-            return error_response('NOT_FOUND', 'Order not found', None, 404)
-        
-        # Only allow user to access their own orders
-        if str(order.customer_id) != user_id:
-            return error_response('FORBIDDEN', 'Access denied', None, 403)
-        
-        if order.status != 'pending':
-            return error_response('INVALID_STATUS', f'Order status is {order.status}, cannot complete', None, 400)
-        
-        # Update order status to paid
-        order.status = 'paid'
-        db.session.commit()
-        
-        # Update inventory quantities
-        from backend.services.inventory_service import update_inventory_on_order_payment
-        inventory_success, inventory_message = update_inventory_on_order_payment(order)
-        if not inventory_success:
-            current_app.logger.error(f"Inventory update failed for order {order_id}: {inventory_message}")
-            # Order is already marked as paid, so we continue but log the error
-        
-        return success_response(order.to_dict(), 'Order completed successfully')
-        
-    except Exception as e:
-        current_app.logger.error(f"Complete order error: {str(e)}")
-        return error_response('INTERNAL_ERROR', 'Failed to complete order', None, 500)
 

@@ -62,27 +62,24 @@ const Checkout = () => {
             });
 
             if (response.success && response.data?.redirect_url) {
+                // Force redirection to payment gateway
                 window.location.href = response.data.redirect_url;
             } else {
-                setTimeout(() => {
-                    clearCart();
-                    toast({
-                        title: "Order Placed Successfully!",
-                        description: "Your payment has been processed and your order is on the way.",
-                    });
-                    navigate("/shopping-history?payment=success");
-                }, 1500);
-            }
-        } catch (error) {
-            console.error("Checkout error:", error);
-            setTimeout(() => {
-                clearCart();
-                toast({
-                    title: "Order Placed Successfully!",
-                    description: "Your dummy order was processed.",
+                toast({ 
+                    title: "Checkout Failed", 
+                    description: response.message || "Could not initialize payment. Please try again.", 
+                    variant: "destructive" 
                 });
-                navigate("/shopping-history?payment=success");
-            }, 1500);
+            }
+        } catch (error: any) {
+            console.error("Checkout error:", error);
+            toast({
+                title: "Payment Error",
+                description: error.message || "An unexpected error occurred during checkout.",
+                variant: "destructive",
+            });
+        } finally {
+            setIsProcessing(false);
         }
     };
 
