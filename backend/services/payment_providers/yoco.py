@@ -132,3 +132,13 @@ class YocoProvider(PaymentProvider):
         # We can implement a status check against Yoco API here if needed
         payment = Payment.query.filter_by(external_id=external_id).first()
         return payment.status if payment else 'not_found'
+
+    def create_subscription_plan(
+        self,
+        name: str,
+        description: str,
+        price: float,
+        currency: str,
+        interval: str
+    ) -> Dict[str, Any]:
+        raise NotImplementedError("YocoProvider does not support subscription plans yet.")
