@@ -58,7 +58,16 @@ class PaymentService:
 
     @staticmethod
     def update_payment_status(external_id, status, metadata=None):
-
+        """Update payment status in database"""
+        payment = Payment.query.filter_by(external_id=external_id).first()
+        if payment:
+            payment.status = status
+            if metadata:
+                payment.meta_data = metadata
+            db.session.commit()
+            logger.info(f"Payment {external_id} updated to {status}")
+            return True
+        return False
     @staticmethod
     def create_subscription(user_id, plan_id, success_url, cancel_url, provider='paypal'):
         """
