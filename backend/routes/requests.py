@@ -362,7 +362,9 @@ def create_cab_checkout():
             success_url=success_url,
             cancel_url=cancel_url,
             failure_url=failure_url,
+            provider=data.get('provider', 'yoco')
         )
+
 
         # Optionally, link payment ID on the request for easier tracking
         payment = Payment.query.filter_by(external_id=external_id).first()
@@ -538,6 +540,9 @@ def create_professional_checkout():
     except ValidationError as e:
         db.session.rollback()
         return error_response('VALIDATION_ERROR', 'Invalid input data', e.messages, 400)
+    except ValueError as e:
+        db.session.rollback()
+        return error_response('INVALID_REQUEST', str(e), None, 400)
     except Exception as e:
         db.session.rollback()
         current_app.logger.error(f"Create professional checkout error: {str(e)}")
