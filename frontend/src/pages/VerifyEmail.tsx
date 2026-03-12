@@ -5,6 +5,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { Button } from "@/components/ui/button";
 import { apiFetch } from "@/lib/api";
 import { useToast } from "@/hooks/use-toast";
+import { cn } from "@/lib/utils";
 
 const VerifyEmail = () => {
     const [searchParams] = useSearchParams();
@@ -17,6 +18,7 @@ const VerifyEmail = () => {
 
     const [userData, setUserData] = useState<any>(null);
     const [paying, setPaying] = useState(false);
+    const [selectedProvider, setSelectedProvider] = useState<"paypal" | "yoco">("paypal");
 
     useEffect(() => {
         const queryStatus = searchParams.get("status");
@@ -70,7 +72,8 @@ const VerifyEmail = () => {
         setPaying(true);
         try {
             const result = await apiFetch("/api/auth/initiate-registration-payment", {
-                method: "POST"
+                method: "POST",
+                data: { provider: selectedProvider }
             });
             if (result.success && result.data.redirect_url) {
                 window.location.href = result.data.redirect_url;
@@ -130,6 +133,52 @@ const VerifyEmail = () => {
                                 </Button>
                             ) : (
                                 <div className="space-y-4">
+                                    <div className="grid gap-4 sm:grid-cols-2 mb-8 text-left">
+                                        <div 
+                                            onClick={() => setSelectedProvider("paypal")}
+                                            className={cn(
+                                                "cursor-pointer rounded-xl border-2 p-4 transition-all flex items-center justify-between",
+                                                selectedProvider === "paypal" 
+                                                    ? "border-primary bg-primary/5" 
+                                                    : "border-slate-100 bg-white"
+                                            )}
+                                        >
+                                            <div className="flex flex-col">
+                                                <span className="text-sm font-bold text-[#222222]">PayPal / Card</span>
+                                                <span className="text-[10px] text-slate-500">Default choice</span>
+                                            </div>
+                                            {selectedProvider === "paypal" ? (
+                                                <div className="h-5 w-5 bg-primary rounded-full flex items-center justify-center">
+                                                    <CheckCircle2 className="h-3 w-3 text-white" />
+                                                </div>
+                                            ) : (
+                                                <div className="h-5 w-5 border border-slate-200 rounded-full" />
+                                            )}
+                                        </div>
+
+                                        <div 
+                                            onClick={() => setSelectedProvider("yoco")}
+                                            className={cn(
+                                                "cursor-pointer rounded-xl border-2 p-4 transition-all flex items-center justify-between",
+                                                selectedProvider === "yoco" 
+                                                    ? "border-primary bg-primary/5" 
+                                                    : "border-slate-100 bg-white"
+                                            )}
+                                        >
+                                            <div className="flex flex-col">
+                                                <span className="text-sm font-bold text-[#222222]">Yoco (Local)</span>
+                                                <span className="text-[10px] text-slate-500">SA Cards / EFT</span>
+                                            </div>
+                                            {selectedProvider === "yoco" ? (
+                                                <div className="h-5 w-5 bg-primary rounded-full flex items-center justify-center">
+                                                    <CheckCircle2 className="h-3 w-3 text-white" />
+                                                </div>
+                                            ) : (
+                                                <div className="h-5 w-5 border border-slate-200 rounded-full" />
+                                            )}
+                                        </div>
+                                    </div>
+
                                     <Button
                                         className="w-full h-14 rounded-2xl font-bold bg-primary shadow-xl shadow-primary/10 text-base transition-all active:scale-[0.98]"
                                         onClick={initiatePayment}
@@ -138,7 +187,7 @@ const VerifyEmail = () => {
                                         {paying ? (
                                             <><Loader2 className="mr-2 h-5 w-5 animate-spin" /> Redirecting...</>
                                         ) : (
-                                            "Pay Registration Fee (R100)"
+                                            `Pay Registration Fee (R100) via ${selectedProvider === 'paypal' ? 'PayPal' : 'Yoco'}`
                                         )}
                                     </Button>
                                     <p className="text-xs text-slate-400">

@@ -18,6 +18,7 @@ const Checkout = () => {
     const navigate = useNavigate();
     const { toast } = useToast();
     const [isProcessing, setIsProcessing] = useState(false);
+    const [selectedProvider, setSelectedProvider] = useState<"paypal" | "yoco">("paypal");
 
     const [formData, setFormData] = useState({
         firstName: user?.name ? user.name.split(" ")[0] : "",
@@ -56,6 +57,7 @@ const Checkout = () => {
                     })),
                     shipping_address: `${formData.address}, ${formData.city}, ${formData.postalCode}`,
                     total: total,
+                    provider: selectedProvider
                 }
             });
 
@@ -205,15 +207,60 @@ const Checkout = () => {
 
                             {/* Payment Info Box */}
                             <div className="rounded-[2.5rem] bg-white p-8 sm:p-12 shadow-2xl shadow-slate-200/60 border border-slate-50">
-                                <div className="flex items-center gap-4 mb-6">
+                                <div className="flex items-center gap-4 mb-8">
                                     <div className="h-12 w-12 bg-primary/10 rounded-2xl flex items-center justify-center text-primary">
                                         <CreditCard className="h-6 w-6" />
                                     </div>
-                                    <h2 className="text-2xl font-bold text-[#222222]">Payment</h2>
+                                    <h2 className="text-2xl font-bold text-[#222222]">Select Payment Method</h2>
                                 </div>
-                                <p className="text-lg text-slate-500 mb-8 font-normal leading-relaxed">
-                                    You will be redirected to our secure payment gateway to complete your transaction in the next step.
-                                </p>
+                                
+                                <div className="grid gap-6 sm:grid-cols-2 mb-10">
+                                    <div 
+                                        onClick={() => setSelectedProvider("paypal")}
+                                        className={cn(
+                                            "relative overflow-hidden cursor-pointer rounded-2xl border-2 p-6 transition-all",
+                                            selectedProvider === "paypal" 
+                                                ? "border-primary bg-primary/5 shadow-md ring-1 ring-primary/20" 
+                                                : "border-slate-100 hover:border-slate-200 bg-white"
+                                        )}
+                                    >
+                                        <div className="flex items-center justify-between mb-4">
+                                            <div className="h-10 w-24 bg-contain bg-no-repeat bg-left" 
+                                                style={{ backgroundImage: "url('https://www.paypalobjects.com/webstatic/mktg/logo/pp_cc_mark_111x69.jpg')" }} 
+                                            />
+                                            {selectedProvider === "paypal" && (
+                                                <div className="h-6 w-6 bg-primary rounded-full flex items-center justify-center">
+                                                    <Check className="h-3.5 w-3.5 text-white" strokeWidth={3} />
+                                                </div>
+                                            )}
+                                        </div>
+                                        <p className="text-base font-bold text-[#222222]">PayPal / Card</p>
+                                        <p className="text-xs text-slate-500 font-medium mt-1">International & Local methods</p>
+                                    </div>
+
+                                    <div 
+                                        onClick={() => setSelectedProvider("yoco")}
+                                        className={cn(
+                                            "relative overflow-hidden cursor-pointer rounded-2xl border-2 p-6 transition-all",
+                                            selectedProvider === "yoco" 
+                                                ? "border-primary bg-primary/5 shadow-md ring-1 ring-primary/20" 
+                                                : "border-slate-100 hover:border-slate-200 bg-white"
+                                        )}
+                                    >
+                                        <div className="flex items-center justify-between mb-4">
+                                            <div className="h-8 w-16 bg-contain bg-no-repeat bg-left" 
+                                                style={{ backgroundImage: "url('https://cdn.yoco.com/images/yoco-logo-dark.svg')" }} 
+                                            />
+                                            {selectedProvider === "yoco" && (
+                                                <div className="h-6 w-6 bg-primary rounded-full flex items-center justify-center">
+                                                    <Check className="h-3.5 w-3.5 text-white" strokeWidth={3} />
+                                                </div>
+                                            )}
+                                        </div>
+                                        <p className="text-base font-bold text-[#222222]">Yoco</p>
+                                        <p className="text-xs text-slate-500 font-medium mt-1">Local SA Cards / Instant EFT</p>
+                                    </div>
+                                </div>
 
                                 <div className="flex items-center gap-3 text-sm font-bold text-emerald-600 bg-emerald-50 p-6 rounded-2xl border border-emerald-100">
                                     <ShieldCheck className="h-6 w-6" />

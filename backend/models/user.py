@@ -37,6 +37,10 @@ class User(UserMixin, db.Model):
     id_verification_status = db.Column(db.Text, default='pending')
     id_rejection_reason = db.Column(db.Text)
 
+    # Aura Integration
+    aura_id = db.Column(db.Text, nullable=True)
+    aura_status = db.Column(db.Text, nullable=True)  # active, inactive, pending
+
     # Optional agent who supported the user at registration
     agent_id = db.Column(UUID(as_uuid=True), db.ForeignKey('agents.id', ondelete='SET NULL'), nullable=True)
     
@@ -94,6 +98,8 @@ class User(UserMixin, db.Model):
             'nationality': self.nationality,
             'id_verification_status': self.id_verification_status,
             'id_rejection_reason': self.id_rejection_reason,
+            'aura_id': self.aura_id,
+            'aura_status': self.aura_status,
             'agent_id': str(self.agent_id) if self.agent_id else None,
             'created_at': self.created_at.isoformat() if self.created_at else None,
             'updated_at': self.updated_at.isoformat() if self.updated_at else None,

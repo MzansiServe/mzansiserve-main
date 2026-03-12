@@ -3,6 +3,7 @@ Database Models
 """
 from backend.models.user import User, PasswordResetToken, EmailVerificationToken, Wallet, WalletTransaction
 from backend.models.service_request import ServiceRequest
+from backend.models.subscription import Subscription, SubscriptionPlan
 from backend.models.shop import Inventory, Order, ShopCategory, ShopSubcategory, ShopProduct
 from backend.models.payment import Payment
 from backend.models.notification import Notification
@@ -48,6 +49,8 @@ __all__ = [
     'Order',
     'Inventory',
     'Payment',
+    'Subscription',
+    'SubscriptionPlan',
     'Notification',
     'EmailQueue',
     'DeliveryAddress',

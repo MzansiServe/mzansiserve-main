@@ -511,6 +511,9 @@ def get_service_provider(provider_id):
 def pay_registration_fee():
     """Create Yoco checkout for registration fee payment"""
     try:
+        data = request.json or {}
+        provider = data.get('provider', 'paypal')  # PayPal as default
+        
         user_id = get_jwt_identity()
         user = User.query.get(user_id)
         
@@ -528,13 +531,22 @@ def pay_registration_fee():
         
         # Create checkout session
         base_url = current_app.config.get('BACKEND_URL', 'https://mzansiserve.co.za')
+        
+        success_url = f"{base_url}/api/profile/payment-callback?callback_status=success&external_id={external_id}&provider={provider}"
+        cancel_url = f"{base_url}/api/profile/payment-callback?callback_status=cancel&external_id={external_id}&provider={provider}"
+        failure_url = f"{base_url}/api/profile/payment-callback?callback_status=failure&external_id={external_id}&provider={provider}"
+        
+        # PayPal expects specific return formats for its own callbacks sometimes, 
+        # but our payment_service handles the abstraction.
+        
         checkout_result = PaymentService.create_checkout(
             amount=REGISTRATION_FEE_AMOUNT,
             currency='ZAR',
             external_id=external_id,
-            success_url=f"{base_url}/api/profile/payment-callback?callback_status=success&external_id={external_id}",
-            cancel_url=f"{base_url}/api/profile/payment-callback?callback_status=cancel&external_id={external_id}",
-            failure_url=f"{base_url}/api/profile/payment-callback?callback_status=failure&external_id={external_id}"
+            success_url=success_url,
+            cancel_url=cancel_url,
+            failure_url=failure_url,
+            provider=provider
         )
         
         return success_response({
@@ -553,10 +565,11 @@ def pay_registration_fee():
 def payment_callback():
     """Handle payment callback from Yoco"""
     try:
-        callback_status = request.args.get('callback_status')
+        callback_status = request.args.get('callback_status') or request.args.get('status')
         external_id = request.args.get('external_id')
+        provider = request.args.get('provider', 'yoco')
         
-        current_app.logger.info(f"Payment callback received: status={callback_status}, external_id={external_id}")
+        current_app.logger.info(f"Payment callback received: status={callback_status}, external_id={external_id}, provider={provider}")
         
         # Only process success callbacks
         if callback_status != 'success':

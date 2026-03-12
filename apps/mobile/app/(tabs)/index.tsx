@@ -10,6 +10,8 @@ import { COLORS, SPACING, SIZES } from '../../constants/Theme';
 import { Typography } from '../../components/UI/Typography';
 import { Card } from '../../components/UI/Card';
 import { Button } from '../../components/UI/Button';
+import { useEmergency } from '../../contexts/EmergencyContext';
+import { ShieldAlert, Activity, X } from 'lucide-react-native';
 
 const { width } = Dimensions.get('window');
 
@@ -17,6 +19,7 @@ export default function Home() {
   const { user } = useAuth();
   const router = useRouter();
   const [activeSlide, setActiveSlide] = useState(0);
+  const { isCountingDown, countdown, activeAlertType, startAlertCountdown, cancelCountdown } = useEmergency();
 
   const { data: slides = [] } = useQuery({
     queryKey: ['public-carousel'],
@@ -147,6 +150,88 @@ export default function Home() {
           </View>
         )}
       </View>
+
+      {/* Premium Safety Center Section */}
+      <View style={styles.safetyCenterWrapper}>
+        <LinearGradient
+          colors={['#1F2937', '#111827']}
+          style={styles.safetyCenterCard}
+          start={{ x: 0, y: 0 }}
+          end={{ x: 1, y: 1 }}
+        >
+          <View style={styles.safetyHeader}>
+            <View>
+              <Typography variant="h3" color={COLORS.white} weight="bold">Safety Center</Typography>
+              <Typography variant="caption" color="rgba(255,255,255,0.6)">Instant emergency assistance</Typography>
+            </View>
+            <ShieldAlert color={COLORS.error} size={28} />
+          </View>
+          
+          <View style={styles.safetyGrid}>
+            <TouchableOpacity 
+              style={styles.safetyAction}
+              onPress={() => startAlertCountdown('security')}
+            >
+              <LinearGradient
+                colors={['rgba(239, 68, 68, 0.1)', 'rgba(239, 68, 68, 0.05)']}
+                style={styles.safetyActionBg}
+              >
+                <ShieldAlert color={COLORS.error} size={32} />
+                <Typography variant="label" weight="bold" style={{ marginTop: 8, color: COLORS.white }}>SECURITY</Typography>
+                <Typography variant="caption" style={{ color: 'rgba(255,255,255,0.4)', fontSize: 10 }}>Armed Response</Typography>
+              </LinearGradient>
+            </TouchableOpacity>
+            
+            <TouchableOpacity 
+              style={styles.safetyAction}
+              onPress={() => startAlertCountdown('medical')}
+            >
+              <LinearGradient
+                colors={['rgba(79, 70, 229, 0.15)', 'rgba(79, 70, 229, 0.05)']}
+                style={styles.safetyActionBg}
+              >
+                <Activity color={COLORS.primaryLight} size={32} />
+                <Typography variant="label" weight="bold" style={{ marginTop: 8, color: COLORS.white }}>MEDICAL</Typography>
+                <Typography variant="caption" style={{ color: 'rgba(255,255,255,0.4)', fontSize: 10 }}>Ambulance / ER</Typography>
+              </LinearGradient>
+            </TouchableOpacity>
+          </View>
+          
+          <View style={styles.safetyFooter}>
+            <View style={styles.statusDot} />
+            <Typography variant="caption" style={{ color: 'rgba(255,255,255,0.5)', marginLeft: 6 }}>
+              Aura Network: Active & Secure
+            </Typography>
+          </View>
+        </LinearGradient>
+      </View>
+
+      {/* Countdown Overlay */}
+      {isCountingDown && (
+        <View style={styles.overlay}>
+          <LinearGradient
+            colors={['rgba(0,0,0,0.8)', 'rgba(0,0,0,0.95)']}
+            style={styles.countdownContainer}
+          >
+            <Typography variant="h1" color={COLORS.white} weight="bold" style={styles.countdownType}>
+              {activeAlertType?.toUpperCase()} ALERT
+            </Typography>
+            <View style={styles.countdownCircle}>
+              <Typography variant="h1" color={COLORS.white} style={{ fontSize: 72 }}>{countdown}</Typography>
+            </View>
+            <Typography color={COLORS.white} style={{ marginBottom: 40, textAlign: 'center' }}>
+              Hold tight! Your alert is being transmitted in {countdown} seconds...
+            </Typography>
+            <Button 
+              title="CANCEL" 
+              variant="secondary" 
+              icon={<X size={20} color={COLORS.primary} />}
+              onPress={cancelCountdown}
+              style={{ width: 200 }}
+            />
+          </LinearGradient>
+        </View>
+      )}
 
       {/* Quick Access Categories */}
       <View style={styles.sectionHeader}>
@@ -445,5 +530,76 @@ const styles = StyleSheet.create({
     width: '100%',
     height: 200,
     backgroundColor: COLORS.primary,
+  },
+  safetyCenterWrapper: {
+    paddingHorizontal: SPACING.lg,
+    marginTop: SPACING.lg,
+  },
+  safetyCenterCard: {
+    borderRadius: SIZES.radius.xl,
+    padding: SPACING.lg,
+    overflow: 'hidden',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.1)',
+  },
+  safetyHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'flex-start',
+    marginBottom: SPACING.lg,
+  },
+  safetyGrid: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+  },
+  safetyAction: {
+    flex: 0.48,
+  },
+  safetyActionBg: {
+    height: 110,
+    borderRadius: SIZES.radius.lg,
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.05)',
+  },
+  safetyFooter: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: SPACING.lg,
+    paddingTop: SPACING.md,
+    borderTopWidth: 1,
+    borderTopColor: 'rgba(255,255,255,0.05)',
+  },
+  statusDot: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+    backgroundColor: COLORS.secondary,
+  },
+  overlay: {
+    ...StyleSheet.absoluteFillObject,
+    zIndex: 1000,
+  },
+  countdownContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: SPACING.xxl,
+  },
+  countdownType: {
+    fontSize: 24,
+    marginBottom: 20,
+    letterSpacing: 2,
+  },
+  countdownCircle: {
+    width: 150,
+    height: 150,
+    borderRadius: 75,
+    borderWidth: 8,
+    borderColor: COLORS.error,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 40,
   },
 });

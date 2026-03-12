@@ -52,3 +52,7 @@ class Config:
 
     # Google Maps
     GOOGLE_MAPS_API_KEY = os.environ.get('GOOGLE_MAPS_API_KEY') or ''
+    # Aura Integration
+    AURA_CLIENT_ID = os.environ.get('AURA_CLIENT_ID')
+    AURA_SECRET_KEY = os.environ.get('AURA_SECRET_KEY')
+    AURA_BASE_URL = os.environ.get('AURA_BASE_URL') or 'https://panic.aura.services/panic-api/v2'

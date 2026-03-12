@@ -12,6 +12,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
 import { apiFetch } from "@/lib/api";
+import { cn } from "@/lib/utils";
 
 // ─── Design tokens ────────────────────────────────────────────────────────────
 const baseInput = "w-full bg-slate-50/50 border rounded-2xl py-4 text-[#222222] placeholder:text-slate-400 focus:outline-none focus:ring-4 transition-all font-medium h-14";
@@ -117,6 +118,8 @@ const Register = () => {
     nokName: "", nokPhone: "", nokEmail: "",
     highestQualification: "", professionalBody: "", agent_id: ""
   });
+
+  const [selectedProvider, setSelectedProvider] = useState<"paypal" | "yoco">("paypal");
 
   const [fieldErrors, setFieldErrors] = useState<FieldErrors>({});
   const [touched, setTouched] = useState<Partial<Record<keyof FormFields, boolean>>>({});
@@ -280,7 +283,8 @@ const Register = () => {
         next_of_kin: { full_name: form.nokName, contact_number: form.nokPhone, contact_email: form.nokEmail },
         highest_qualification: form.highestQualification, professional_body: form.professionalBody, agent_id: form.agent_id,
         professional_services: form.role === 'professional' ? payloadServices : [],
-        provider_services: form.role === 'service-provider' ? payloadServices : []
+        provider_services: form.role === 'service-provider' ? payloadServices : [],
+        provider: selectedProvider
       }));
       if (files.profile_photo) formData.append("profile_photo", files.profile_photo);
       if (files.id_document) formData.append("id_document", files.id_document);
@@ -781,6 +785,33 @@ const Register = () => {
                       <Link to="/privacy" className="font-bold text-[#222222] underline underline-offset-4 hover:text-primary transition-colors">Privacy Policy</Link>
                       <Req />
                     </label>
+                  </div>
+
+                  {/* Payment Method Selection */}
+                  <div className="space-y-4 pt-4">
+                    <p className="text-[11px] font-bold text-slate-400 uppercase tracking-widest ml-1">Payment Method</p>
+                    <div className="grid gap-4 sm:grid-cols-2">
+                       <div 
+                         onClick={() => setSelectedProvider("paypal")}
+                         className={cn(
+                           "cursor-pointer rounded-xl border-2 p-4 transition-all flex items-center justify-between",
+                           selectedProvider === "paypal" ? "border-primary bg-primary/5" : "border-slate-100 bg-white"
+                         )}
+                       >
+                         <span className="text-sm font-bold text-[#222222]">PayPal / Card</span>
+                         {selectedProvider === "paypal" && <Check className="w-4 h-4 text-primary" />}
+                       </div>
+                       <div 
+                         onClick={() => setSelectedProvider("yoco")}
+                         className={cn(
+                           "cursor-pointer rounded-xl border-2 p-4 transition-all flex items-center justify-between",
+                           selectedProvider === "yoco" ? "border-primary bg-primary/5" : "border-slate-100 bg-white"
+                         )}
+                       >
+                         <span className="text-sm font-bold text-[#222222]">Yoco (Local)</span>
+                         {selectedProvider === "yoco" && <Check className="w-4 h-4 text-primary" />}
+                       </div>
+                    </div>
                   </div>
 
                   <Button

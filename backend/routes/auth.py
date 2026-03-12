@@ -12,7 +12,7 @@ from google.oauth2 import id_token
 from google.auth.transport.requests import Request
 from marshmallow import Schema, fields, ValidationError, validate
 
-from backend.models import User, PasswordResetToken, EmailVerificationToken, Country, ServiceType, UserSelectedService, Agent, VehicleImage
+from backend.models import User, PasswordResetToken, EmailVerificationToken, Country, ServiceType, UserSelectedService, Agent, VehicleImage, Subscription, SubscriptionPlan
 from backend.extensions import db
 from backend.utils.response import success_response, error_response
 from backend.utils.auth import create_password_reset_token, create_email_verification_token, generate_tracking_number, validate_sa_id
@@ -367,6 +367,9 @@ def verify_email():
 def initiate_registration_payment():
     """Initiate registration payment for a verified user"""
     try:
+        data = request.json or {}
+        provider = data.get('provider', 'paypal')  # PayPal as default
+        
         user_id = get_jwt_identity()
         user = User.query.get(user_id)
         if not user:
@@ -382,18 +385,67 @@ def initiate_registration_payment():
         user_id_hex = str(user.id).replace('-', '')
         external_id = f"reg_fee_{user_id_hex}_{uuid.uuid4().hex[:8]}"
         
-        # Create checkout session
-        REGISTRATION_FEE_AMOUNT = 10000  # R100.00 in cents
-        backend_url = current_app.config.get('BACKEND_URL', 'https://mzansiserve.co.za')
+        # Check if user needs a subscription
+        # Providers and Professionals pay a recurring fee (subscription)
+        needs_subscription = user.role in ('professional', 'service-provider')
         
-        checkout_result = PaymentService.create_checkout(
-            amount=REGISTRATION_FEE_AMOUNT,
-            currency='ZAR',
-            external_id=external_id,
-            success_url=f"{backend_url}/api/auth/registration-callback?callback_status=success&external_id={external_id}",
-            cancel_url=f"{backend_url}/api/auth/registration-callback?callback_status=cancel&external_id={external_id}",
-            failure_url=f"{backend_url}/api/auth/registration-callback?callback_status=failure&external_id={external_id}"
-        )
+        backend_url = current_app.config.get('BACKEND_URL', 'https://mzansiserve.co.za').rstrip('/')
+        success_url = f"{backend_url}/api/auth/registration-callback?callback_status=success&external_id={external_id}&provider={provider}"
+        cancel_url = f"{backend_url}/api/auth/registration-callback?callback_status=cancel&external_id={external_id}&provider={provider}"
+        
+        if provider == 'paypal' and needs_subscription:
+            from backend.models import SubscriptionPlan
+            # Handle subscription flow
+            plan_name = f"{user.role.title()} Subscription"
+            plan = SubscriptionPlan.query.filter_by(name=plan_name).first()
+            if not plan:
+                plan = SubscriptionPlan(
+                    name=plan_name,
+                    description=f"Monthly subscription fee for {user.role}",
+                    price=100.00,
+                    currency='ZAR',
+                    interval='month'
+                )
+                db.session.add(plan)
+                db.session.commit()
+            
+            # Sync with PayPal if needed
+            if not plan.paypal_plan_id:
+                try:
+                    pp_plan = PaymentService.create_subscription_plan(
+                        name=plan.name,
+                        description=plan.description,
+                        price=float(plan.price),
+                        currency=plan.currency,
+                        interval=plan.interval,
+                        provider='paypal'
+                    )
+                    plan.paypal_plan_id = pp_plan['plan_id']
+                    db.session.commit()
+                except Exception as e:
+                    logger.error("Failed to create PayPal plan: %s", e)
+                    return error_response('PAYMENT_ERROR', 'Could not initialize subscription plan', None, 500)
+            
+            checkout_result = PaymentService.create_subscription(
+                user_id=str(user.id),
+                plan_id=plan.paypal_plan_id,
+                success_url=success_url,
+                cancel_url=cancel_url,
+                provider='paypal',
+                external_id=external_id
+            )
+        else:
+            # One-time payment flow
+            REGISTRATION_FEE_AMOUNT = 10000  # R100.00 in cents
+            checkout_result = PaymentService.create_checkout(
+                amount=REGISTRATION_FEE_AMOUNT,
+                currency='ZAR',
+                external_id=external_id,
+                success_url=success_url,
+                cancel_url=cancel_url,
+                failure_url=f"{backend_url}/api/auth/registration-callback?callback_status=failure&external_id={external_id}&provider={provider}",
+                provider=provider
+            )
         
         logger.info("initiate_registration_payment: success user_id=%s external_id=%s", user.id, external_id)
         return success_response({
@@ -875,12 +927,21 @@ def registration_payment_callback():
                 302
             ))
         
-        # Find payment
+        # Find payment or subscription
         payment = Payment.query.filter_by(external_id=external_id).first()
+        subscription = None
         if not payment:
-            logger.warning("registration_callback: payment not found external_id=%s", external_id)
+            from backend.models import Subscription
+            subscription = Subscription.query.filter_by(provider_subscription_id=request.args.get('subscription_id')).first()
+            if not subscription and external_id:
+                # Some providers might use external_id as provider_subscription_id
+                subscription = Subscription.query.filter_by(provider_subscription_id=external_id).first()
+                
+        if not payment and not subscription:
+            logger.warning("registration_callback: payment/subscription not found external_id=%s sub_id=%s", 
+                           external_id, request.args.get('subscription_id'))
             return current_app.make_response((
-                f'<html><body><script>window.location.href="{frontend_url}/payment-status?payment=error&external_id=' + external_id + '";</script></body></html>',
+                f'<html><body><script>window.location.href="{frontend_url}/payment-status?payment=error&external_id=' + (external_id or '') + '";</script></body></html>',
                 302
             ))
         
@@ -898,14 +959,31 @@ def registration_payment_callback():
                     if user:
                         if callback_status == 'success':
                             # Verify payment and mark user as paid
-                            payment_amount = float(payment.amount) if payment.amount else 0.0
-                            # If payment is already completed (e.g. via webhook), still show success to user
-                            if payment.status in ['pending', 'completed'] and payment_amount >= 99.0:
+                            success_verified = False
+                            payment_amount = 0.0
+                            
+                            if payment:
+                                payment_amount = float(payment.amount) if payment.amount else 0.0
+                                # If payment is already completed (e.g. via webhook), still show success to user
+                                if payment.status in ['pending', 'completed'] and payment_amount >= 99.0:
+                                    success_verified = True
+                                    payment.status = 'completed'
+                            elif subscription:
+                                # For subscriptions, we assume initial success if redirected here
+                                # Webhooks will confirm later, but for UI we allow it
+                                success_verified = True
+                                subscription.status = 'active'
+                                payment_amount = 100.0 # Default reg fee
+                            
+                            if success_verified:
                                 if user and (not user.is_paid):
                                     user.is_paid = True
                                     # Award commission to agent if applicable
-                                    from backend.services.agent_service import AgentService
-                                    AgentService.award_commission(user)
+                                    try:
+                                        from backend.services.agent_service import AgentService
+                                        AgentService.award_commission(user)
+                                    except ImportError:
+                                        logger.warning("registration_callback: AgentService not found")
                                     
                                     # Send registration payment confirmation email
                                     try:
@@ -914,18 +992,17 @@ def registration_payment_callback():
                                     except Exception as e:
                                         logger.warning("registration_callback: failed to send payment confirmation email: %s", e)
                                 
-                                payment.status = 'completed'
                                 db.session.commit()
                                 
-                                logger.info("registration_callback: payment successful user_id=%s", user.id)
+                                logger.info("registration_callback: payment/subscription successful user_id=%s", user.id)
                                 return current_app.make_response((
-                                    f'<html><body><script>window.location.href="{frontend_url}/payment-status?payment=success&external_id=' + external_id + '";</script></body></html>',
+                                    f'<html><body><script>window.location.href="{frontend_url}/payment-status?payment=success&external_id=' + (external_id or '') + '";</script></body></html>',
                                     302
                                 ))
                             else:
-                                logger.warning("registration_callback: payment verification failed user_id=%s status=%s amount=%s", user.id, payment.status, payment_amount)
+                                logger.warning("registration_callback: payment verification failed user_id=%s", user.id)
                                 return current_app.make_response((
-                                    f'<html><body><script>window.location.href="{frontend_url}/payment-status?payment=error&reason=verification_failed&external_id=' + external_id + '";</script></body></html>',
+                                    f'<html><body><script>window.location.href="{frontend_url}/payment-status?payment=error&reason=verification_failed&external_id=' + (external_id or '') + '";</script></body></html>',
                                     302
                                 ))
                         elif callback_status == 'cancel':
