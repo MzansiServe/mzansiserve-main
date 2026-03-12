@@ -307,13 +307,45 @@ class PayPalProvider(PaymentProvider):
         }
 
     def get_payment_status(self, external_id: str) -> str:
+        """Get payment status, verifying with PayPal API if pending"""
         payment = Payment.query.filter_by(external_id=external_id).first()
         if not payment:
             return 'not_found'
             
-        if payment.status != 'pending':
-            return payment.status
-            
-        # If still pending, we might want to check PayPal order status
-        # but usually webhooks or redirect callbacks handle this.
+        if payment.status == 'pending' and payment.payment_provider_id:
+            logger.info("PayPalProvider.get_payment_status: verifying pending payment %s with PayPal API", external_id)
+            try:
+                token = self._get_access_token()
+                headers = {
+                    'Authorization': f'Bearer {token}',
+                    'Content-Type': 'application/json'
+                }
+                response = requests.get(
+                    f"{self.api_url}/v2/checkout/orders/{payment.payment_provider_id}",
+                    headers=headers,
+                    timeout=20
+                )
+                if response.ok:
+                    data = response.json()
+                    paypal_status = data.get('status') # 'CREATED', 'SAVED', 'APPROVED', 'VOIDED', 'COMPLETED', 'PAYER_ACTION_REQUIRED'
+                    
+                    # 'APPROVED' means the user authorized it, but we might still need to capture it.
+                    # However, in our flow, we usually CAPTURE immediately on redirect or webhook.
+                    # If it's COMPLETED, it's definitely paid.
+                    
+                    status_map = {
+                        'COMPLETED': 'completed',
+                        'VOIDED': 'failed',
+                        'APPROVED': 'completed', # Treat as completed if we see it approved during callback
+                    }
+                    new_status = status_map.get(paypal_status, 'pending')
+                    
+                    if new_status != payment.status:
+                        logger.info("PayPalProvider.get_payment_status: updating %s from %s to %s", external_id, payment.status, new_status)
+                        payment.status = new_status
+                        db.session.commit()
+                    return payment.status
+            except Exception as e:
+                logger.error("PayPalProvider.get_payment_status: failed to verify with PayPal: %s", str(e))
+                
         return payment.status

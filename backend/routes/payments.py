@@ -23,9 +23,9 @@ class CreateOrderSchema(Schema):
 @bp.route('/create-order', methods=['POST'])
 @require_auth
 def create_order():
-    """Create a new shop order and initialize Yoco checkout"""
+    """Create a new shop order and initialize checkout"""
     try:
-        from backend.models.shop import Order
+        from backend.models import Order
         schema = CreateOrderSchema()
         data = schema.load(request.json)
         
@@ -38,14 +38,16 @@ def create_order():
         # 1. Create the Order in the database first
         order_id = f"ORD-{uuid.uuid4().hex[:8].upper()}"
         
-        # Calculate amount in cents for Yoco
+        # Calculate amount in cents
         amount_in_cents = int(data['total'] * 100)
         
-        # 2. Initialize Yoco payment checkout
+        # 2. Initialize payment checkout
         backend_url = request.host_url.rstrip('/')
         success_url = f"{backend_url}/api/payments/order-callback?callback_status=success&external_id={order_id}&order_id={order_id}&provider={data['provider']}"
         cancel_url = f"{backend_url}/api/payments/order-callback?callback_status=cancel&external_id={order_id}&order_id={order_id}&provider={data['provider']}"
         failure_url = f"{backend_url}/api/payments/order-callback?callback_status=failure&external_id={order_id}&order_id={order_id}&provider={data['provider']}"
+        
+        current_app.logger.info(f"Creating checkout for order {order_id} via {data['provider']} (amount: {amount_in_cents})")
         
         checkout_result = PaymentService.create_checkout(
             amount=amount_in_cents,
@@ -57,6 +59,10 @@ def create_order():
             provider=data['provider']
         )
         
+        if not checkout_result or 'payment_id' not in checkout_result:
+            current_app.logger.error(f"Checkout result missing payment_id: {checkout_result}")
+            return error_response('PAYMENT_INIT_ERROR', 'Failed to initialize payment gateway', None, 500)
+
         # 3. Save Order (Pending status)
         new_order = Order(
             id=order_id,
@@ -80,9 +86,9 @@ def create_order():
     except ValidationError as e:
         return error_response('VALIDATION_ERROR', 'Invalid input data', e.messages, 400)
     except Exception as e:
-        current_app.logger.error(f"Create order error: {str(e)}")
+        current_app.logger.error(f"Create order error: {str(e)}", exc_info=True)
         db.session.rollback()
-        return error_response('INTERNAL_ERROR', 'Failed to create order', None, 500)
+        return error_response('INTERNAL_ERROR', f'Failed to create order: {str(e)}', None, 500)
 
 class CreateCheckoutSchema(Schema):
     amount = fields.Int(required=True, validate=lambda x: x > 0)
@@ -314,13 +320,16 @@ def order_payment_callback():
                 302
             ))
         
-        if callback_status == 'success':
-            if payment and payment.status == 'pending' and payment.amount > 0:
-                # Update payment status
-                payment.status = 'completed'
+        # Verify payment status with provider
+        verified_status = PaymentService.get_payment_status(external_id)
+        
+        if verified_status == 'completed':
+            if order.status != 'paid': # Only update if not already processed
                 # Update order status to 'paid'
                 order.status = 'paid'
-                order.payment_id = str(payment.id)
+                if payment:
+                    payment.status = 'completed'
+                    order.payment_id = str(payment.id)
                 db.session.commit()
                 
                 # Update inventory quantities for purchased products
@@ -385,13 +394,15 @@ def order_payment_callback():
 def wallet_topup_callback():
     """Handle wallet top-up payment callback from Yoco"""
     try:
-        callback_status = request.args.get('callback_status')
         external_id = request.args.get('external_id')
         
-        current_app.logger.info(f"Wallet top-up callback received: status={callback_status}, external_id={external_id}")
+        # Verify payment status with provider
+        verified_status = PaymentService.get_payment_status(external_id)
+        
+        current_app.logger.info(f"Wallet top-up callback received: status={verified_status}, external_id={external_id}")
         
         # Only process success callbacks
-        if callback_status != 'success':
+        if verified_status != 'completed':
             frontend_url = current_app.config.get('FRONTEND_URL', 'http://localhost:8080')
             return current_app.make_response((
                 f'<html><body><script>window.location.href="{frontend_url}/wallet?payment=error";</script></body></html>',
@@ -522,14 +533,18 @@ def request_payment_callback():
                 302
             ))
 
+        # Verify payment status with provider
+        verified_status = PaymentService.get_payment_status(external_id)
+        
         # Only handle success with a 3-second information screen
-        if callback_status == 'success':
+        if verified_status == 'completed':
             try:
-                # Verify payment and update request/payment
-                if payment.status == 'pending' and float(payment.amount) > 0:
-                    payment.status = 'completed'
+                # Update request/payment if not already processed
+                if service_request.payment_status != 'paid':
                     service_request.payment_status = 'paid'
                     service_request.status = 'pending'  # unpaid -> pending so providers can see it
+                    if payment:
+                        payment.status = 'completed'
                     db.session.commit()
                     current_app.logger.info(
                         f"Service request {request_id} payment successful: R{float(payment.amount):.2f}"

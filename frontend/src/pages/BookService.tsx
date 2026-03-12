@@ -3,7 +3,8 @@ import { useParams, useNavigate } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   ArrowLeft, Star, MapPin, BadgeCheck, Calendar, Clock,
-  CreditCard, Check, Loader2, AlertCircle, Search, ChevronRight
+  CreditCard, Check, Loader2, AlertCircle, Search, ChevronRight,
+  ShieldCheck
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -45,6 +46,7 @@ const BookService = () => {
   const [defaultCalloutFee, setDefaultCalloutFee] = useState<number>(150);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [step, setStep] = useState<"form" | "confirm" | "done">("form");
+  const [selectedProvider, setSelectedProvider] = useState<"paypal" | "yoco">("paypal");
   const [availableTimeSlots, setAvailableTimeSlots] = useState<string[]>(DEFAULT_TIME_SLOTS);
 
   const autocompleteRef = useRef<google.maps.places.Autocomplete | null>(null);
@@ -199,7 +201,8 @@ const BookService = () => {
         method: 'POST',
         data: {
           ...requestPayload,
-          is_rfq: services.length > 0 ? isCustomService : !selectedService
+          is_rfq: services.length > 0 ? isCustomService : !selectedService,
+          provider: selectedProvider
         }
       });
 
@@ -518,6 +521,49 @@ const BookService = () => {
                           {((services.length > 0 && isCustomService) || (services.length === 0 && !selectedService)) ? "Requesting Quote" : `R${calloutFee.toFixed(2)}`}
                         </span>
                       </div>
+
+                      {/* Payment Provider Selection */}
+                      {((services.length > 0 && !isCustomService) || (services.length === 0 && selectedService)) && (
+                        <div className="space-y-4 pt-4 border-t border-slate-50">
+                          <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">Select Payment Method</p>
+                          <div className="grid gap-4 sm:grid-cols-2">
+                            <div 
+                              onClick={() => setSelectedProvider("paypal")}
+                              className={cn(
+                                "cursor-pointer rounded-2xl border-2 p-4 transition-all flex flex-col gap-3",
+                                selectedProvider === "paypal" ? "border-primary bg-primary/5" : "border-slate-100 bg-white"
+                              )}
+                            >
+                              <div className="flex items-center justify-between w-full">
+                                <div className="h-6 w-12 bg-contain bg-no-repeat bg-left" 
+                                     style={{ backgroundImage: "url('https://www.paypalobjects.com/webstatic/mktg/logo/pp_cc_mark_111x69.jpg')" }} />
+                                {selectedProvider === "paypal" && <Check className="h-4 w-4 text-primary" strokeWidth={3} />}
+                              </div>
+                              <span className="text-sm font-bold text-[#222222]">PayPal / Card</span>
+                            </div>
+
+                            <div 
+                              onClick={() => setSelectedProvider("yoco")}
+                              className={cn(
+                                "cursor-pointer rounded-2xl border-2 p-4 transition-all flex flex-col gap-3",
+                                selectedProvider === "yoco" ? "border-primary bg-primary/5" : "border-slate-100 bg-white"
+                              )}
+                            >
+                              <div className="flex items-center justify-between w-full">
+                                <div className="h-5 w-10 bg-contain bg-no-repeat bg-left" 
+                                     style={{ backgroundImage: "url('https://cdn.yoco.com/images/yoco-logo-dark.svg')" }} />
+                                {selectedProvider === "yoco" && <Check className="h-4 w-4 text-primary" strokeWidth={3} />}
+                              </div>
+                              <span className="text-sm font-bold text-[#222222]">Yoco</span>
+                            </div>
+                          </div>
+                          
+                          <div className="flex items-center gap-2 text-xs font-bold text-emerald-600 bg-emerald-50/50 p-4 rounded-xl border border-emerald-100/50">
+                            <ShieldCheck className="h-4 w-4" />
+                            <span>Encrypted & Secure Payment</span>
+                          </div>
+                        </div>
+                      )}
 
                       <div className="grid grid-cols-1 sm:grid-cols-2 gap-8 py-4">
                         <div>

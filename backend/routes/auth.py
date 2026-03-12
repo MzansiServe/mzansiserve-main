@@ -957,7 +957,10 @@ def registration_payment_callback():
                     user = User.query.get(user_id)
                     
                     if user:
-                        if callback_status == 'success':
+                        # Verify payment status with provider
+                        verified_status = PaymentService.get_payment_status(external_id)
+                        
+                        if verified_status == 'completed':
                             # Verify payment and mark user as paid
                             success_verified = False
                             payment_amount = 0.0

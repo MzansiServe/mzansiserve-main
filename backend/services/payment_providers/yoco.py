@@ -129,9 +129,44 @@ class YocoProvider(PaymentProvider):
         raise NotImplementedError("YocoProvider does not support subscriptions yet.")
 
     def get_payment_status(self, external_id: str) -> str:
-        # We can implement a status check against Yoco API here if needed
+        """Get payment status, verifying with Yoco API if pending"""
         payment = Payment.query.filter_by(external_id=external_id).first()
-        return payment.status if payment else 'not_found'
+        if not payment:
+            return 'not_found'
+            
+        if payment.status == 'pending' and payment.payment_provider_id:
+            logger.info("YocoProvider.get_payment_status: verifying pending payment %s with Yoco API", external_id)
+            try:
+                headers = {
+                    'Authorization': f'Bearer {self.secret_key}',
+                    'Content-Type': 'application/json'
+                }
+                response = requests.get(
+                    f"{self.api_url}/api/checkouts/{payment.payment_provider_id}",
+                    headers=headers,
+                    timeout=20
+                )
+                if response.ok:
+                    data = response.json()
+                    yoco_status = data.get('status') # 'paid', 'cancelled', 'failed', 'pending'
+                    
+                    status_map = {
+                        'paid': 'completed',
+                        'cancelled': 'cancelled',
+                        'failed': 'failed',
+                        'pending': 'pending'
+                    }
+                    new_status = status_map.get(yoco_status, 'pending')
+                    
+                    if new_status != payment.status:
+                        logger.info("YocoProvider.get_payment_status: updating %s from %s to %s", external_id, payment.status, new_status)
+                        payment.status = new_status
+                        db.session.commit()
+                    return payment.status
+            except Exception as e:
+                logger.error("YocoProvider.get_payment_status: failed to verify with Yoco: %s", str(e))
+                
+        return payment.status
 
     def create_subscription_plan(
         self,
