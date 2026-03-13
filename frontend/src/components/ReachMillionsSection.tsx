@@ -34,10 +34,6 @@ const ReachMillionsSection = () => {
         <Grid container spacing={8} alignItems="center">
           <Grid size={{ xs: 12, md: 7 }}>
             <motion.div
-              initial={{ opacity: 0, y: 20 }}
-              whileInView={{ opacity: 1, y: 0 }}
-              viewport={{ once: true }}
-              transition={{ duration: 0.6 }}
             >
               <Box sx={{ mb: 3 }}>
                 <Typography
@@ -116,10 +112,6 @@ const ReachMillionsSection = () => {
 
           <Grid size={{ xs: 12, md: 5 }}>
             <motion.div
-              initial={{ opacity: 0, scale: 0.95 }}
-              whileInView={{ opacity: 1, scale: 1 }}
-              viewport={{ once: true }}
-              transition={{ duration: 0.6, delay: 0.2 }}
             >
               <Box
                 sx={{

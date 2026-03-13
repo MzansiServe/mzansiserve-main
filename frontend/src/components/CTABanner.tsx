@@ -13,9 +13,6 @@ const CTABanner = () => {
     <section ref={ref} className="py-12">
       <div className="container mx-auto px-6">
         <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={isInView ? { opacity: 1, y: 0 } : {}}
-          transition={{ duration: 0.8, ease: "easeOut" }}
           className="relative overflow-hidden rounded-[2rem] bg-gradient-to-br from-primary/10 via-primary/5 to-primary/5 p-8 lg:p-16"
         >
           {/* Dot pattern */}
@@ -23,17 +20,11 @@ const CTABanner = () => {
 
           <div className="relative z-10 max-w-3xl mx-auto text-center">
             <motion.h2
-              initial={{ opacity: 0, y: 20 }}
-              animate={isInView ? { opacity: 1, y: 0 } : {}}
-              transition={{ duration: 0.6 }}
               className="text-3xl md:text-4xl lg:text-5xl font-semibold text-[#222222] mb-4"
             >
               Ready to Get <span className="text-primary">Started?</span>
             </motion.h2>
             <motion.p
-              initial={{ opacity: 0, y: 20 }}
-              animate={isInView ? { opacity: 1, y: 0 } : {}}
-              transition={{ duration: 0.6, delay: 0.2 }}
               className="text-lg md:text-xl text-slate-600 font-normal leading-relaxed mb-10"
             >
               Join thousands of South Africans already using MzansiServe.{" "}

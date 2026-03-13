@@ -18,12 +18,19 @@ class PaymentService:
     @staticmethod
     def _get_provider(provider_name: str = 'yoco'):
         """Factory method to get the correct payment provider"""
+        provider = None
         if provider_name == 'yoco':
-            return YocoProvider()
+            provider = YocoProvider()
         elif provider_name == 'paypal':
-            return PayPalProvider()
+            provider = PayPalProvider()
         else:
             raise ValueError(f"Unsupported payment provider: {provider_name}")
+            
+        if not getattr(provider, 'enabled', False):
+            logger.warning(f"Payment provider {provider_name} is disabled.")
+            raise ValueError(f"Payment provider {provider_name} is currently disabled.")
+            
+        return provider
 
     @staticmethod
     def create_checkout(amount, currency, external_id, success_url=None, cancel_url=None, failure_url=None, provider='yoco'):
@@ -68,6 +75,129 @@ class PaymentService:
             logger.info(f"Payment {external_id} updated to {status}")
             return True
         return False
+
+    @staticmethod
+    def handle_order_payment(order_id, external_id):
+        """Process order completion after payment"""
+        from backend.models import Order, Payment
+        order = Order.query.get(order_id)
+        payment = Payment.query.filter_by(external_id=external_id).first()
+        
+        if not order:
+            return False, "ORDER_NOT_FOUND"
+            
+        verified_status = PaymentService.get_payment_status(external_id)
+        if verified_status == 'completed':
+            if order.status != 'paid':
+                order.status = 'paid'
+                if payment:
+                    payment.status = 'completed'
+                    order.payment_id = str(payment.id)
+                db.session.commit()
+                
+                # Update inventory
+                try:
+                    from backend.services.inventory_service import update_inventory_on_order_payment
+                    update_inventory_on_order_payment(order)
+                except Exception as e:
+                    logger.error(f"Inventory update failed for order {order_id}: {e}")
+                
+                # Send email
+                try:
+                    from backend.services.email_service import EmailService
+                    from backend.models import User
+                    user = User.query.get(order.customer_id)
+                    if user:
+                        EmailService.send_shop_purchase_confirmation(user, order)
+                except Exception as e:
+                    logger.error(f"Email notification failed for order {order_id}: {e}")
+                    
+            return True, None
+        return False, "VERIFICATION_FAILED"
+
+    @staticmethod
+    def handle_wallet_topup(external_id):
+        """Process wallet top-up after payment"""
+        from backend.models import Payment, User, Wallet
+        from backend.services.wallet_service import WalletService
+        
+        payment = Payment.query.filter_by(external_id=external_id).first()
+        if not payment:
+            return False, "PAYMENT_NOT_FOUND"
+            
+        verified_status = PaymentService.get_payment_status(external_id)
+        if verified_status != 'completed':
+            return False, "VERIFICATION_FAILED"
+            
+        if not external_id.startswith('topup_'):
+            return False, "INVALID_EXTERNAL_ID"
+            
+        parts = external_id.split('_')
+        if len(parts) < 3:
+            return False, "INVALID_EXTERNAL_ID"
+            
+        user_id_hex = parts[1].replace('-', '')
+        if len(user_id_hex) != 32:
+            return False, "INVALID_EXTERNAL_ID"
+            
+        user_id_str = f"{user_id_hex[:8]}-{user_id_hex[8:12]}-{user_id_hex[12:16]}-{user_id_hex[16:20]}-{user_id_hex[20:32]}"
+        user_id = uuid.UUID(user_id_str)
+        
+        if payment.status == 'pending' and payment.amount > 0:
+            wallet = Wallet.query.filter_by(user_id=user_id).first()
+            if not wallet:
+                wallet = WalletService.get_or_create_wallet(user_id)
+            
+            top_up_amount = float(payment.amount)
+            WalletService.add_transaction(
+                wallet_id=wallet.id,
+                user_id=user_id,
+                transaction_type='top-up',
+                amount=top_up_amount,
+                currency=payment.currency,
+                external_id=external_id,
+                description=f'Wallet top-up of R{top_up_amount:.2f}',
+                metadata={'payment_id': str(payment.id)}
+            )
+            
+            payment.status = 'completed'
+            db.session.commit()
+            return True, None
+            
+        return payment.status == 'completed', "ALREADY_PROCESSED"
+
+    @staticmethod
+    def handle_service_request_payment(request_id, external_id):
+        """Process service request payment"""
+        from backend.models import ServiceRequest, Payment, User
+        from backend.services.email_service import EmailService
+        
+        service_request = ServiceRequest.query.get(request_id)
+        payment = Payment.query.filter_by(external_id=external_id).first()
+        
+        if not service_request:
+            return False, "REQUEST_NOT_FOUND"
+            
+        verified_status = PaymentService.get_payment_status(external_id)
+        if verified_status == 'completed':
+            if service_request.payment_status != 'paid':
+                service_request.payment_status = 'paid'
+                service_request.status = 'pending'
+                if payment:
+                    payment.status = 'completed'
+                db.session.commit()
+                
+                # Send email
+                try:
+                    user = User.query.get(service_request.requester_id)
+                    if user:
+                        EmailService.send_callout_payment_confirmation(user, service_request, float(payment.amount))
+                except Exception as e:
+                    logger.error(f"Email notification failed for request {request_id}: {e}")
+                    
+            return True, None
+        return False, "VERIFICATION_FAILED"
+
     @staticmethod
     def create_subscription(user_id, plan_id, success_url, cancel_url, provider='paypal'):
         """

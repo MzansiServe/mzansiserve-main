@@ -4,11 +4,14 @@ import { useAuth } from '../contexts/AuthContext';
 import { useRouter } from 'expo-router';
 import { 
   Mail, Lock, User, UserPlus, ArrowLeft, Phone, Shield, 
-  FileText, Camera, Check, X, Info, Globe, Briefcase, Award
+  FileText, Camera, Check, X, Info, Globe, Briefcase, Award,
+  ChevronDown, Search
 } from 'lucide-react-native';
 import * as ImagePicker from 'expo-image-picker';
 import * as DocumentPicker from 'expo-document-picker';
+import { Modal, FlatList, TextInput as RNTextInput } from 'react-native';
 import { COLORS, SPACING, SIZES, SHADOWS } from '../constants/Theme';
+import { COUNTRIES } from '../constants/Countries';
 import { Typography } from '../components/UI/Typography';
 import { Input } from '../components/UI/Input';
 import { Button } from '../components/UI/Button';
@@ -48,10 +51,14 @@ export default function Register() {
     const [professionalBody, setProfessionalBody] = useState('');
     const [selectedServices, setSelectedServices] = useState<string[]>([]);
     const [serviceOptions, setServiceOptions] = useState<any[]>([]);
+    const [customService, setCustomService] = useState('');
 
-    // Documents
+    // Documents & Payment
     const [files, setFiles] = useState<{[key: string]: any}>({});
-    const [selectedProvider, setSelectedProvider] = useState<"paypal" | "yoco">("paypal");
+    const [selectedProvider, setSelectedProvider] = useState<string>("paypal");
+    const [availableGateways, setAvailableGateways] = useState<any[]>([]);
+    const [showCountryPicker, setShowCountryPicker] = useState(false);
+    const [countrySearch, setCountrySearch] = useState('');
 
     // ─── Effects ───────────────────────────────────────────────────────────────
     useEffect(() => {
@@ -63,6 +70,18 @@ export default function Register() {
             }).catch(err => console.error("Failed to load services", err));
         }
     }, [role]);
+
+    useEffect(() => {
+        apiClient.get('/public/payment-gateways').then((res: any) => {
+                if (res.data?.success && res.data.data?.gateways) {
+                    const gateways = res.data.data.gateways.filter((g: any) => g.is_enabled);
+                    setAvailableGateways(gateways);
+                    if (gateways.length > 0 && !gateways.find((g: any) => g.name.toLowerCase() === selectedProvider)) {
+                        setSelectedProvider(gateways[0].name.toLowerCase());
+                    }
+                }
+        }).catch(err => console.error("Failed to load gateways", err));
+    }, []);
 
     // ─── Helpers ───────────────────────────────────────────────────────────────
     const pickImage = async (field: string) => {
@@ -114,14 +133,17 @@ export default function Register() {
 
     const validateStep2 = () => {
         if (!name || !surname || !phone || !gender || !nationality || !idNumber) return "Fill all personal details";
-        if (!nokName || (!nokPhone && !nokEmail)) return "Next of kin info required";
+        if (!nokName) return "Next of kin name required";
+        if (!nokPhone && !nokEmail) return "Next of kin contact info required";
         return null;
     };
     
     const validateStep3 = () => {
+        // All users need profile photo and ID document (mirroring web requirement)
+        if (!files.profile_photo) return "Profile photo is required";
+        if (!files.id_document) return "ID document is required";
+
         if (role !== 'client') {
-            if (!files.profile_photo) return "Profile photo is required";
-            if (!files.id_document) return "ID document is required";
             if (!files.proof_of_residence) return "Proof of residence is required";
             if (role === 'driver' && !files.drivers_license) return "Driver's license is required";
             if (role === 'professional') {
@@ -147,8 +169,8 @@ export default function Register() {
                 gender, nationality, id_number: idNumber,
                 next_of_kin: { full_name: nokName, contact_number: nokPhone, contact_email: nokEmail },
                 highest_qualification: highestQualification, professional_body: professionalBody, agent_id: agentId,
-                professional_services: role === 'professional' ? selectedServices.map(s => ({name: s})) : [],
-                provider_services: role === 'service-provider' ? selectedServices.map(s => ({name: s})) : [],
+                professional_services: role === 'professional' ? selectedServices.map(s => ({name: s, description: ""})) : [],
+                provider_services: role === 'service-provider' ? selectedServices.map(s => ({name: s, description: ""})) : [],
                 provider: selectedProvider
             };
 
@@ -297,8 +319,20 @@ export default function Register() {
                             ))}
                         </View>
 
+                        <TouchableOpacity 
+                            style={styles.pickerTrigger} 
+                            onPress={() => setShowCountryPicker(true)}
+                        >
+                            <Typography variant="caption" color={COLORS.gray[600]} style={{ marginBottom: 4 }}>Nationality</Typography>
+                            <View style={styles.pickerValue}>
+                                <Globe color={COLORS.gray[400]} size={20} />
+                                <Typography variant="body" style={{ flex: 1, marginLeft: 10 }}>{nationality}</Typography>
+                                <ChevronDown color={COLORS.gray[400]} size={20} />
+                            </View>
+                        </TouchableOpacity>
+
                         <Input
-                            label="ID / Passport Number"
+                            label={nationality === 'South Africa' ? "ID Number" : "Passport Number"}
                             placeholder="Enter number"
                             value={idNumber}
                             onChangeText={setIdNumber}
@@ -319,13 +353,24 @@ export default function Register() {
                             value={nokName}
                             onChangeText={setNokName}
                         />
-                        <Input
-                            label="Contact Phone"
-                            placeholder="081..."
-                            value={nokPhone}
-                            onChangeText={setNokPhone}
-                            keyboardType="phone-pad"
-                        />
+                        <View style={styles.row}>
+                            <Input
+                                label="Contact Phone"
+                                placeholder="081..."
+                                value={nokPhone}
+                                onChangeText={setNokPhone}
+                                keyboardType="phone-pad"
+                                containerStyle={{ flex: 1, marginRight: SPACING.xs }}
+                            />
+                            <Input
+                                label="Contact Email"
+                                placeholder="kin@example.com"
+                                value={nokEmail}
+                                onChangeText={setNokEmail}
+                                keyboardType="email-address"
+                                containerStyle={{ flex: 1 }}
+                            />
+                        </View>
 
                         <Button
                             title="Continue"
@@ -384,6 +429,25 @@ export default function Register() {
                                         </TouchableOpacity>
                                     ))}
                                 </ScrollView>
+                                
+                                <View style={[styles.row, { marginTop: SPACING.sm }]}>
+                                    <Input
+                                        placeholder="Add custom service..."
+                                        value={customService}
+                                        onChangeText={setCustomService}
+                                        containerStyle={{ flex: 1, marginBottom: 0, marginRight: SPACING.xs }}
+                                    />
+                                    <Button 
+                                        title="Add" 
+                                        onPress={() => {
+                                            if (customService.trim() && !selectedServices.includes(customService.trim())) {
+                                                setSelectedServices([...selectedServices, customService.trim()]);
+                                                setCustomService('');
+                                            }
+                                        }}
+                                        style={{ width: 80, height: 52 }}
+                                    />
+                                </View>
                             </View>
                         )}
 
@@ -436,25 +500,34 @@ export default function Register() {
                                 )}
                             </View>
 
-                        <View style={styles.paymentSelector}>
-                            <Typography variant="caption" color={COLORS.gray[700]} weight="bold" style={{ marginBottom: 8 }}>
-                                Choose Registration Payment
-                            </Typography>
-                            <View style={styles.row}>
-                                <TouchableOpacity 
-                                    onPress={() => setSelectedProvider('paypal')}
-                                    style={[styles.providerBtn, selectedProvider === 'paypal' && styles.providerBtnActive]}
-                                >
-                                    <Typography variant="caption" color={selectedProvider === 'paypal' ? COLORS.primary : COLORS.gray[500]} weight="bold">PayPal</Typography>
-                                </TouchableOpacity>
-                                <TouchableOpacity 
-                                    onPress={() => setSelectedProvider('yoco')}
-                                    style={[styles.providerBtn, selectedProvider === 'yoco' && styles.providerBtnActive]}
-                                >
-                                    <Typography variant="caption" color={selectedProvider === 'yoco' ? COLORS.primary : COLORS.gray[500]} weight="bold">Yoco</Typography>
-                                </TouchableOpacity>
+                        {availableGateways.length > 0 && (
+                            <View style={styles.paymentSelector}>
+                                <Typography variant="caption" color={COLORS.gray[700]} weight="bold" style={{ marginBottom: 8 }}>
+                                    Choose Registration Payment
+                                </Typography>
+                                <View style={styles.row}>
+                                    {availableGateways.map(gateway => (
+                                        <TouchableOpacity 
+                                            key={gateway.id}
+                                            onPress={() => setSelectedProvider(gateway.name.toLowerCase())}
+                                            style={[
+                                                styles.providerBtn, 
+                                                selectedProvider === gateway.name.toLowerCase() && styles.providerBtnActive
+                                            ]}
+                                        >
+                                            <Typography 
+                                                variant="caption" 
+                                                color={selectedProvider === gateway.name.toLowerCase() ? COLORS.primary : COLORS.gray[500]} 
+                                                weight="bold"
+                                                style={{ textTransform: 'capitalize' }}
+                                            >
+                                                {gateway.name}
+                                            </Typography>
+                                        </TouchableOpacity>
+                                    ))}
+                                </View>
                             </View>
-                        </View>
+                        )}
 
                         <Button
                             title="Complete Registration"
@@ -472,6 +545,54 @@ export default function Register() {
                     </TouchableOpacity>
                 </View>
             </ScrollView>
+
+            <Modal
+                visible={showCountryPicker}
+                animationType="slide"
+                transparent={true}
+                onRequestClose={() => setShowCountryPicker(false)}
+            >
+                <View style={styles.modalOverlay}>
+                    <View style={styles.modalContent}>
+                        <View style={styles.modalHeader}>
+                            <Typography variant="h2">Select Nationality</Typography>
+                            <TouchableOpacity onPress={() => setShowCountryPicker(false)}>
+                                <X color={COLORS.gray[800]} size={24} />
+                            </TouchableOpacity>
+                        </View>
+
+                        <View style={styles.searchInputContainer}>
+                            <Search color={COLORS.gray[400]} size={20} />
+                            <RNTextInput
+                                placeholder="Search countries..."
+                                style={styles.searchInput}
+                                value={countrySearch}
+                                onChangeText={setCountrySearch}
+                                autoCapitalize="none"
+                            />
+                        </View>
+
+                        <FlatList
+                            data={COUNTRIES.filter(c => c.toLowerCase().includes(countrySearch.toLowerCase()))}
+                            keyExtractor={(item) => item}
+                            renderItem={({ item }) => (
+                                <TouchableOpacity 
+                                    style={styles.countryItem}
+                                    onPress={() => {
+                                        setNationality(item);
+                                        setShowCountryPicker(false);
+                                        setCountrySearch('');
+                                    }}
+                                >
+                                    <Typography variant="body">{item}</Typography>
+                                    {nationality === item && <Check color={COLORS.primary} size={20} />}
+                                </TouchableOpacity>
+                            )}
+                            showsVerticalScrollIndicator={false}
+                        />
+                    </View>
+                </View>
+            </Modal>
         </KeyboardAvoidingView>
     );
 }
@@ -610,5 +731,59 @@ const styles = StyleSheet.create({
         justifyContent: 'center',
         marginTop: SPACING.xl,
         paddingBottom: SPACING.xl,
+    },
+    pickerTrigger: {
+        marginBottom: SPACING.md,
+    },
+    pickerValue: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        backgroundColor: COLORS.white,
+        borderWidth: 1.5,
+        borderColor: COLORS.gray[200],
+        borderRadius: SIZES.radius.md,
+        height: 52,
+        paddingHorizontal: SPACING.md,
+    },
+    modalOverlay: {
+        flex: 1,
+        backgroundColor: 'rgba(0,0,0,0.5)',
+        justifyContent: 'flex-end',
+    },
+    modalContent: {
+        backgroundColor: COLORS.white,
+        borderTopLeftRadius: 24,
+        borderTopRightRadius: 24,
+        height: '80%',
+        padding: SPACING.lg,
+    },
+    modalHeader: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        marginBottom: SPACING.lg,
+    },
+    searchInputContainer: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        backgroundColor: COLORS.gray[100],
+        borderRadius: 12,
+        paddingHorizontal: SPACING.md,
+        height: 48,
+        marginBottom: SPACING.md,
+    },
+    searchInput: {
+        flex: 1,
+        marginLeft: 10,
+        fontSize: 16,
+        color: COLORS.gray[800],
+    },
+    countryItem: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        paddingVertical: SPACING.md,
+        borderBottomWidth: 1,
+        borderBottomColor: COLORS.gray[50],
     },
 });

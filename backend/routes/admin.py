@@ -5,13 +5,15 @@ import os
 import uuid
 from datetime import datetime
 
-from flask import Blueprint, current_app, request
+from flask import Blueprint, current_app, request, jsonify
 from flask_jwt_extended import get_jwt_identity
 
 from backend.extensions import db
 from backend.models import AppSetting, FAQ, ServiceRequest, User, ProductImage, ServiceType, CarouselItem, FooterContent, WithdrawalRequest, Agent, VehicleImage, PendingProfileUpdate
 from backend.models.shop import Inventory, ShopCategory, ShopSubcategory, ShopProduct
-from backend.models.payment import Payment
+from backend.services.admin_service import AdminService
+from backend.services.payment_service import PaymentService
+from backend.services.agent_service import AgentService
 from backend.utils.decorators import require_admin, require_auth
 from backend.utils.response import error_response, success_response
 
@@ -31,29 +33,19 @@ def _allowed_image_file(filename: str) -> bool:
 @bp.route('/users', methods=['GET'])
 @require_admin
 def list_users():
-    """List all users with filters"""
     try:
-        role = request.args.get('role')
-        is_paid = request.args.get('is_paid')
-        is_approved = request.args.get('is_approved')
+        filters = {
+            'role': request.args.get('role'),
+            'is_paid': request.args.get('is_paid') == 'true' if request.args.get('is_paid') else None,
+            'is_approved': request.args.get('is_approved') == 'true' if request.args.get('is_approved') else None
+        }
         limit = int(request.args.get('limit', 50))
         offset = int(request.args.get('offset', 0))
         
-        query = User.query
-        
-        if role:
-            query = query.filter_by(role=role)
-        if is_paid is not None:
-            query = query.filter_by(is_paid=(is_paid == 'true'))
-        if is_approved is not None:
-            query = query.filter_by(is_approved=(is_approved == 'true'))
-        
-        total = query.count()
-        users = query.order_by(User.created_at.desc()).limit(limit).offset(offset).all()
-        
+        result = AdminService.list_users(filters, limit, offset)
         return success_response({
-            'users': [u.to_dict() for u in users],
-            'total': total,
+            'users': result['users'],
+            'total': result['total'],
             'limit': limit,
             'offset': offset
         })
@@ -65,67 +57,13 @@ def list_users():
 @bp.route('/users', methods=['POST'])
 @require_admin
 def create_user():
-    """Create a new user from admin"""
     try:
         data = request.get_json(silent=True) or {}
-        email = data.get('email', '').strip().lower()
-        password = data.get('password')
-        role = data.get('role', 'user')
-
-        if not email or not password:
-            return error_response('MISSING_FIELDS', 'Email and password are required', None, 400)
-
-        # Check if email is already registered
-        existing_user = User.query.filter_by(email=email).first()
-        if existing_user:
-            return error_response('ALREADY_EXISTS', 'A user with this email already exists', None, 409)
-
-        # Create user
-        user = User(
-            email=email,
-            role=role,
-            is_active=bool(data.get('is_active', True)),
-            is_approved=bool(data.get('is_approved', True)),
-            is_paid=bool(data.get('is_paid', False)),
-            email_verified=bool(data.get('email_verified', True))
-        )
-        user.set_password(password)
-
-        # Build profile data
-        profile_data = {}
-        if 'first_name' in data: profile_data['full_name'] = data['first_name']
-        if 'last_name' in data: profile_data['surname'] = data['last_name']
-        if 'phone' in data: profile_data['phone'] = data['phone']
-        if 'gender' in data: profile_data['gender'] = data['gender']
-        if 'sa_id_number' in data: profile_data['sa_id'] = data['sa_id_number']
-        if 'is_sa_citizen' in data: profile_data['sa_citizen'] = data['is_sa_citizen']
-        if 'highest_qualification' in data: profile_data['highest_qualification'] = data['highest_qualification']
-        if 'professional_body' in data: profile_data['professional_body'] = data['professional_body']
-        if 'professional_services' in data: profile_data['professional_services'] = data['professional_services']
-        if 'driver_vehicles' in data: profile_data['driver_services'] = data['driver_vehicles']
-        
-        # Next of kin
-        nok = {}
-        if data.get('next_of_kin_name'): nok['full_name'] = data['next_of_kin_name']
-        if data.get('next_of_kin_phone'): nok['contact_number'] = data['next_of_kin_phone']
-        if data.get('next_of_kin_email'): nok['contact_email'] = data['next_of_kin_email']
-        if nok: profile_data['next_of_kin'] = nok
-
-        user.data = profile_data
-        db.session.add(user)
-        db.session.commit()
-
-        # Handle service provider services
-        if role == 'service-provider' and 'provider_services' in data and data['provider_services']:
-            from backend.models import UserSelectedService
-            for svc_name in data['provider_services']:
-                # For admin convenience, if we just have strings, we can't easily map to service_type_id
-                # without knowing existing types. Usually admins select from options.
-                # In this simplified version `provider_services` might be just strings from the frontend mock.
-                # If they passed real UUIDs in JS it would work, but the frontend currently sends raw strings.
-                pass # Skipping actual insertion unless service_type_id is provided.
-
-        return success_response(user.to_dict(), 'User created successfully', 201)
+        user_dict, error = AdminService.create_user(data)
+        if error:
+            return error_response(error, 'Failed to create user', None, 400 if error != 'ALREADY_EXISTS' else 409)
+            
+        return success_response(user_dict, 'User created successfully', 201)
 
     except Exception as e:
         db.session.rollback()
@@ -136,61 +74,12 @@ def create_user():
 @bp.route('/users/<user_id>/approve', methods=['PATCH'])
 @require_admin
 def approve_user(user_id):
-    """Approve user registration"""
     try:
-        user = User.query.get(user_id)
-        if not user:
-            return error_response('NOT_FOUND', 'User not found', None, 404)
-        user.is_approved = True
-        if user.role in ('professional', 'service-provider'):
-            user.is_active = True
+        user_dict, error = AdminService.approve_user(user_id)
+        if error:
+            return error_response(error, 'Failed to approve user', None, 404 if error == 'NOT_FOUND' else 500)
             
-            # Process services upon approval
-            from backend.models import ServiceType, UserSelectedService
-            services = []
-            if user.data:
-                if user.role == 'professional':
-                    services = user.data.get('professional_services', [])
-                elif user.role == 'service-provider':
-                    services = user.data.get('provider_services', [])
-            
-            for s in services:
-                service_name = s.get('name', '').strip()
-                if not service_name:
-                    continue
-                
-                existing_service = ServiceType.query.filter(db.func.lower(ServiceType.name) == service_name.lower(), ServiceType.category == user.role).first()
-                if not existing_service:
-                    new_service = ServiceType(
-                        name=service_name,
-                        description=s.get('description', ''),
-                        category=user.role,
-                        is_active=True
-                    )
-                    db.session.add(new_service)
-                    db.session.flush()
-                    service_id = new_service.id
-                else:
-                    service_id = existing_service.id
-                
-                has_service = UserSelectedService.query.filter_by(user_id=user.id, service_type_id=service_id).first()
-                if not has_service:
-                    db.session.add(UserSelectedService(
-                        user_id=user.id,
-                        service_type_id=service_id,
-                        personalized_description=s.get('personalized_description', '')
-                    ))
-
-        db.session.commit()
-        
-        # Send user approval notification email
-        try:
-            from backend.services.email_service import EmailService
-            EmailService.send_user_approval_notification(user)
-        except Exception as e:
-            current_app.logger.error(f"Failed to send approval email: {str(e)}")
-        
-        return success_response(user.to_dict(), 'User approved successfully')
+        return success_response(user_dict, 'User approved successfully')
         
     except Exception as e:
         current_app.logger.error(f"Approve user error: {str(e)}")
@@ -199,36 +88,13 @@ def approve_user(user_id):
 @bp.route('/users/<user_id>/verify-id', methods=['PATCH'])
 @require_admin
 def verify_id(user_id):
-    """Verify or reject ID document"""
     try:
-        user = User.query.get(user_id)
-        if not user:
-            return error_response('NOT_FOUND', 'User not found', None, 404)
-        
-        data = request.get_json(silent=True)
-        status = data.get('status')  # 'verified' or 'rejected'
-        reason = data.get('reason')  # Required if rejected
-        
-        if status not in ('verified', 'rejected'):
-            return error_response('INVALID_STATUS', 'Status must be verified or rejected', None, 400)
-        
-        if status == 'rejected' and not reason:
-            return error_response('MISSING_REASON', 'Reason is required for rejection', None, 400)
-        
-        user.id_verification_status = status
-        if status == 'rejected':
-            user.id_rejection_reason = reason
-        
-        db.session.commit()
-        
-        # Send ID verification notification email
-        try:
-            from backend.services.email_service import EmailService
-            EmailService.send_id_verification_notification(user, status, reason)
-        except Exception as e:
-            current_app.logger.error(f"Failed to send ID verification email: {str(e)}")
-        
-        return success_response(user.to_dict(), f'ID verification status updated to {status}')
+        data = request.get_json(silent=True) or {}
+        user_dict, error = AdminService.verify_id(user_id, data.get('status'), data.get('reason'))
+        if error:
+            return error_response(error, 'Failed to verify ID', None, 400 if error != 'NOT_FOUND' else 404)
+            
+        return success_response(user_dict, f"ID verification status updated")
         
     except Exception as e:
         current_app.logger.error(f"Verify ID error: {str(e)}")
@@ -237,24 +103,11 @@ def verify_id(user_id):
 @bp.route('/users/<user_id>/suspend', methods=['PATCH'])
 @require_admin
 def suspend_user(user_id):
-    """Suspend a user"""
     try:
-        user = User.query.get(user_id)
-        if not user:
-            return error_response('NOT_FOUND', 'User not found', None, 404)
-        
-        user.is_active = False
-        db.session.commit()
-        
-        # Send user suspension notification email
-        try:
-            from backend.services.email_service import EmailService
-            EmailService.send_user_suspension_notification(user)
-        except Exception as e:
-            current_app.logger.error(f"Failed to send suspension email: {str(e)}")
-        
-        return success_response(user.to_dict(), 'User suspended successfully')
-        
+        user_dict, error = AdminService.suspend_user(user_id)
+        if error:
+            return error_response(error, 'Failed to suspend user', None, 404 if error == 'NOT_FOUND' else 500)
+        return success_response(user_dict, 'User suspended successfully')
     except Exception as e:
         current_app.logger.error(f"Suspend user error: {str(e)}")
         return error_response('INTERNAL_ERROR', 'Failed to suspend user', None, 500)
@@ -262,38 +115,14 @@ def suspend_user(user_id):
 @bp.route('/users/<user_id>', methods=['GET'])
 @require_admin
 def get_user(user_id):
-    """Get user profile details for admin editing"""
     try:
-        user = User.query.get(user_id)
-        if not user:
-            return error_response('NOT_FOUND', 'User not found', None, 404)
-        
-        # Get ID document URL if exists
-        id_document_url = None
-        if user.file_urls and len(user.file_urls) > 0:
-            id_document_url = user.file_urls[0] if isinstance(user.file_urls, list) else None
-        
-        # Get selected services for service providers
-        selected_services = []
-        if user.role == 'service-provider':
-            from backend.models import UserSelectedService
-            user_services = UserSelectedService.query.filter_by(user_id=user.id).all()
-            selected_services = [us.to_dict() for us in user_services]
-        
-        profile_data = user.data or {}
-        if selected_services:
-            profile_data['selected_services'] = selected_services
-        
-        return success_response({
-            'user': user.to_dict(),
-            'profile_data': profile_data,
-            'id_document_url': id_document_url
-        })
-        
+        result, error = AdminService.get_user(user_id)
+        if error:
+            return error_response(error, 'User not found', None, 404)
+        return success_response(result)
     except Exception as e:
         current_app.logger.error(f"Get user error: {str(e)}")
-        return error_response('INTERNAL_ERROR', 'Failed to get user', None, 500)
-
+        return error_response('INTERNAL_ERROR', 'Failed to fetch user', None, 500)
 
 @bp.route('/users/<user_id>/vehicle-images', methods=['GET'])
 @require_admin
@@ -426,6 +255,8 @@ def update_user(user_id):
             field_mappings = {
                 'full_name': 'full_name',
                 'surname': 'surname',
+                'first_name': 'full_name',
+                'last_name': 'surname',
                 'phone': 'phone',
                 'gender': 'gender',
                 'sa_citizen': 'sa_citizen',
@@ -498,17 +329,11 @@ def update_user(user_id):
 @bp.route('/users/<user_id>/unsuspend', methods=['PATCH'])
 @require_admin
 def unsuspend_user(user_id):
-    """Unsuspend a user"""
     try:
-        user = User.query.get(user_id)
-        if not user:
-            return error_response('NOT_FOUND', 'User not found', None, 404)
-        
-        user.is_active = True
-        db.session.commit()
-        
-        return success_response(user.to_dict(), 'User unsuspended successfully')
-        
+        user_dict, error = AdminService.unsuspend_user(user_id)
+        if error:
+            return error_response(error, 'Failed to unsuspend user', None, 404 if error == 'NOT_FOUND' else 500)
+        return success_response(user_dict, 'User unsuspended successfully')
     except Exception as e:
         current_app.logger.error(f"Unsuspend user error: {str(e)}")
         return error_response('INTERNAL_ERROR', 'Failed to unsuspend user', None, 500)
@@ -516,19 +341,12 @@ def unsuspend_user(user_id):
 @bp.route('/users/<user_id>', methods=['DELETE'])
 @require_admin
 def delete_user(user_id):
-    """Permanently delete a user"""
     try:
-        user = User.query.get(user_id)
-        if not user:
-            return error_response('NOT_FOUND', 'User not found', None, 404)
-        
-        db.session.delete(user)
-        db.session.commit()
-        
+        success, error = AdminService.delete_user(user_id)
+        if error:
+            return error_response(error, 'Failed to delete user', None, 404 if error == 'NOT_FOUND' else 500)
         return success_response(None, 'User deleted successfully')
-        
     except Exception as e:
-        db.session.rollback()
         current_app.logger.error(f"Delete user error: {str(e)}")
         return error_response('INTERNAL_ERROR', 'Failed to delete user', None, 500)
 
@@ -566,19 +384,9 @@ def list_requests():
 @bp.route('/stats', methods=['GET'])
 @require_admin
 def get_stats():
-    """Get dashboard statistics"""
     try:
-        total_users = User.query.count()
-        total_requests = ServiceRequest.query.count()
-        pending_requests = ServiceRequest.query.filter_by(status='pending').count()
-        completed_requests = ServiceRequest.query.filter_by(status='completed').count()
-        
-        return success_response({
-            'total_users': total_users,
-            'total_requests': total_requests,
-            'pending_requests': pending_requests,
-            'completed_requests': completed_requests
-        })
+        stats = AdminService.get_stats()
+        return success_response(stats)
         
     except Exception as e:
         current_app.logger.error(f"Get stats error: {str(e)}")
@@ -2115,101 +1923,37 @@ def delete_agent(agent_uuid):
 @bp.route('/pending-profile-updates', methods=['GET'])
 @require_admin
 def list_pending_profile_updates():
-    """List all pending profile update requests."""
     try:
-        pending = PendingProfileUpdate.query.filter_by(status='pending').order_by(
-            PendingProfileUpdate.created_at.desc()
-        ).all()
-        out = []
-        for p in pending:
-            user = User.query.get(p.user_id)
-            d = p.to_dict()
-            d['user_email'] = user.email if user else None
-            d['user_role'] = user.role if user else None
-            ud = user.data or {}
-            fn = (ud.get('full_name') or '').strip()
-            sn = (ud.get('surname') or '').strip()
-            d['user_full_name'] = (fn + (' ' + sn if sn else '')).strip() or '—'
-            out.append(d)
-        return success_response({'pending_updates': out})
+        pending, error = AdminService.list_pending_profile_updates()
+        return success_response(pending)
     except Exception as e:
         current_app.logger.error(f"List pending profile updates error: {str(e)}")
         return error_response('INTERNAL_ERROR', 'Failed to list pending updates', None, 500)
 
-
 @bp.route('/pending-profile-updates/<pending_id>/approve', methods=['POST'])
 @require_admin
 def approve_pending_profile_update(pending_id):
-    """Apply pending profile changes to user and delete the pending record."""
     try:
-        pending = PendingProfileUpdate.query.get(pending_id)
-        if not pending:
-            return error_response('NOT_FOUND', 'Pending update not found', None, 404)
-        if pending.status != 'pending':
-            return error_response('INVALID_STATUS', 'Update already reviewed', None, 400)
-        user = User.query.get(pending.user_id)
-        if not user:
-            return error_response('NOT_FOUND', 'User not found', None, 404)
-        payload = pending.payload or {}
-        updated_data = dict(user.data) if user.data else {}
-        for key, value in payload.items():
-            if key in ('phone', 'next_of_kin', 'driver_services', 'professional_services', 'provider_services',
-                       'highest_qualification', 'professional_body', 'proof_of_residence_url', 'driver_license_url', 'qualification_urls', 'operating_areas', 'availability'):
-                if value is None and key in updated_data:
-                    del updated_data[key]
-                else:
-                    updated_data[key] = value
-
-            # If services were updated, auto-add any custom ones to the master list
-            if key in ('professional_services', 'provider_services') and isinstance(value, list):
-                category = 'professional' if key == 'professional_services' else 'service-provider'
-                for service in value:
-                    s_name = service.get('name', '').strip()
-                    if not s_name:
-                        continue
-                    
-                    # Check if service exists
-                    existing = ServiceType.query.filter(ServiceType.name.ilike(s_name)).first()
-                    if not existing:
-                        # Create new approved service
-                        new_service = ServiceType(
-                            name=s_name,
-                            category=category,
-                            is_active=True,
-                            description=service.get('description', '')
-                        )
-                        db.session.add(new_service)
-
-        user.data = updated_data
-        db.session.delete(pending)
-        db.session.commit()
-        return success_response(user.to_dict(), 'Profile changes applied successfully')
+        user, error = AdminService.approve_pending_profile_update(pending_id)
+        if error:
+            return error_response(error, 'Failed to apply update', None, 404 if error == 'NOT_FOUND' else 400)
+        return success_response(user, 'Profile changes applied successfully')
     except Exception as e:
-        db.session.rollback()
         current_app.logger.error(f"Approve pending update error: {str(e)}")
         return error_response('INTERNAL_ERROR', 'Failed to apply update', None, 500)
-
 
 @bp.route('/pending-profile-updates/<pending_id>/reject', methods=['POST'])
 @require_admin
 def reject_pending_profile_update(pending_id):
-    """Reject a pending profile update (optionally with reason)."""
     try:
         admin_id = get_jwt_identity()
         data = request.get_json(silent=True) or {}
-        pending = PendingProfileUpdate.query.get(pending_id)
-        if not pending:
-            return error_response('NOT_FOUND', 'Pending update not found', None, 404)
-        if pending.status != 'pending':
-            return error_response('INVALID_STATUS', 'Update already reviewed', None, 400)
-        pending.status = 'rejected'
-        pending.reviewed_at = datetime.utcnow()
-        pending.reviewed_by_id = admin_id
-        pending.rejection_reason = (data.get('reason') or '').strip() or None
-        db.session.commit()
+        reason = (data.get('reason') or '').strip() or None
+        success, error = AdminService.reject_pending_profile_update(pending_id, admin_id, reason)
+        if error:
+            return error_response(error, 'Failed to reject update', None, 404 if error == 'NOT_FOUND' else 400)
         return success_response(None, 'Profile update rejected')
     except Exception as e:
-        db.session.rollback()
         current_app.logger.error(f"Reject pending update error: {str(e)}")
         return error_response('INTERNAL_ERROR', 'Failed to reject update', None, 500)
 
@@ -2498,65 +2242,9 @@ def update_report(report_id):
 @bp.route('/global-stats', methods=['GET'])
 @require_admin
 def get_global_stats():
-    """Consolidated view of all system activity"""
     try:
-        from backend.models.chat import ChatMessage
-        from backend.models.report import Report
-        from backend.models.driver_rating import DriverRating
-        from backend.models.professional_rating import ProfessionalRating
-        from backend.models.provider_rating import ProviderRating
-        
-        from backend.models.shop import Order
-        from sqlalchemy import func
-        from datetime import timedelta
-        
-        # Calculate total revenue from all sources
-        # 1. Orders (Shop)
-        shop_revenue = db.session.query(func.sum(Order.total)).filter(Order.status == 'paid').scalar() or 0
-        # 2. Service Requests (Payments)
-        # Assuming payment_amount on requests with status 'completed' is finalized
-        service_revenue = db.session.query(func.sum(ServiceRequest.payment_amount)).filter(ServiceRequest.status == 'completed').scalar() or 0
-        
-        total_revenue = float(shop_revenue) + float(service_revenue)
-        
-        # Growth data (last 7 days)
-        seven_days_ago = datetime.utcnow() - timedelta(days=7)
-        user_growth = []
-        for i in range(7):
-            day = seven_days_ago + timedelta(days=i+1)
-            start_of_day = datetime(day.year, day.month, day.day)
-            end_of_day = start_of_day + timedelta(days=1)
-            count = User.query.filter(User.created_at >= start_of_day, User.created_at < end_of_day).count()
-            user_growth.append({'date': start_of_day.strftime('%b %d'), 'count': count})
-
-        return success_response({
-            'users': {
-                'total': User.query.count(),
-                'drivers': User.query.filter_by(role='driver').count(),
-                'professionals': User.query.filter_by(role='professional').count(),
-                'providers': User.query.filter_by(role='service-provider').count(),
-                'clients': User.query.filter_by(role='client').count(),
-                'growth': user_growth
-            },
-            'requests': {
-                'total': ServiceRequest.query.count(),
-                'pending': ServiceRequest.query.filter_by(status='pending').count(),
-                'completed': ServiceRequest.query.filter_by(status='completed').count()
-            },
-            'revenue': {
-                'total': total_revenue,
-                'shop': float(shop_revenue),
-                'service': float(service_revenue)
-            },
-            'feedback': {
-                'total_ratings': DriverRating.query.count() + ProfessionalRating.query.count() + ProviderRating.query.count(),
-                'total_reports': Report.query.count(),
-                'pending_reports': Report.query.filter_by(status='pending').count()
-            },
-            'activity': {
-                'total_chats': ChatMessage.query.count()
-            }
-        })
+        stats, error = AdminService.get_global_stats()
+        return success_response(stats)
     except Exception as e:
         current_app.logger.error(f"Global stats error: {str(e)}")
         return error_response('INTERNAL_ERROR', 'Failed to get global stats', None, 500)
@@ -2567,11 +2255,8 @@ def get_global_stats():
 def list_all_chats():
     """List all chat conversations for monitoring"""
     try:
-        from backend.models.chat import ChatMessage
-        # Group messages by request_id
-        # In a real system, we'd use a more sophisticated grouping
-        messages = ChatMessage.query.order_by(ChatMessage.created_at.desc()).limit(200).all()
-        return success_response([m.to_dict() for m in messages])
+        messages, error = AdminService.list_all_chats()
+        return success_response(messages)
     except Exception as e:
         current_app.logger.error(f"List chats error: {str(e)}")
         return error_response('INTERNAL_ERROR', 'Failed to list chats', None, 500)
@@ -2582,17 +2267,8 @@ def list_all_chats():
 def list_global_commissions():
     """List all agent commissions for monitoring"""
     try:
-        from backend.models.agent_commission import AgentCommission
-        commissions = AgentCommission.query.order_by(AgentCommission.created_at.desc()).limit(100).all()
-        
-        out = []
-        for c in commissions:
-            d = c.to_dict()
-            if c.agent:
-                d['agent_email'] = c.agent.email
-            out.append(d)
-            
-        return success_response({'commissions': out})
+        commissions, error = AdminService.list_global_commissions()
+        return success_response(commissions)
     except Exception as e:
         current_app.logger.error(f"List global commissions error: {str(e)}")
         return error_response('INTERNAL_ERROR', 'Failed to list commissions', None, 500)
@@ -2603,30 +2279,29 @@ def list_global_commissions():
 def get_affiliate_stats():
     """Get summarized affiliate/agent performance metrics"""
     try:
-        from backend.models.agent_commission import AgentCommission
-        from sqlalchemy import func
-        
-        # 1. Total Paid Out
-        # Sum of commissions with status 'paid_out'
-        total_payout = db.session.query(func.sum(AgentCommission.amount)).filter(AgentCommission.status == 'paid_out').scalar() or 0.0
-        
-        # 2. Active Agents Count
-        # Agents who have a user account (role='agent') OR have recruited at least one person
-        # For simplicity, count unique agent_ids from commissions table
-        active_agents_count = db.session.query(func.count(func.distinct(AgentCommission.agent_id))).scalar() or 0
-        
-        # 3. Total Commissions
-        total_commissions = db.session.query(func.count(AgentCommission.id)).scalar() or 0
-
-        return success_response({
-            'total_paid_out': float(total_payout),
-            'active_agents_count': active_agents_count,
-            'total_commissions': total_commissions
-        })
+        stats, error = AdminService.get_affiliate_stats()
+        return success_response(stats)
     except Exception as e:
         current_app.logger.error(f"Affiliate stats error: {str(e)}")
         return error_response('INTERNAL_ERROR', 'Failed to get affiliate stats', None, 500)
 
+@bp.route('/settings/payment', methods=['GET'])
+@require_admin
+def get_payment_settings():
+    try:
+        settings, error = AdminService.get_payment_settings()
+        return success_response(settings)
+    except Exception as e:
+        current_app.logger.error(f"Get payment settings error: {str(e)}")
+        return error_response('INTERNAL_ERROR', 'Failed to get payment settings', None, 500)
 
-
-
+@bp.route('/settings/payment', methods=['PATCH'])
+@require_admin
+def update_payment_settings():
+    try:
+        data = request.get_json() or {}
+        success, error = AdminService.update_payment_settings(data)
+        return success_response(None, 'Payment settings updated successfully')
+    except Exception as e:
+        current_app.logger.error(f"Update payment settings error: {str(e)}")
+        return error_response('INTERNAL_ERROR', 'Failed to update payment settings', None, 500)

@@ -15,3 +15,10 @@ services:
       - ./uploads:/app/uploads
     # Override to use Flask development server with reload
     command: flask run --host=0.0.0.0 --port=5000 --reload
+
+  nginx:
+    volumes:
+      - ./nginx_dir/new/nginx.local.conf:/etc/nginx/nginx.conf:ro
+      - ./static:/app/static:ro
+      - ./uploads:/app/uploads:ro
+    # Remove SSL volume mount for local dev

@@ -18,7 +18,32 @@ const VerifyEmail = () => {
 
     const [userData, setUserData] = useState<any>(null);
     const [paying, setPaying] = useState(false);
-    const [selectedProvider, setSelectedProvider] = useState<"paypal" | "yoco">("paypal");
+    const [selectedProvider, setSelectedProvider] = useState<"paypal" | "yoco">("yoco");
+    const [enabledGateways, setEnabledGateways] = useState<{paypal: boolean, yoco: boolean}>({ paypal: true, yoco: true });
+
+    useEffect(() => {
+        const fetchGateways = async () => {
+            try {
+                const response = await apiFetch("/api/public/payment-gateways");
+                if (response.success && response.data) {
+                    const gateways = {
+                        paypal: response.data.paypal?.enabled ?? false,
+                        yoco: response.data.yoco?.enabled ?? false
+                    };
+                    setEnabledGateways(gateways);
+                    
+                    if (!gateways.paypal && gateways.yoco) {
+                        setSelectedProvider("yoco");
+                    } else if (gateways.paypal && !gateways.yoco) {
+                        setSelectedProvider("paypal");
+                    }
+                }
+            } catch (error) {
+                console.error("Failed to fetch payment gateways:", error);
+            }
+        };
+        fetchGateways();
+    }, []);
 
     useEffect(() => {
         const queryStatus = searchParams.get("status");
@@ -134,49 +159,59 @@ const VerifyEmail = () => {
                             ) : (
                                 <div className="space-y-4">
                                     <div className="grid gap-4 sm:grid-cols-2 mb-8 text-left">
-                                        <div 
-                                            onClick={() => setSelectedProvider("paypal")}
-                                            className={cn(
-                                                "cursor-pointer rounded-xl border-2 p-4 transition-all flex items-center justify-between",
-                                                selectedProvider === "paypal" 
-                                                    ? "border-primary bg-primary/5" 
-                                                    : "border-slate-100 bg-white"
-                                            )}
-                                        >
-                                            <div className="flex flex-col">
-                                                <span className="text-sm font-bold text-[#222222]">PayPal / Card</span>
-                                                <span className="text-[10px] text-slate-500">Default choice</span>
-                                            </div>
-                                            {selectedProvider === "paypal" ? (
-                                                <div className="h-5 w-5 bg-primary rounded-full flex items-center justify-center">
-                                                    <CheckCircle2 className="h-3 w-3 text-white" />
+                                        {enabledGateways.paypal && (
+                                            <div 
+                                                onClick={() => setSelectedProvider("paypal")}
+                                                className={cn(
+                                                    "cursor-pointer rounded-xl border-2 p-4 transition-all flex items-center justify-between",
+                                                    selectedProvider === "paypal" 
+                                                        ? "border-primary bg-primary/5" 
+                                                        : "border-slate-100 bg-white"
+                                                )}
+                                            >
+                                                <div className="flex flex-col">
+                                                    <span className="text-sm font-bold text-[#222222]">PayPal / Card</span>
+                                                    <span className="text-[10px] text-slate-500">Default choice</span>
                                                 </div>
-                                            ) : (
-                                                <div className="h-5 w-5 border border-slate-200 rounded-full" />
-                                            )}
-                                        </div>
+                                                {selectedProvider === "paypal" ? (
+                                                    <div className="h-5 w-5 bg-primary rounded-full flex items-center justify-center">
+                                                        <CheckCircle2 className="h-3 w-3 text-white" />
+                                                    </div>
+                                                ) : (
+                                                    <div className="h-5 w-5 border border-slate-200 rounded-full" />
+                                                )}
+                                            </div>
+                                        )}
 
-                                        <div 
-                                            onClick={() => setSelectedProvider("yoco")}
-                                            className={cn(
-                                                "cursor-pointer rounded-xl border-2 p-4 transition-all flex items-center justify-between",
-                                                selectedProvider === "yoco" 
-                                                    ? "border-primary bg-primary/5" 
-                                                    : "border-slate-100 bg-white"
-                                            )}
-                                        >
-                                            <div className="flex flex-col">
-                                                <span className="text-sm font-bold text-[#222222]">Yoco (Local)</span>
-                                                <span className="text-[10px] text-slate-500">SA Cards / EFT</span>
-                                            </div>
-                                            {selectedProvider === "yoco" ? (
-                                                <div className="h-5 w-5 bg-primary rounded-full flex items-center justify-center">
-                                                    <CheckCircle2 className="h-3 w-3 text-white" />
+                                        {enabledGateways.yoco && (
+                                            <div 
+                                                onClick={() => setSelectedProvider("yoco")}
+                                                className={cn(
+                                                    "cursor-pointer rounded-xl border-2 p-4 transition-all flex items-center justify-between",
+                                                    selectedProvider === "yoco" 
+                                                        ? "border-primary bg-primary/5" 
+                                                        : "border-slate-100 bg-white"
+                                                )}
+                                            >
+                                                <div className="flex flex-col">
+                                                    <span className="text-sm font-bold text-[#222222]">Yoco (Local)</span>
+                                                    <span className="text-[10px] text-slate-500">SA Cards / EFT</span>
                                                 </div>
-                                            ) : (
-                                                <div className="h-5 w-5 border border-slate-200 rounded-full" />
-                                            )}
-                                        </div>
+                                                {selectedProvider === "yoco" ? (
+                                                    <div className="h-5 w-5 bg-primary rounded-full flex items-center justify-center">
+                                                        <CheckCircle2 className="h-3 w-3 text-white" />
+                                                    </div>
+                                                ) : (
+                                                    <div className="h-5 w-5 border border-slate-200 rounded-full" />
+                                                )}
+                                            </div>
+                                        )}
+
+                                        {!enabledGateways.paypal && !enabledGateways.yoco && (
+                                            <div className="col-span-full p-4 bg-slate-50 rounded-xl border border-slate-100 text-center">
+                                                <p className="text-slate-500 text-sm font-medium">No payment methods currently available.</p>
+                                            </div>
+                                        )}
                                     </div>
 
                                     <Button

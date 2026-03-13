@@ -79,12 +79,26 @@ class User(UserMixin, db.Model):
     
     def to_dict(self):
         """Convert to dictionary"""
+        # Try various possible keys for names in the JSON data
+        first_name = (self.data.get('full_name') or self.data.get('first_name') or '').strip() if self.data else ''
+        last_name = (self.data.get('surname') or self.data.get('last_name') or '').strip() if self.data else ''
+        
+        # If full_name contains a space and last_name is empty, try to split it
+        if first_name and not last_name and ' ' in first_name:
+            parts = first_name.split(' ', 1)
+            first_name = parts[0]
+            last_name = parts[1]
+
+        full_display_name = f"{first_name} {last_name}".strip() or "Unknown"
+        
         return {
             'id': str(self.id),
             'email': self.email,
             'role': self.role,
-            'name': self.data.get('full_name', '') if self.data else '',
-            'full_name': self.data.get('full_name', '') if self.data else '',
+            'first_name': first_name,
+            'last_name': last_name,
+            'name': full_display_name,
+            'full_name': full_display_name,
             'phone': self.data.get('phone', '') if self.data else '',
             'is_admin': self.is_admin,
             'is_paid': self.is_paid,

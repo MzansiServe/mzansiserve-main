@@ -20,68 +20,7 @@ from backend.utils.response import error_response, success_response
 bp = Blueprint('requests', __name__)
 
 
-# --- Cab pricing configuration helpers ---
-
-# Base price per kilometer for different car types (Rands per km)
-CAR_TYPE_BASE_RATE_PER_KM = {
-    # Sensible defaults – can be overridden by admin functionality later
-    'small_hatchback': 8.12,
-    'sedan': 8.44,
-    'suv': 8.92,
-    'bakkie': 9.40,
-    'luxury': 11.80,
-    'hybrid': 7.80,
-    'electric': 6.52,
-}
-
-
-def _get_rate_per_km(preferences: dict) -> float:
-    """
-    Resolve price-per-km based on car-related preferences.
-
-    Expected keys inside preferences:
-      - car_type (e.g. 'small_hatchback', 'sedan', 'suv', 'bakkie', 'luxury', 'hybrid', 'electric')
-      - car_make, car_model, car_year (optional – reserved for future fine-grained pricing)
-    """
-    if not isinstance(preferences, dict):
-        return CAR_TYPE_BASE_RATE_PER_KM['sedan']
-
-    car_type = (preferences.get('car_type') or '').lower().strip()
-    if car_type in CAR_TYPE_BASE_RATE_PER_KM:
-        return CAR_TYPE_BASE_RATE_PER_KM[car_type]
-
-    # Fall back to sedan if unknown
-    return CAR_TYPE_BASE_RATE_PER_KM['sedan']
-
-
-def _haversine_distance_km(pickup: dict, dropoff: dict) -> float | None:
-    """
-    Approximate great-circle distance between two points on Earth given as:
-      pickup = {'lat': float, 'lng': float}
-      dropoff = {'lat': float, 'lng': float}
-
-    Returns distance in kilometers, or None if coordinates are missing/invalid.
-    """
-    try:
-        lat1 = float(pickup.get('lat'))
-        lon1 = float(pickup.get('lng'))
-        lat2 = float(dropoff.get('lat'))
-        lon2 = float(dropoff.get('lng'))
-    except (TypeError, ValueError, AttributeError):
-        return None
-
-    # Earth radius in kilometers
-    R = 6371.0
-
-    phi1 = math.radians(lat1)
-    phi2 = math.radians(lat2)
-    d_phi = math.radians(lat2 - lat1)
-    d_lambda = math.radians(lon2 - lon1)
-
-    a = math.sin(d_phi / 2) ** 2 + math.cos(phi1) * math.cos(phi2) * math.sin(d_lambda / 2) ** 2
-    c = 2 * math.atan2(math.sqrt(a), math.sqrt(1 - a))
-
-    return R * c
+from backend.services.request_service import RequestService
 
 
 class QuoteRequestSchema(Schema):
@@ -158,32 +97,17 @@ def get_cab_quote():
         dropoff = data['dropoff']
         preferences = data.get('preferences') or {}
 
-        # Prefer client-provided distance if available (e.g. Google Maps on frontend)
-        distance_km = data.get('distance_km')
-        if distance_km is None:
-            distance_km = _haversine_distance_km(pickup, dropoff)
+        # If data already has distance_km, we skip calc
+        if data.get('distance_km'):
+             # We still want to use service for amount resolution if possible, 
+             # but calculate_quote does distance too. Let's use it.
+             pass
 
-        if distance_km is None or distance_km <= 0:
-            return error_response(
-                'INVALID_DISTANCE',
-                'Could not determine distance between pick-up and drop-off points.',
-                None,
-                400,
-            )
+        quote, error = RequestService.calculate_quote(pickup, dropoff, preferences)
+        if error:
+            return error_response(error, 'Failed to calculate quote', None, 400)
 
-        rate_per_km = _get_rate_per_km(preferences)
-        quote_amount = round(float(distance_km) * float(rate_per_km), 2)
-
-        return success_response(
-            {
-                'type': 'cab',
-                'distance_km': float(distance_km),
-                'rate_per_km': float(rate_per_km),
-                'payment_amount': quote_amount,
-                'preferences': preferences,
-            },
-            'Quote calculated successfully',
-        )
+        return success_response(quote, 'Quote calculated successfully')
 
     except ValidationError as e:
         return error_response('VALIDATION_ERROR', 'Invalid input data', e.messages, 400)
@@ -199,91 +123,18 @@ def create_request():
         schema = CreateRequestSchema()
         data = schema.load(request.json)
         user_id = get_jwt_identity()
-        user = User.query.get(user_id)
-        
-        # Generate request ID
-        request_id = f"REQ-{secrets.token_hex(8).upper()}"
-        
-        # Prepare location data
-        location_data = {}
-        if data.get('pickup') and data.get('dropoff'):
-            location_data = {
-                'pickup': data['pickup'],
-                'dropoff': data['dropoff']
-            }
-        elif data.get('location'):
-            location_data = {'location': data['location']}
-        
-        # Determine payment amount based on request type. Use admin-configured call-out fees.
-        payment_amount = float(data['payment_amount'])
-        if data['type'] == 'professional':
-            setting = AppSetting.query.get('professional_callout_fee_amount') or AppSetting.query.get('callout_fee_amount')
-            payment_amount = float(setting.value) if setting else 150.0
-        elif data['type'] == 'provider':
-            setting = AppSetting.query.get('provider_callout_fee_amount') or AppSetting.query.get('callout_fee_amount')
-            payment_amount = float(setting.value) if setting else 150.0
 
-        # Create service request
-        service_request = ServiceRequest(
-            id=request_id,
-            request_type=data['type'],
-            requester_id=user_id,
-            scheduled_date=data['date'],
-            scheduled_time=data['time'],
-            location_data=location_data,
-            details=data.get('preferences', {}),
-            payment_amount=payment_amount,
-            payment_status='pending'
-        )
+        service_request, error = RequestService.create_request(data, user_id)
+        if error:
+            return error_response(error, 'Failed to create request', None, 400)
 
-        if data.get('notes'):
-            service_request.details['notes'] = data['notes']
-
-        # For service providers, verify wallet balance and deduct immediately
         wallet = Wallet.query.filter_by(user_id=user_id).first()
-        if not wallet:
-            wallet = WalletService.get_or_create_wallet(user_id)
-        
-        wallet_balance = float(wallet.balance) if wallet and wallet.balance else 0.0
-
-        if data['type'] == 'provider':
-            if wallet_balance < payment_amount:
-                return error_response('INSUFFICIENT_FUNDS', f'Insufficient wallet balance. Required: R{payment_amount:.2f}', {
-                    'balance': wallet_balance,
-                    'required': payment_amount
-                }, 400)
-            
-            # Deduct from wallet
-            try:
-                WalletService.add_transaction(
-                    wallet_id=wallet.id,
-                    user_id=user_id,
-                    transaction_type='payment',
-                    amount=payment_amount,
-                    external_id=request_id,
-                    description=f"Call-out fee for {data['type']} request {request_id}"
-                )
-                service_request.payment_status = 'paid'
-                # For providers, request is ready to be shown once paid
-                service_request.status = 'pending' 
-            except Exception as e:
-                db.session.rollback()
-                return error_response('PAYMENT_ERROR', f'Failed to process wallet payment: {str(e)}', None, 500)
-        else:
-            # Professionals and others might use different flows (e.g. Yoco)
-            # If created here, it stays unpaid until checkout completes
-            service_request.payment_status = 'pending'
-            service_request.status = 'unpaid'
-
-        db.session.add(service_request)
-        db.session.commit()
-
         return success_response({
-            'id': request_id,
+            'id': service_request.id,
             'status': service_request.status,
             'payment_status': service_request.payment_status,
-            'payment_amount': payment_amount,
-            'wallet_balance': float(wallet.balance)
+            'payment_amount': float(service_request.payment_amount),
+            'wallet_balance': float(wallet.balance) if wallet else 0.0
         }, 'Service request created successfully', 201)
 
     except ValidationError as e:
@@ -307,83 +158,13 @@ def create_cab_checkout():
     try:
         schema = CabCheckoutSchema()
         data = schema.load(request.json or {})
-
         user_id = get_jwt_identity()
-        user = User.query.get(user_id)
 
-        # Generate request ID
-        request_id = f"REQ-{secrets.token_hex(8).upper()}"
+        checkout_data, error = RequestService.create_checkout('cab', data, user_id, request.host_url)
+        if error:
+            return error_response(error, 'Failed to create cab checkout', None, 400)
 
-        # Prepare location data
-        location_data = {
-            'pickup': data['pickup'],
-            'dropoff': data['dropoff'],
-        }
-
-        quote_amount = float(data['payment_amount'])
-        distance_km = data.get('distance_km')
-        if distance_km is None or distance_km <= 0:
-            distance_km = _haversine_distance_km(data['pickup'], data['dropoff'])
-
-        # Create service request with unpaid status until payment completes
-        service_request = ServiceRequest(
-            id=request_id,
-            request_type='cab',
-            requester_id=user_id,
-            scheduled_date=data['date'],
-            scheduled_time=data['time'],
-            location_data=location_data,
-            distance_km=distance_km,
-            details=data.get('preferences', {}),
-            payment_amount=quote_amount,
-            payment_status='pending',
-            status='unpaid',
-        )
-
-        if data.get('notes'):
-            service_request.details['notes'] = data['notes']
-
-        db.session.add(service_request)
-        db.session.flush()  # ensure request exists before creating payment
-
-        # Prepare Yoco checkout
-        amount_cents = int(round(quote_amount * 100))
-        external_id = f"request_{request_id}_{secrets.token_hex(6)}"
-
-        base_url = request.host_url.rstrip('/')
-        success_url = f"{base_url}/api/payments/request-callback?callback_status=success&external_id={external_id}&request_id={request_id}"
-        cancel_url = f"{base_url}/api/payments/request-callback?callback_status=cancel&external_id={external_id}&request_id={request_id}"
-        failure_url = f"{base_url}/api/payments/request-callback?callback_status=failure&external_id={external_id}&request_id={request_id}"
-
-        checkout = PaymentService.create_checkout(
-            amount=amount_cents,
-            currency='ZAR',
-            external_id=external_id,
-            success_url=success_url,
-            cancel_url=cancel_url,
-            failure_url=failure_url,
-            provider=data.get('provider', 'yoco')
-        )
-
-
-        # Optionally, link payment ID on the request for easier tracking
-        payment = Payment.query.filter_by(external_id=external_id).first()
-        if payment:
-            if service_request.details is None:
-                service_request.details = {}
-            service_request.details['payment_id'] = str(payment.id)
-
-        db.session.commit()
-
-        return success_response(
-            {
-                'request_id': request_id,
-                'checkout_id': checkout['checkout_id'],
-                'redirect_url': checkout['redirect_url'],
-                'external_id': external_id,
-            },
-            'Cab request created. Redirect to checkout.',
-        )
+        return success_response(checkout_data, 'Cab request created. Redirect to checkout.')
 
     except ValidationError as e:
         db.session.rollback()
@@ -409,135 +190,22 @@ def create_professional_checkout():
     try:
         schema = ProfessionalCheckoutSchema()
         data = schema.load(request.json or {})
-
         user_id = get_jwt_identity()
-        request_id = f"REQ-{secrets.token_hex(8).upper()}"
 
         request_type = data.get('type', 'professional')
-
-        location = data['location']
-        location_data = {'location': location}
-        payment_amount = float(data['payment_amount'])
+        checkout_data, error = RequestService.create_checkout(request_type, data, user_id, request.host_url)
         
-        # Enforce admin-configured call-out fee
-        setting_key = 'professional_callout_fee_amount' if request_type == 'professional' else 'provider_callout_fee_amount'
-        setting = AppSetting.query.get(setting_key) or AppSetting.query.get('callout_fee_amount')
-        
-        if setting:
-            payment_amount = float(setting.value)
-        else:
-            payment_amount = 150.0
-
-        service_request = ServiceRequest(
-            id=request_id,
-            request_type=request_type,
-            requester_id=user_id,
-            scheduled_date=data['date'],
-            scheduled_time=data['time'],
-            location_data=location_data,
-            details=dict(data.get('preferences', {})),
-            payment_amount=payment_amount,
-            payment_status='pending' if data.get('is_rfq') else 'pending',
-            status='pending' if data.get('is_rfq') else 'unpaid',
-        )
-        if data.get('notes'):
-            service_request.details['notes'] = data['notes']
-        
+        if error:
+            return error_response(error, 'Failed to create checkout', None, 400)
+            
         if data.get('is_rfq'):
-            service_request.details['is_rfq'] = True
-            service_request.payment_amount = 0 # No upfront payment for RFQ
-        else:
-            # Set provider_id from preferences if available (not an RFQ)
-            prefs = data.get('preferences', {})
-            pid = prefs.get('professional_id') or prefs.get('provider_id')
-            if pid:
-                try:
-                    from uuid import UUID as PUUID
-                    provider_uuid = PUUID(pid)
-                    service_request.provider_id = provider_uuid
-                    
-                    # --- VALIDATE AVAILABILITY ---
-                    provider_user = User.query.get(provider_uuid)
-                    if provider_user and provider_user.data and 'availability' in provider_user.data:
-                        availability = provider_user.data['availability']
-                        req_date = data['date'] # 'YYYY-MM-DD'
-                        req_time = data['time'] # 'HH:MM'
-                        
-                        # 1. Check blocked dates
-                        if req_date in (availability.get('blocked_dates') or []):
-                            return error_response('UNAVAILABLE', 'Provider is unavailable on this date.', None, 400)
-                            
-                        # 2. Check regular hours
-                        try:
-                            dt = datetime.strptime(req_date, '%Y-%m-%d')
-                            day_name = dt.strftime('%A').lower() # 'monday'
-                            day_config = availability.get('regular_hours', {}).get(day_name, {})
-                            if not day_config.get('enabled'):
-                                return error_response('UNAVAILABLE', f'Provider does not work on {day_name}s.', None, 400)
-                            
-                            start = day_config.get('start', '08:00')
-                            end = day_config.get('end', '17:00')
-                            if not (start <= req_time < end):
-                                return error_response('UNAVAILABLE', f'Provider is only available between {start} and {end} on {day_name}s.', None, 400)
-                        except Exception as e:
-                            current_app.logger.error(f"Availability check error (regular hours): {str(e)}")
-                            
-                        # 3. Check busy slots (existing bookings)
-                        busy = ServiceRequest.query.filter(
-                            ServiceRequest.provider_id == provider_uuid,
-                            ServiceRequest.scheduled_date == req_date,
-                            ServiceRequest.scheduled_time == req_time,
-                            ServiceRequest.status.in_(['accepted', 'completed', 'paid'])
-                        ).first()
-                        if busy:
-                            return error_response('UNAVAILABLE', 'This time slot is already booked.', None, 400)
-                    
-                except (ValueError, TypeError):
-                    pass
-
-        db.session.add(service_request)
-        db.session.flush()
-
-        if data.get('is_rfq'):
-            db.session.commit()
-            return success_response({
-                'request_id': request_id,
+             return success_response({
+                'request_id': checkout_data.id,
                 'status': 'pending',
                 'is_rfq': True
             }, 'Request for quote submitted successfully.')
 
-        amount_cents = int(round(payment_amount * 100))
-        external_id = f"request_{request_id}_{secrets.token_hex(6)}"
-        base_url = request.host_url.rstrip('/')
-        success_url = f"{base_url}/api/payments/request-callback?callback_status=success&external_id={external_id}&request_id={request_id}"
-        cancel_url = f"{base_url}/api/payments/request-callback?callback_status=cancel&external_id={external_id}&request_id={request_id}"
-        failure_url = f"{base_url}/api/payments/request-callback?callback_status=failure&external_id={external_id}&request_id={request_id}"
-
-        checkout = PaymentService.create_checkout(
-            amount=amount_cents,
-            currency='ZAR',
-            external_id=external_id,
-            success_url=success_url,
-            cancel_url=cancel_url,
-            failure_url=failure_url,
-                    provider=data.get('provider', 'yoco')
-        )
-
-        payment = Payment.query.filter_by(external_id=external_id).first()
-        if payment and service_request.details is not None:
-            service_request.details['payment_id'] = str(payment.id)
-
-        db.session.commit()
-
-        return success_response(
-            {
-                'request_id': request_id,
-                'checkout_id': checkout['checkout_id'],
-                'redirect_url': checkout['redirect_url'],
-                'external_id': external_id,
-            },
-            'Service request created. Redirect to checkout.',
-        )
+        return success_response(checkout_data, 'Service request created. Redirect to checkout.')
     except ValidationError as e:
         db.session.rollback()
         return error_response('VALIDATION_ERROR', 'Invalid input data', e.messages, 400)

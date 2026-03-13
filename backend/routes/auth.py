@@ -20,6 +20,7 @@ from backend.services.email_service import EmailService
 from backend.services.wallet_service import WalletService
 from backend.services.payment_service import PaymentService
 from backend.services.agent_service import AgentService
+from backend.services.auth_service import AuthService
 
 bp = Blueprint('auth', __name__)
 logger = logging.getLogger(__name__)
@@ -59,58 +60,26 @@ def register():
         logger.info("register: request received")
         schema = RegisterSchema()
         data = schema.load(request.json)
-        logger.debug("register: email=%s role=%s", data.get('email'), data.get('role'))
-        if User.query.filter_by(email=data['email'], role=data['role']).first():
-            logger.warning("register: user exists email=%s role=%s", data['email'], data['role'])
-            return error_response('USER_EXISTS', 'An account with this email and role already exists', None, 400)
         
-        # Create user
-        user = User(
+        user, error = AuthService.register_user(
             email=data['email'],
+            password=data['password'],
             role=data['role'],
-            is_admin=False,
-            is_paid=False,
-            is_approved=False,
-            is_active=True,
-            email_verified=False,
-            tracking_number=generate_tracking_number()
+            full_name=data.get('full_name'),
+            phone=data.get('phone')
         )
-        user.set_password(data['password'])
         
-        # Store basic info in data JSONB
-        if data.get('full_name'):
-            user.data = {
-                'full_name': data['full_name'],
-                'phone': data.get('phone', '')
-            }
-        
-        db.session.add(user)
-        db.session.commit()
-        
-        # Create wallet for user
-        WalletService.get_or_create_wallet(user.id)
-        
-        # Generate email verification token
-        token = create_email_verification_token(user.id)
-        
-        # Queue verification email
-        try:
-            logger.info("register: sending verification email to user_id=%s", user.id)
-            EmailService.send_verification_email(user, token)
-            logger.info("register: verification email sent to user_id=%s", user.id)
-        except Exception as e:
-            logger.warning("register: failed to send verification email: %s", e)
+        if error == "USER_EXISTS":
+            return error_response('USER_EXISTS', 'An account with this email and role already exists', None, 400)
         
         # Generate JWT token
         access_token = create_access_token(identity=str(user.id))
         
-        logger.info("register: success user_id=%s", user.id)
         return success_response({
             'user': user.to_dict(),
             'token': access_token
         }, 'User registered successfully', 201)
     except ValidationError as e:
-        logger.warning("register: validation error %s", e.messages)
         return error_response('VALIDATION_ERROR', 'Invalid input data', e.messages, 400)
     except Exception as e:
         logger.exception("register: failed")
@@ -118,29 +87,31 @@ def register():
 
 @bp.route('/login', methods=['POST'])
 def login():
-    """User login endpoint. Requires email, password, and role. User must have registered that (email, role) combination."""
+    """User login endpoint"""
     try:
         logger.info("login: request received")
         schema = LoginSchema()
         data = schema.load(request.json)
-        user = User.query.filter_by(email=data['email'], role=data['role']).first()
-        if not user or not user.check_password(data['password']):
-            logger.warning("login: invalid credentials email=%s role=%s", data['email'], data['role'])
+        
+        user, error = AuthService.login_user(
+            email=data['email'],
+            password=data['password'],
+            role=data['role']
+        )
+        
+        if error == "INVALID_CREDENTIALS":
             return error_response('INVALID_CREDENTIALS', 'Invalid email, password, or role combination', None, 401)
-        if not user.is_active:
-            logger.warning("login: account inactive user_id=%s", user.id)
+        if error == "ACCOUNT_INACTIVE":
             return error_response('ACCOUNT_INACTIVE', 'Account is inactive', None, 403)
-        if not user.email_verified:
-            logger.warning("login: email not verified user_id=%s", user.id)
+        if error == "EMAIL_NOT_VERIFIED":
             return error_response('EMAIL_NOT_VERIFIED', 'Your email address is not verified. Please check your inbox or resend the verification email.', None, 403)
+            
         access_token = create_access_token(identity=str(user.id))
-        logger.info("login: success user_id=%s", user.id)
         return success_response({
             'user': user.to_dict(),
             'token': access_token
         }, 'Login successful')
     except ValidationError as e:
-        logger.warning("login: validation error %s", e.messages)
         return error_response('VALIDATION_ERROR', 'Invalid input data', e.messages, 400)
     except Exception as e:
         logger.exception("login: failed")
@@ -520,304 +491,28 @@ def list_agents():
 def register_with_payment():
     """User registration with payment checkout"""
     try:
-        from backend.routes.profile import UpdateProfileSchema
-        from werkzeug.utils import secure_filename
-
         logger.info("register_with_payment: request received")
         registration_data_str = request.form.get('registration_data')
-        logger.info("register_with_payment: registration_data_str=%s", registration_data_str)
         if not registration_data_str:
-            logger.info("register_with_payment: missing registration_data")
             return error_response('MISSING_DATA', 'Registration data is required', None, 400)
+        
         registration_data = json.loads(registration_data_str)
-        logger.info("register_with_payment: role=%s email=%s", registration_data.get('role'), registration_data.get('email'))
         
-        # Validate basic registration fields
-        if not registration_data.get('email') or not registration_data.get('password') or not registration_data.get('role'):
-            logger.warning("register_with_payment: missing email, password, or role")
-            return error_response('MISSING_FIELDS', 'Email, password, and role are required', None, 400)
+        # Delegate to AuthService for complex registration logic
+        user, error = AuthService.register_with_payment_logic(registration_data, request.files)
         
-        # Validate password confirmation
-        if registration_data.get('password_confirm') is None:
-            logger.warning("register_with_payment: missing password_confirm")
-            return error_response('MISSING_FIELDS', 'Password confirmation is required', None, 400)
-        if registration_data.get('password') != registration_data.get('password_confirm'):
-            logger.warning("register_with_payment: password mismatch")
-            return error_response('PASSWORD_MISMATCH', 'Password and confirmation do not match', None, 400)
-        
-        # Check if (email, role) combination already exists
-        if User.query.filter_by(email=registration_data['email'], role=registration_data['role']).first():
-            logger.warning("register_with_payment: user already exists email=%s role=%s", registration_data['email'], registration_data['role'])
+        if error == "USER_EXISTS":
             return error_response('USER_EXISTS', 'An account with this email and role already exists', None, 400)
-
-        # Optional agent_id: validate if provided (supports UUID or short code)
-        agent_code_raw = registration_data.get('agent_id')
-        agent_uuid = None
-        if agent_code_raw:
-            # Try to find by short code first (e.g. AGT001)
-            agent_by_code = Agent.query.filter_by(agent_id=agent_code_raw).first()
-            if agent_by_code:
-                agent_uuid = agent_by_code.id
-            else:
-                # Try to parse as UUID
-                try:
-                    agent_uuid = uuid.UUID(agent_code_raw)
-                    if not Agent.query.get(agent_uuid):
-                        logger.warning("register_with_payment: agent not found by UUID=%s", agent_uuid)
-                        return error_response('INVALID_FIELDS', 'Invalid agent code.', None, 400)
-                except (ValueError, TypeError):
-                    logger.warning("register_with_payment: invalid agent code format=%s", agent_code_raw)
-                    return error_response('INVALID_FIELDS', 'Invalid agent code format.', None, 400)
-        
-        # All roles: ID/Passport number, profile photo, and next of kin are mandatory
-        if not registration_data.get('id_number') or not str(registration_data.get('id_number', '')).strip():
-            logger.warning("register_with_payment: missing id_number")
-            return error_response('MISSING_FIELDS', 'ID/Passport number is required for all roles', None, 400)
-        
-        profile_photo = request.files.get('profile_photo')
-        if not profile_photo or not (profile_photo.filename or '').strip():
-            logger.warning("register_with_payment: missing profile_photo")
-            return error_response('MISSING_FIELDS', 'Profile photo is required for all roles', None, 400)
+        if error == "INVALID_AGENT":
+            return error_response('INVALID_FIELDS', 'Invalid agent code format.', None, 400)
+        if error:
+            return error_response('REGISTRATION_FAILED', error, None, 400)
             
-        nok = registration_data.get('next_of_kin')
-        if not nok or not isinstance(nok, dict):
-            logger.warning("register_with_payment: missing next_of_kin or not a dict")
-            return error_response('MISSING_FIELDS', 'Next of kin is required for all roles', None, 400)
-        if not (nok.get('full_name') or '').strip():
-            logger.warning("register_with_payment: missing next_of_kin full_name")
-            return error_response('MISSING_FIELDS', 'Next of kin full name is required', None, 400)
-        if not (nok.get('contact_number') or '').strip() and not (nok.get('contact_email') or '').strip():
-            logger.warning("register_with_payment: missing next_of_kin contact info")
-            return error_response('MISSING_FIELDS', 'Next of kin contact number or email is required', None, 400)
-        
-        contact_number = (nok.get('contact_number') or '').strip()
-        if contact_number and not contact_number.replace('+', '').replace(' ', '').isdigit():
-            logger.warning("register_with_payment: invalid next_of_kin contact_number=%s", contact_number)
-            return error_response('INVALID_FIELDS', 'Next of kin contact number must contain numbers only', None, 400)
-        
-        # All roles: ID document (upload) is mandatory
-        id_doc = request.files.get('id_document')
-        if not id_doc or not (id_doc.filename or '').strip():
-            logger.warning("register_with_payment: missing id_document")
-            return error_response('MISSING_FIELDS', 'ID document (upload) is required for all roles', None, 400)
-        
-        # Driver role: proof of residence and driver's license files are mandatory (ID document already required above)
-        if registration_data.get('role') == 'driver':
-            missing = []
-            for key, label in [
-                ('proof_of_residence', 'Proof of residence'),
-                ('drivers_license', "Driver's license"),
-            ]:
-                f = request.files.get(key)
-                if not f or not f.filename or not f.filename.strip():
-                    missing.append(label)
-            if missing:
-                logger.warning("register_with_payment: driver missing documents: %s", missing)
-                return error_response(
-                    'MISSING_DRIVER_DOCUMENTS',
-                    f"For driver registration, the following are required: {', '.join(missing)}.",
-                    None,
-                    400,
-                )
-        # Service-provider and professional: proof of residence is mandatory
-        if registration_data.get('role') in ('service-provider', 'professional'):
-            f = request.files.get('proof_of_residence')
-            if not f or not f.filename or not f.filename.strip():
-                logger.warning("register_with_payment: missing proof_of_residence for %s", registration_data.get('role'))
-                return error_response(
-                    'MISSING_FIELDS',
-                    'Proof of residence is required for service provider and professional registration.',
-                    None,
-                    400,
-                )
-        # Professional: Highest qualification, CV/Resume and qualification documents are mandatory
-        if registration_data.get('role') == 'professional':
-            if not (registration_data.get('highest_qualification') or '').strip():
-                logger.warning("register_with_payment: missing highest_qualification")
-                return error_response('MISSING_FIELDS', 'Highest qualification is required for professional registration.', None, 400)
-            cv_file = request.files.get('cv_resume')
-            if not cv_file or not (cv_file.filename or '').strip():
-                logger.warning("register_with_payment: missing cv_resume")
-                return error_response('MISSING_FIELDS', 'CV/Resume is required for professional registration.', None, 400)
-            qual_files = request.files.getlist('qualification_documents')
-            if not qual_files or not any(f and (f.filename or '').strip() for f in qual_files):
-                logger.warning("register_with_payment: missing qualification_documents")
-                return error_response('MISSING_FIELDS', 'At least one qualification document is required for professional registration.', None, 400)
-        
-        # Create user (not paid yet)
-        user = User(
-            email=registration_data['email'],
-            role=registration_data['role'],
-            is_admin=False,
-            is_paid=False,
-            is_approved=False,
-            is_active=True,
-            email_verified=False,
-            tracking_number=generate_tracking_number(),
-            nationality=registration_data.get('nationality'),
-            agent_id=agent_uuid,
-        )
-        user.set_password(registration_data['password'])
-        
-        # Build user data JSONB
-        user_data = {
-            'full_name': registration_data.get('full_name'),
-            'surname': registration_data.get('surname'),
-            'phone': registration_data.get('phone'),
-            'gender': registration_data.get('gender'),
-            'id_number': registration_data.get('id_number'),  # Will be sa_id or passport
-            'next_of_kin': registration_data.get('next_of_kin')
-        }
-        
-        # Add role-specific data
-        if registration_data.get('role') == 'professional':
-            user_data['highest_qualification'] = registration_data.get('highest_qualification')
-            user_data['professional_body'] = registration_data.get('professional_body')
-            user_data['professional_services'] = registration_data.get('professional_services', [])
-        elif registration_data.get('role') == 'service-provider':
-            # Services will be saved to UserSelectedService after payment
-            pass
-        elif registration_data.get('role') == 'driver':
-            user_data['driver_services'] = registration_data.get('driver_services', [])
-        
-        # Handle nationality and ID
-        nationality = registration_data.get('nationality', '')
-        if nationality == 'South Africa':
-            user_data['sa_citizen'] = True
-            if registration_data.get('id_number'):
-                user_data['sa_id'] = registration_data.get('id_number')
-        else:
-            user_data['sa_citizen'] = False
-            if registration_data.get('id_number'):
-                user_data['passport_number'] = registration_data.get('id_number')
-        
-        user.data = user_data
-        
-        # Handle file uploads
-        upload_folder = current_app.config.get('UPLOAD_FOLDER')
-        if not os.path.exists(upload_folder):
-            os.makedirs(upload_folder)
-        
-        file_urls = []
-        
-        # ID Document
-        if 'id_document' in request.files:
-            file = request.files['id_document']
-            if file and file.filename:
-                file_ext = file.filename.rsplit('.', 1)[1].lower() if '.' in file.filename else 'pdf'
-                unique_filename = f"temp_{uuid.uuid4().hex[:8]}.{file_ext}"
-                filepath = os.path.join(upload_folder, unique_filename)
-                file.save(filepath)
-                file_urls.append(f"/uploads/{unique_filename}")
-        
-        # Proof of Residence
-        if 'proof_of_residence' in request.files:
-            file = request.files['proof_of_residence']
-            if file and file.filename:
-                file_ext = file.filename.rsplit('.', 1)[1].lower() if '.' in file.filename else 'pdf'
-                unique_filename = f"temp_proof_{uuid.uuid4().hex[:8]}.{file_ext}"
-                filepath = os.path.join(upload_folder, unique_filename)
-                file.save(filepath)
-                user_data['proof_of_residence_url'] = f"/uploads/{unique_filename}"
-        
-        # Driver's License
-        if 'drivers_license' in request.files:
-            file = request.files['drivers_license']
-            if file and file.filename:
-                file_ext = file.filename.rsplit('.', 1)[1].lower() if '.' in file.filename else 'pdf'
-                unique_filename = f"temp_license_{uuid.uuid4().hex[:8]}.{file_ext}"
-                filepath = os.path.join(upload_folder, unique_filename)
-                file.save(filepath)
-                user_data['driver_license_url'] = f"/uploads/{unique_filename}"
-        
-        # CV/Resume (professional role)
-        if registration_data.get('role') == 'professional' and 'cv_resume' in request.files:
-            file = request.files['cv_resume']
-            if file and file.filename:
-                file_ext = file.filename.rsplit('.', 1)[1].lower() if '.' in file.filename else 'pdf'
-                if file_ext not in ('pdf', 'doc', 'docx', 'jpg', 'jpeg', 'png'):
-                    file_ext = 'pdf'
-                unique_filename = f"cv_resume_{uuid.uuid4().hex[:8]}.{file_ext}"
-                filepath = os.path.join(upload_folder, unique_filename)
-                file.save(filepath)
-                user_data['cv_resume_url'] = f"/uploads/{unique_filename}"
-        
-        # Qualification Documents
-        if 'qualification_documents' in request.files:
-            files = request.files.getlist('qualification_documents')
-            qual_urls = []
-            for file in files:
-                if file and file.filename:
-                    file_ext = file.filename.rsplit('.', 1)[1].lower() if '.' in file.filename else 'pdf'
-                    unique_filename = f"temp_qual_{uuid.uuid4().hex[:8]}.{file_ext}"
-                    filepath = os.path.join(upload_folder, unique_filename)
-                    file.save(filepath)
-                    qual_urls.append(f"/uploads/{unique_filename}")
-            if qual_urls:
-                user_data['qualification_urls'] = qual_urls
-        
-        # Profile photo (optional)
-        if 'profile_photo' in request.files:
-            file = request.files['profile_photo']
-            if file and file.filename:
-                file_ext = file.filename.rsplit('.', 1)[1].lower() if '.' in file.filename else ''
-                if file_ext in ('jpg', 'jpeg', 'png'):
-                    unique_filename = f"profile_{uuid.uuid4().hex[:12]}.{file_ext}"
-                    filepath = os.path.join(upload_folder, unique_filename)
-                    file.save(filepath)
-                    user.profile_image_url = f"/uploads/{unique_filename}"
-        
-        user.file_urls = file_urls
-        user.data = user_data
-        
-        # Save user (temporarily, will be updated after payment)
-        db.session.add(user)
-        db.session.flush()  # Get user.id without committing
-        
-        # Create wallet
-        WalletService.get_or_create_wallet(user.id)
-        logger.info("register_with_payment: wallet created for user_id=%s", user.id)
-        # Driver: save vehicle images (vehicle_images_0, vehicle_images_1, ...)
-        if registration_data.get('role') == 'driver':
-            import re
-            for key in request.files:
-                m = re.match(r'vehicle_images_(\d+)', key)
-                if m:
-                    car_index = int(m.group(1))
-                    files = request.files.getlist(key)
-                    for file in files:
-                        if file and file.filename and (file.filename or '').strip():
-                            file_ext = file.filename.rsplit('.', 1)[1].lower() if '.' in file.filename else 'jpg'
-                            if file_ext not in ('jpg', 'jpeg', 'png'):
-                                file_ext = 'jpg'
-                            unique_filename = f"vehicle_{uuid.uuid4().hex[:12]}.{file_ext}"
-                            filepath = os.path.join(upload_folder, unique_filename)
-                            file.save(filepath)
-                            img = VehicleImage(user_id=user.id, car_index=car_index, image_url=f"/uploads/{unique_filename}")
-                            db.session.add(img)
-        
-        # Store provider services data temporarily in user.data for later processing
-        if registration_data.get('role') == 'service-provider':
-            user_data['provider_services'] = registration_data.get('provider_services', [])
-            user.data = user_data
-        db.session.commit()
-        
-        # Send Verification Email instead of initiating payment
-        try:
-            logger.info("register_with_payment: sending verification email to user_id=%s", user.id)
-            token = create_email_verification_token(user.id)
-            EmailService.send_verification_email(user, token)
-            logger.info("register_with_payment: verification email sent to user_id=%s", user.id)
-        except Exception as e:
-            logger.warning("register_with_payment: failed to send verification email: %s", e)
-        
-        logger.info("register_with_payment: success (pending verification) user_id=%s", user.id)
         return success_response({
             'user': user.to_dict(),
             'message': 'Registration successful. Please check your email to verify your account and complete payment.'
         }, 'Registration successful. Check email for verification.', 201)
     except json.JSONDecodeError:
-        logger.info("register_with_payment: invalid JSON")
         return error_response('INVALID_DATA', 'Invalid registration data format', None, 400)
     except Exception as e:
         db.session.rollback()
@@ -831,48 +526,24 @@ def complete_registration():
         logger.info("complete_registration: request received")
         data = request.json
         external_id = data.get('external_id')
-        registration_data = data.get('registration_data')
-        if not external_id:
-            logger.warning("complete_registration: missing external_id")
-            return error_response('MISSING_EXTERNAL_ID', 'External ID is required', None, 400)
-        from backend.models import Payment
-        payment = Payment.query.filter_by(external_id=external_id).first()
-        if not payment:
-            logger.warning("complete_registration: payment not found external_id=%s", external_id)
-            return error_response('PAYMENT_NOT_FOUND', 'Payment not found', None, 404)
-        if payment.status != 'completed':
-            logger.warning("complete_registration: payment not completed external_id=%s status=%s", external_id, payment.status)
-            return error_response('PAYMENT_NOT_COMPLETED', 'Payment not completed', None, 400)
         
-        # Extract user_id from external_id
-        if external_id.startswith('reg_fee_'):
-            parts = external_id.split('_')
-            if len(parts) >= 4:
-                user_id_hex = '_'.join(parts[2:-1])
-                user_id_hex_clean = user_id_hex.replace('-', '')
-                if len(user_id_hex_clean) == 32:
-                    user_id_str = f"{user_id_hex_clean[:8]}-{user_id_hex_clean[8:12]}-{user_id_hex_clean[12:16]}-{user_id_hex_clean[16:20]}-{user_id_hex_clean[20:32]}"
-                    user_id = uuid.UUID(user_id_str)
-                    user = User.query.get(user_id)
-                    
-                    if user:
-                        # Mark user as paid
-                        user.is_paid = True
-                        
-                        # Custom services will be processed during admin approval
-                        
-                        db.session.commit()
-                        access_token = create_access_token(identity=str(user.id))
-                        logger.info("complete_registration: success user_id=%s", user.id)
-                        return success_response({
-                            'user': user.to_dict(),
-                            'token': access_token
-                        }, 'Registration completed successfully')
-        logger.warning("complete_registration: invalid external_id=%s", external_id)
-        return error_response('INVALID_EXTERNAL_ID', 'Could not extract user ID from external ID', None, 400)
+        user, error = AuthService.complete_registration(external_id)
+        
+        if error == "PAYMENT_NOT_FOUND":
+            return error_response('PAYMENT_NOT_FOUND', 'Payment not found', None, 404)
+        if error == "PAYMENT_INCOMPLETE":
+            return error_response('PAYMENT_NOT_COMPLETED', 'Payment not completed', None, 400)
+        if error:
+            return error_response('REGISTRATION_FAILED', error, None, 400)
+            
+        access_token = create_access_token(identity=str(user.id))
+        return success_response({
+            'user': user.to_dict(),
+            'token': access_token
+        }, 'Registration completed successfully')
     except Exception as e:
         db.session.rollback()
-        logger.exception("complete_registration: failed: %s", str(e))
+        logger.exception("complete_registration: failed")
         return error_response('INTERNAL_ERROR', 'Failed to complete registration', None, 500)
 
 @bp.route('/countries', methods=['GET'])
@@ -910,120 +581,38 @@ def get_service_types():
 
 @bp.route('/registration-callback', methods=['GET'])
 def registration_payment_callback():
-    """Handle registration payment callback from Yoco"""
+    """Handle registration payment callback"""
     try:
-        from backend.models import Payment
-        
-        callback_status = request.args.get('callback_status')
         external_id = request.args.get('external_id')
-        
-        logger.info("registration_callback: status=%s external_id=%s", callback_status, external_id)
+        subscription_id = request.args.get('subscription_id')
+        callback_status = request.args.get('callback_status')
         
         frontend_url = current_app.config.get('FRONTEND_URL', 'https://mzansiserve.co.za')
         
-        if not external_id:
+        if callback_status == 'cancel':
             return current_app.make_response((
-                f'<html><body><script>window.location.href="{frontend_url}/payment-status?payment=error&external_id=";</script></body></html>',
+                f'<html><body><script>window.location.href="{frontend_url}/payment-status?payment=cancel&external_id=' + (external_id or '') + '";</script></body></html>',
                 302
             ))
+
+        user, error = AuthService.verify_registration_payment(external_id, subscription_id)
         
-        # Find payment or subscription
-        payment = Payment.query.filter_by(external_id=external_id).first()
-        subscription = None
-        if not payment:
-            from backend.models import Subscription
-            subscription = Subscription.query.filter_by(provider_subscription_id=request.args.get('subscription_id')).first()
-            if not subscription and external_id:
-                # Some providers might use external_id as provider_subscription_id
-                subscription = Subscription.query.filter_by(provider_subscription_id=external_id).first()
-                
-        if not payment and not subscription:
-            logger.warning("registration_callback: payment/subscription not found external_id=%s sub_id=%s", 
-                           external_id, request.args.get('subscription_id'))
+        if user:
             return current_app.make_response((
-                f'<html><body><script>window.location.href="{frontend_url}/payment-status?payment=error&external_id=' + (external_id or '') + '";</script></body></html>',
+                f'<html><body><script>window.location.href="{frontend_url}/payment-status?payment=success&external_id=' + (external_id or '') + '";</script></body></html>',
                 302
             ))
-        
-        # Extract user_id from external_id
-        if external_id.startswith('reg_fee_'):
-            parts = external_id.split('_')
-            if len(parts) >= 4:
-                user_id_hex = '_'.join(parts[2:-1])
-                user_id_hex_clean = user_id_hex.replace('-', '')
-                if len(user_id_hex_clean) == 32:
-                    user_id_str = f"{user_id_hex_clean[:8]}-{user_id_hex_clean[8:12]}-{user_id_hex_clean[12:16]}-{user_id_hex_clean[16:20]}-{user_id_hex_clean[20:32]}"
-                    user_id = uuid.UUID(user_id_str)
-                    user = User.query.get(user_id)
-                    
-                    if user:
-                        # Verify payment status with provider
-                        verified_status = PaymentService.get_payment_status(external_id)
-                        
-                        if verified_status == 'completed':
-                            # Verify payment and mark user as paid
-                            success_verified = False
-                            payment_amount = 0.0
-                            
-                            if payment:
-                                payment_amount = float(payment.amount) if payment.amount else 0.0
-                                # If payment is already completed (e.g. via webhook), still show success to user
-                                if payment.status in ['pending', 'completed'] and payment_amount >= 99.0:
-                                    success_verified = True
-                                    payment.status = 'completed'
-                            elif subscription:
-                                # For subscriptions, we assume initial success if redirected here
-                                # Webhooks will confirm later, but for UI we allow it
-                                success_verified = True
-                                subscription.status = 'active'
-                                payment_amount = 100.0 # Default reg fee
-                            
-                            if success_verified:
-                                if user and (not user.is_paid):
-                                    user.is_paid = True
-                                    # Award commission to agent if applicable
-                                    try:
-                                        from backend.services.agent_service import AgentService
-                                        AgentService.award_commission(user)
-                                    except ImportError:
-                                        logger.warning("registration_callback: AgentService not found")
-                                    
-                                    # Send registration payment confirmation email
-                                    try:
-                                        from backend.services.email_service import EmailService
-                                        EmailService.send_registration_payment_confirmation(user, payment_amount)
-                                    except Exception as e:
-                                        logger.warning("registration_callback: failed to send payment confirmation email: %s", e)
-                                
-                                db.session.commit()
-                                
-                                logger.info("registration_callback: payment/subscription successful user_id=%s", user.id)
-                                return current_app.make_response((
-                                    f'<html><body><script>window.location.href="{frontend_url}/payment-status?payment=success&external_id=' + (external_id or '') + '";</script></body></html>',
-                                    302
-                                ))
-                            else:
-                                logger.warning("registration_callback: payment verification failed user_id=%s", user.id)
-                                return current_app.make_response((
-                                    f'<html><body><script>window.location.href="{frontend_url}/payment-status?payment=error&reason=verification_failed&external_id=' + (external_id or '') + '";</script></body></html>',
-                                    302
-                                ))
-                        elif callback_status == 'cancel':
-                            if payment:
-                                payment.status = 'cancelled'
-                                db.session.commit()
-                            return current_app.make_response((
-                                f'<html><body><script>window.location.href="{frontend_url}/payment-status?payment=cancel&external_id=' + external_id + '";</script></body></html>',
-                                302
-                            ))
-        
-        # Failure case
-        if payment and payment.status == 'pending':
-            payment.status = 'failed'
-            db.session.commit()
-        
+        else:
+            return current_app.make_response((
+                f'<html><body><script>window.location.href="{frontend_url}/payment-status?payment=error&reason=' + (error or 'unknown') + '&external_id=' + (external_id or '') + '";</script></body></html>',
+                302
+            ))
+            
+    except Exception as e:
+        logger.exception("registration_callback: failed")
+        frontend_url_fallback = current_app.config.get('FRONTEND_URL', 'https://mzansiserve.co.za')
         return current_app.make_response((
-            f'<html><body><script>window.location.href="{frontend_url}/payment-status?payment=error&external_id=' + external_id + '";</script></body></html>',
+            f'<html><body><script>window.location.href="{frontend_url_fallback}/?payment=error";</script></body></html>',
             302
         ))
         

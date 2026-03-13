@@ -38,9 +38,6 @@ const FeaturedProducts = () => {
         <section ref={ref} className="py-12 lg:py-16">
             <div className="container mx-auto px-4 lg:px-8">
                 <motion.div
-                    initial={{ opacity: 0, y: 30 }}
-                    animate={isInView ? { opacity: 1, y: 0 } : {}}
-                    transition={{ duration: 0.6 }}
                     className="mb-6 flex flex-col sm:flex-row items-start sm:items-end justify-between gap-4"
                 >
                     <div>
@@ -74,9 +71,6 @@ const FeaturedProducts = () => {
                             return (
                                 <motion.div
                                     key={product.id}
-                                    initial={{ opacity: 0, y: 30 }}
-                                    animate={isInView ? { opacity: 1, y: 0 } : {}}
-                                    transition={{ duration: 0.5, delay: i * 0.06 }}
                                     className="group cursor-pointer rounded-[2rem] border border-slate-50 bg-white overflow-hidden shadow-sm shadow-slate-200/50 hover:shadow-2xl hover:shadow-slate-200/80 transition-all duration-500 hover:-translate-y-2"
                                     onClick={() => navigate(`/shop/product/${product.id}`)}
                                 >

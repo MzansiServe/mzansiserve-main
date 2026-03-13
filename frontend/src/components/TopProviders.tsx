@@ -97,10 +97,6 @@ export const TopProviders = () => {
                         return (
                             <motion.div
                                 key={provider.id || index}
-                                initial={{ opacity: 0, y: 30 }}
-                                whileInView={{ opacity: 1, y: 0 }}
-                                transition={{ duration: 0.6, delay: index * 0.2 }}
-                                viewport={{ once: true }}
                                 className="group bg-white rounded-2xl p-8 shadow-lg hover:shadow-2xl border border-gray-100 transition-all duration-300"
                             >
                                 {/* Avatar */}

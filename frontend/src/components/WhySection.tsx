@@ -54,9 +54,6 @@ const WhySection = () => {
       <div className="container relative mx-auto px-6">
         {/* Header */}
         <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={isInView ? { opacity: 1, y: 0 } : {}}
-          transition={{ duration: 0.6 }}
           className="text-center mb-8"
         >
           <h2 className="text-3xl md:text-4xl lg:text-5xl font-semibold text-[#222222] mb-3">
@@ -74,9 +71,6 @@ const WhySection = () => {
             return (
               <motion.div
                 key={feat.id}
-                initial={{ opacity: 0, y: 30 }}
-                animate={isInView ? { opacity: 1, y: 0 } : {}}
-                transition={{ duration: 0.6, delay: i * 0.15 }}
                 className="group bg-white rounded-2xl p-8 shadow-lg hover:shadow-2xl transition-all duration-300 flex flex-col items-start"
               >
                 {/* Icon */}

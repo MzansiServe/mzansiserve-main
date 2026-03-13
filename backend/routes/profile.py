@@ -13,8 +13,7 @@ from backend.extensions import db
 from backend.utils.response import success_response, error_response
 from backend.utils.decorators import require_auth
 from backend.utils.auth import validate_sa_id
-from backend.services.payment_service import PaymentService
-from backend.services.agent_service import AgentService
+from backend.services.profile_service import ProfileService
 
 bp = Blueprint('profile', __name__)
 
@@ -61,6 +60,8 @@ class DriverServiceSchema(Schema):
 class UpdateProfileSchema(Schema):
     full_name = fields.Str(allow_none=True, load_default=None)
     surname = fields.Str(allow_none=True, load_default=None)
+    first_name = fields.Str(allow_none=True, load_default=None)
+    last_name = fields.Str(allow_none=True, load_default=None)
     phone = fields.Str(allow_none=True, load_default=None)
     gender = fields.Str(allow_none=True, load_default=None)
     sa_citizen = fields.Bool(allow_none=True, load_default=False)
@@ -79,35 +80,14 @@ class UpdateProfileSchema(Schema):
 @bp.route('', methods=['GET'])
 @require_auth
 def get_profile():
-    """Get current user profile"""
     try:
         user_id = get_jwt_identity()
-        user = User.query.get(user_id)
+        profile_info, error = ProfileService.get_profile_info(user_id)
         
-        if not user:
-            return error_response('USER_NOT_FOUND', 'User not found', None, 404)
-        
-        # Get ID document URL if exists
-        id_document_url = None
-        if user.file_urls and len(user.file_urls) > 0:
-            # Assuming first file is ID document (can be improved with file type tracking)
-            id_document_url = user.file_urls[0] if isinstance(user.file_urls, list) else None
-        
-        selected_agent_id = user.agent.agent_id if user.agent else None
-        pending = PendingProfileUpdate.query.filter_by(
-            user_id=user.id, status='pending'
-        ).order_by(PendingProfileUpdate.created_at.desc()).first()
-        pending_update = pending.to_dict() if pending else None
-        return success_response({
-            'user': user.to_dict(),
-            'profile_data': user.data or {},
-            'registration_fee_paid': user.is_paid,
-            'id_verification_status': user.id_verification_status,
-            'id_rejection_reason': user.id_rejection_reason,
-            'id_document_url': id_document_url,
-            'selected_agent_id': selected_agent_id,
-            'pending_profile_update': pending_update,
-        })
+        if error:
+            return error_response(error, 'Failed to get profile', None, 404 if error == 'USER_NOT_FOUND' else 500)
+            
+        return success_response(profile_info)
         
     except Exception as e:
         current_app.logger.error(f"Get profile error: {str(e)}")
@@ -126,169 +106,29 @@ def allowed_image_file(filename):
 @bp.route('', methods=['PATCH'])
 @require_auth
 def update_profile():
-    """Update user profile. Users cannot update or upload documents until their account is approved."""
     try:
         user_id = get_jwt_identity()
-        user = User.query.get(user_id)
-        if not user:
-            return error_response('USER_NOT_FOUND', 'User not found', None, 404)
-        if not user.is_approved and user.role != 'client':
-            return error_response(
-                'NOT_APPROVED',
-                'Your account is pending approval. You can view your profile but cannot make changes or upload documents until your account is approved.',
-                None,
-                403
-            )
         schema = UpdateProfileSchema()
         
-        # Handle both JSON and form-data requests
+        # Parse data depending on content type
         if request.content_type and 'multipart/form-data' in request.content_type:
-            # Handle form-data (with file upload)
-            request_data = {}
-            # Get text fields from form
-            for key in ['full_name', 'surname', 'phone', 'gender', 'sa_id', 'highest_qualification', 'professional_body']:
-                if key in request.form:
-                    request_data[key] = request.form[key] or None
-            
-            # Handle sa_citizen checkbox
-            if 'sa_citizen' in request.form:
-                request_data['sa_citizen'] = request.form['sa_citizen'].lower() in ('true', '1', 'on')
-            else:
-                request_data['sa_citizen'] = False
-            
-            # Handle JSON objects from form data
-            for json_key in ['next_of_kin', 'operating_areas', 'availability']:
-                if json_key in request.form:
-                    try:
-                        val_str = request.form[json_key]
-                        if val_str:
-                            request_data[json_key] = json.loads(val_str)
-                        else:
-                            request_data[json_key] = None
-                    except (json.JSONDecodeError, ValueError):
-                        request_data[json_key] = None
-            
-            # Handle role-specific services from form data (JSON strings)
-            for service_key in ['professional_services', 'provider_services', 'driver_services']:
-                if service_key in request.form:
-                    try:
-                        service_str = request.form[service_key]
-                        if service_str:
-                            request_data[service_key] = json.loads(service_str)
-                        else:
-                            request_data[service_key] = None
-                    except (json.JSONDecodeError, ValueError):
-                        request_data[service_key] = None
+            # Simple wrapper for form parsing logic if it was in service, 
+            # but usually route handles the request object parsing.
+            # Keeping parsing here for now but could move to service if preferred.
+            request_data = ProfileService._parse_form_request(request) # I'll add this helper to service
         else:
-            # Handle JSON request
             request_data = request.json or {}
-        # Convert empty strings to None for optional fields
-        for key in ['full_name', 'surname', 'phone', 'gender', 'sa_id', 'highest_qualification', 'professional_body']:
-            if key in request_data and request_data[key] == '':
-                request_data[key] = None
-        
-        # Handle next_of_kin object - convert empty strings in nested object
-        if 'next_of_kin' in request_data:
-            if isinstance(request_data['next_of_kin'], dict):
-                for kin_key in ['full_name', 'contact_number', 'contact_email']:
-                    if kin_key in request_data['next_of_kin'] and request_data['next_of_kin'][kin_key] == '':
-                        request_data['next_of_kin'][kin_key] = None
-            elif request_data['next_of_kin'] == '':
-                request_data['next_of_kin'] = None
-        
-        data = schema.load(request_data)
-
-        # Enforce max 5 operating areas
-        if data.get('operating_areas') and len(data['operating_areas']) > 5:
-            return error_response('VALIDATION_ERROR', 'A maximum of 5 operating areas can be selected.', None, 400)
-
-        current_app.logger.info(f"Profile update data: {data}")
-
-        # After approval: only allowed fields may be changed; changes go to pending (shadow) until admin approves
-        allowed_keys = ALLOWED_AFTER_APPROVAL_COMMON | ALLOWED_AFTER_APPROVAL_BY_ROLE.get(user.role, set())
-        # Reject if any key in request is not allowed
-        form_keys = set(request_data.keys())
-        disallowed = form_keys - allowed_keys
-        if disallowed:
-            return error_response(
-                'DISALLOWED_FIELDS',
-                f'After approval, only certain fields can be updated. Disallowed: {", ".join(sorted(disallowed))}.',
-                None,
-                400
-            )
-        if PendingProfileUpdate.query.filter_by(user_id=user.id, status='pending').first():
-            return error_response(
-                'PENDING_EXISTS',
-                'You already have pending changes awaiting admin approval.',
-                None,
-                400
-            )
-        upload_folder = current_app.config.get('UPLOAD_FOLDER')
-        if upload_folder and not os.path.exists(upload_folder):
-            os.makedirs(upload_folder)
-        payload = {}
-        if 'phone' in data and data['phone'] is not None:
-            payload['phone'] = data['phone']
-        if 'next_of_kin' in data:
-            payload['next_of_kin'] = data['next_of_kin']
-        for key in ('driver_services', 'professional_services', 'provider_services', 'highest_qualification', 'professional_body', 'operating_areas', 'availability'):
-            if key in allowed_keys and key in data and data[key] is not None:
-                payload[key] = data[key]
-        if 'qualification_urls' in allowed_keys and data.get('qualification_urls') is not None:
-            payload['qualification_urls'] = data['qualification_urls']
-        # File uploads: save and add URLs to payload
-        if 'proof_of_residence' in request.files:
-            file = request.files['proof_of_residence']
-            if file and file.filename and allowed_file(file.filename):
-                file_ext = file.filename.rsplit('.', 1)[1].lower()
-                unique_filename = f"{str(user.id)}_proof_pending_{uuid.uuid4().hex[:8]}.{file_ext}"
-                filepath = os.path.join(upload_folder, unique_filename)
-                file.save(filepath)
-                payload['proof_of_residence_url'] = f"/uploads/{unique_filename}"
-        if 'drivers_license_document' in request.files:
-            file = request.files['drivers_license_document']
-            if file and file.filename and allowed_file(file.filename):
-                file_ext = file.filename.rsplit('.', 1)[1].lower()
-                unique_filename = f"{str(user.id)}_license_pending_{uuid.uuid4().hex[:8]}.{file_ext}"
-                filepath = os.path.join(upload_folder, unique_filename)
-                file.save(filepath)
-                payload['driver_license_url'] = f"/uploads/{unique_filename}"
-        if 'qualification_documents' in request.files:
-            files = request.files.getlist('qualification_documents')
-            qual_urls = []
-            for file in files:
-                if file and file.filename and allowed_file(file.filename):
-                    file_ext = file.filename.rsplit('.', 1)[1].lower()
-                    unique_filename = f"{str(user.id)}_qual_pending_{uuid.uuid4().hex[:8]}.{file_ext}"
-                    filepath = os.path.join(upload_folder, unique_filename)
-                    file.save(filepath)
-                    qual_urls.append(f"/uploads/{unique_filename}")
-            if qual_urls:
-                payload['qualification_urls'] = qual_urls
-        if not payload:
-            return error_response('NO_CHANGES', 'No allowed changes provided.', None, 400)
             
-        # If client, update directly
-        if user.role == 'client':
-            user_data = user.data or {}
-            for k, v in payload.items():
-                if k == 'next_of_kin':
-                    user_data['next_of_kin'] = v
-                else:
-                    user_data[k] = v
-                    
-            # Update top-level data as well if needed
-            user.data = user_data
-            db.session.commit()
-            return success_response(user.to_dict(), 'Profile updated successfully.')
-
-        pending = PendingProfileUpdate(user_id=user.id, payload=payload, status='pending')
-        db.session.add(pending)
-        db.session.commit()
-        return success_response(
-            {'pending_id': str(pending.id)},
-            'Changes submitted for admin approval. You will be notified when they are applied.'
-        )
+        # Basic validation with Marshmallow
+        data = schema.load(request_data)
+        
+        result, error = ProfileService.handle_profile_update(user_id, data, request.files)
+        if error:
+            status_code = 403 if error == "NOT_APPROVED" else 400
+            if error == "INTERNAL_ERROR": status_code = 500
+            return error_response(error, 'Failed to update profile', None, status_code)
+            
+        return success_response(result, 'Profile update processed successfully')
         
     except ValidationError as e:
         current_app.logger.error(f"Validation error: {e.messages}")
@@ -301,39 +141,16 @@ def update_profile():
 @bp.route('/upload-photo', methods=['POST'])
 @require_auth
 def upload_profile_photo():
-    """Upload or update profile photo directly (no admin approval needed for photo)"""
     try:
         user_id = get_jwt_identity()
-        user = User.query.get(user_id)
-        if not user:
-            return error_response('USER_NOT_FOUND', 'User not found', None, 404)
-
         if 'photo' not in request.files:
             return error_response('MISSING_FILES', 'No photo provided', None, 400)
 
-        file = request.files['photo']
-        if not file or not file.filename:
-            return error_response('INVALID_FILE', 'Invalid file', None, 400)
-
-        if not allowed_image_file(file.filename):
-            return error_response('INVALID_TYPE', 'Only JPG, JPEG and PNG images are allowed', None, 400)
-
-        upload_folder = current_app.config.get('UPLOAD_FOLDER')
-        if not os.path.exists(upload_folder):
-            os.makedirs(upload_folder)
-
-        file_ext = file.filename.rsplit('.', 1)[1].lower()
-        unique_filename = f"profile_{user.id.hex}_{uuid.uuid4().hex[:8]}.{file_ext}"
-        filepath = os.path.join(upload_folder, unique_filename)
-        file.save(filepath)
-
-        # Update user profile image URL
-        user.profile_image_url = f"/uploads/{unique_filename}"
-        db.session.commit()
-
-        return success_response({
-            'profile_image_url': user.profile_image_url
-        }, 'Profile photo updated successfully')
+        photo_url, error = ProfileService.upload_photo(user_id, request.files['photo'])
+        if error:
+            return error_response(error, 'Failed to upload photo', None, 400)
+            
+        return success_response({'profile_image_url': photo_url}, 'Profile photo updated successfully')
 
     except Exception as e:
         current_app.logger.error(f"Upload photo error: {str(e)}")
@@ -509,51 +326,16 @@ def get_service_provider(provider_id):
 @bp.route('/pay-registration-fee', methods=['POST'])
 @require_auth
 def pay_registration_fee():
-    """Create Yoco checkout for registration fee payment"""
     try:
         data = request.json or {}
-        provider = data.get('provider', 'paypal')  # PayPal as default
-        
         user_id = get_jwt_identity()
-        user = User.query.get(user_id)
+        provider = data.get('provider', 'paypal')
         
-        if not user:
-            return error_response('USER_NOT_FOUND', 'User not found', None, 404)
-        
-        # Check if user already paid
-        if user.is_paid:
-            return error_response('ALREADY_PAID', 'Registration fee already paid', None, 400)
-        
-        # Generate external_id for tracking this payment (format: reg_fee_{user_id_hex}_{random_hex})
-        # Convert user.id (UUID) to hex for easier parsing
-        user_id_hex = str(user.id).replace('-', '')
-        external_id = f"reg_fee_{user_id_hex}_{uuid.uuid4().hex[:8]}"
-        
-        # Create checkout session
-        base_url = current_app.config.get('BACKEND_URL', 'https://mzansiserve.co.za')
-        
-        success_url = f"{base_url}/api/profile/payment-callback?callback_status=success&external_id={external_id}&provider={provider}"
-        cancel_url = f"{base_url}/api/profile/payment-callback?callback_status=cancel&external_id={external_id}&provider={provider}"
-        failure_url = f"{base_url}/api/profile/payment-callback?callback_status=failure&external_id={external_id}&provider={provider}"
-        
-        # PayPal expects specific return formats for its own callbacks sometimes, 
-        # but our payment_service handles the abstraction.
-        
-        checkout_result = PaymentService.create_checkout(
-            amount=REGISTRATION_FEE_AMOUNT,
-            currency='ZAR',
-            external_id=external_id,
-            success_url=success_url,
-            cancel_url=cancel_url,
-            failure_url=failure_url,
-            provider=provider
-        )
-        
-        return success_response({
-            'redirect_url': checkout_result['redirect_url'],
-            'checkout_id': checkout_result['checkout_id'],
-            'external_id': external_id
-        })
+        checkout, error = ProfileService.initiate_registration_payment(user_id, provider)
+        if error:
+            return error_response(error, 'Failed to create checkout', None, 400)
+            
+        return success_response(checkout)
         
     except ValueError as e:
         return error_response('INVALID_REQUEST', str(e), None, 400)
@@ -563,84 +345,25 @@ def pay_registration_fee():
 
 @bp.route('/payment-callback', methods=['GET'])
 def payment_callback():
-    """Handle payment callback from Yoco"""
     try:
         external_id = request.args.get('external_id')
-        provider = request.args.get('provider', 'yoco')
+        frontend_url = current_app.config.get('FRONTEND_URL', 'https://mzansiserve.co.za')
         
-        # Verify payment status with provider
-        verified_status = PaymentService.get_payment_status(external_id)
+        success, error = ProfileService.handle_payment_callback(external_id)
         
-        current_app.logger.info(f"Payment callback received: status={verified_status}, external_id={external_id}, provider={provider}")
-        
-        # Only process success callbacks
-        if verified_status != 'completed':
-            frontend_url = current_app.config.get('FRONTEND_URL', 'https://mzansiserve.co.za')
+        if success:
             return current_app.make_response((
-                f'<html><body><script>window.location.href="{frontend_url}/profile?payment=error";</script></body></html>',
+                f'<html><body><script>window.location.href="{frontend_url}/profile?payment=success";</script></body></html>',
                 302
             ))
-        
-        if not external_id:
-            frontend_url = current_app.config.get('FRONTEND_URL', 'https://mzansiserve.co.za')
+        else:
             return current_app.make_response((
-                f'<html><body><script>window.location.href="{frontend_url}/profile?payment=error";</script></body></html>',
+                f'<html><body><script>window.location.href="{frontend_url}/profile?payment=error&reason=' + (error or 'unknown') + '";</script></body></html>',
                 302
             ))
-        
-        # Find payment by external_id
-        payment = Payment.query.filter_by(external_id=external_id).first()
-        if not payment:
-            current_app.logger.error(f"Payment not found for external_id: {external_id}")
-            frontend_url = current_app.config.get('FRONTEND_URL', 'https://mzansiserve.co.za')
-            return current_app.make_response((
-                f'<html><body><script>window.location.href="{frontend_url}/profile?payment=error";</script></body></html>',
-                302
-            ))
-        
-        # Extract user_id from external_id (format: reg_fee_{user_id_hex}_{random_hex})
-        if external_id.startswith('reg_fee_'):
-            # Extract user_id_hex (after 'reg_fee_', before last '_')
-            parts = external_id.split('_')
-            if len(parts) >= 4:
-                # user_id_hex is between 'reg', 'fee', and the random hex
-                user_id_hex = '_'.join(parts[2:-1])  # Get everything between 'reg', 'fee' and last part
-            else:
-                user_id_hex = parts[2] if len(parts) > 2 else None
             
-            if user_id_hex:
-                try:
-                    # Convert hex string back to UUID (format: xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx)
-                    user_id_hex_clean = user_id_hex.replace('-', '')
-                    if len(user_id_hex_clean) == 32:
-                        user_id_str = f"{user_id_hex_clean[:8]}-{user_id_hex_clean[8:12]}-{user_id_hex_clean[12:16]}-{user_id_hex_clean[16:20]}-{user_id_hex_clean[20:32]}"
-                        user_id = uuid.UUID(user_id_str)
-                        user = User.query.get(user_id)
-                        
-                        if user:
-                            # Verify payment and update user
-                            if payment.status == 'pending' and payment.amount * 100 >= REGISTRATION_FEE_AMOUNT:
-                                user.is_paid = True
-                                payment.status = 'completed'
-                                
-                                # Award commission to agent if applicable
-                                AgentService.award_commission(user)
-                                
-                                db.session.commit()
-                                current_app.logger.info(f"User {user.id} registration fee paid successfully")
-                                
-                                # Redirect to profile with success message
-                                frontend_url = current_app.config.get('FRONTEND_URL', 'https://mzansiserve.co.za')
-                                return current_app.make_response((
-                                    f'<html><body><script>window.location.href="{frontend_url}/profile?payment=success";</script></body></html>',
-                                    302
-                                ))
-                            else:
-                                current_app.logger.warning(f"Payment verification failed for user {user.id}")
-                except (ValueError, IndexError) as e:
-                    current_app.logger.error(f"Error parsing user_id from external_id: {e}")
-        
-        # Redirect to profile with error message
+    except Exception as e:
+        current_app.logger.error(f"Payment callback error: {str(e)}")
         frontend_url = current_app.config.get('FRONTEND_URL', 'https://mzansiserve.co.za')
         return current_app.make_response((
             f'<html><body><script>window.location.href="{frontend_url}/profile?payment=error";</script></body></html>',
