@@ -61,6 +61,8 @@ class DriverServiceSchema(Schema):
 class UpdateProfileSchema(Schema):
     full_name = fields.Str(allow_none=True, load_default=None)
     surname = fields.Str(allow_none=True, load_default=None)
+    first_name = fields.Str(allow_none=True, load_default=None)
+    last_name = fields.Str(allow_none=True, load_default=None)
     phone = fields.Str(allow_none=True, load_default=None)
     gender = fields.Str(allow_none=True, load_default=None)
     sa_citizen = fields.Bool(allow_none=True, load_default=False)
@@ -229,6 +231,14 @@ def update_profile():
         payload = {}
         if 'phone' in data and data['phone'] is not None:
             payload['phone'] = data['phone']
+        if 'first_name' in data and data['first_name'] is not None:
+            payload['full_name'] = data['first_name']
+        if 'last_name' in data and data['last_name'] is not None:
+            payload['surname'] = data['last_name']
+        if 'full_name' in data and data['full_name'] is not None:
+            payload['full_name'] = data['full_name']
+        if 'surname' in data and data['surname'] is not None:
+            payload['surname'] = data['surname']
         if 'next_of_kin' in data:
             payload['next_of_kin'] = data['next_of_kin']
         for key in ('driver_services', 'professional_services', 'provider_services', 'highest_qualification', 'professional_body', 'operating_areas', 'availability'):

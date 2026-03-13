@@ -37,6 +37,7 @@ import { ApiLogsManagement } from "@/components/admin/ApiLogsManagement";
 import { ReportsManagement } from "@/components/admin/ReportsManagement";
 import { GlobalChatsManagement } from "@/components/admin/GlobalChatsManagement";
 import { AffiliatesManagement } from "@/components/admin/AffiliatesManagement";
+import { PaymentSettings } from "@/components/admin/PaymentSettings";
 import LandingPageManagement from "@/components/admin/LandingPageManagement";
 import DashboardLayout from "@/components/dashboard/DashboardLayout";
 import Overview from "@/components/admin/Overview";
@@ -62,6 +63,7 @@ type TabKey =
     | "user-reports"
     | "global-chats"
     | "affiliates"
+    | "payment-settings"
     | "landing";
 
 const NAV_STRUCTURE = [
@@ -123,7 +125,8 @@ const NAV_STRUCTURE = [
             { id: "carousel", label: "Carousel", icon: ImageIcon },
             { id: "landing", label: "Landing Page", icon: LayoutTemplate },
             { id: "cms", label: "Footer CMS", icon: LayoutTemplate },
-            { id: "settings", label: "Settings", icon: Settings },
+            { id: "settings", label: "General Settings", icon: Settings },
+            { id: "payment-settings", label: "Payment Gateways", icon: CreditCard },
             { id: "legal", label: "Legal", icon: Shield },
         ]
     }
@@ -226,6 +229,8 @@ const AdminDashboard = () => {
                 return <ContentManagement />;
             case "settings":
                 return <SettingsManagement />;
+            case "payment-settings":
+                return <PaymentSettings />;
             case "withdrawals":
                 return <WithdrawalsManagement />;
             case "agents":

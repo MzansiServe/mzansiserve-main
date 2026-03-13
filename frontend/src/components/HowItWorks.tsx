@@ -52,10 +52,6 @@ export const HowItWorks = () => {
                         {steps.map((step, index) => (
                             <motion.div
                                 key={step.number}
-                                initial={{ opacity: 0, y: 50 }}
-                                whileInView={{ opacity: 1, y: 0 }}
-                                transition={{ duration: 0.8, delay: index * 0.2, ease: "easeOut" }}
-                                viewport={{ once: true }}
                                 className="relative flex flex-col items-center text-center"
                             >
                                 {/* Circle + number badge */}

@@ -13,10 +13,20 @@ logger = logging.getLogger(__name__)
 
 class PayPalProvider(PaymentProvider):
     def __init__(self):
-        self.client_id = current_app.config.get('PAYPAL_CLIENT_ID')
-        self.client_secret = current_app.config.get('PAYPAL_CLIENT_SECRET')
-        self.mode = current_app.config.get('PAYPAL_MODE', 'sandbox')
-        self.api_url = current_app.config.get('PAYPAL_API_URL', 'https://api-m.sandbox.paypal.com')
+        from backend.models import AppSetting
+        setting = AppSetting.query.get('payment_paypal')
+        settings = setting.value if setting else {}
+        
+        self.enabled = settings.get('enabled', False)
+        self.client_id = settings.get('client_id') or current_app.config.get('PAYPAL_CLIENT_ID')
+        self.client_secret = settings.get('client_secret') or current_app.config.get('PAYPAL_CLIENT_SECRET')
+        self.mode = settings.get('mode') or current_app.config.get('PAYPAL_MODE', 'sandbox')
+        
+        if self.mode == 'live':
+            self.api_url = 'https://api-m.paypal.com'
+        else:
+            self.api_url = 'https://api-m.sandbox.paypal.com'
+            
         self._access_token = None
         self._token_expires = 0
 

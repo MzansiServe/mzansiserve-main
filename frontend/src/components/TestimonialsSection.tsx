@@ -61,9 +61,6 @@ const TestimonialsSection = () => {
             <div className="container mx-auto px-6 relative z-10">
                 {/* Header */}
                 <motion.div
-                    initial={{ opacity: 0, y: 20 }}
-                    animate={isInView ? { opacity: 1, y: 0 } : {}}
-                    transition={{ duration: 0.6 }}
                     className="text-center mb-10"
                 >
                     <h2 className="text-4xl md:text-5xl font-semibold text-[#222222] mb-4">
@@ -79,9 +76,6 @@ const TestimonialsSection = () => {
                     {displayed.map((t, i) => (
                         <motion.div
                             key={t.id}
-                            initial={{ opacity: 0, y: 30 }}
-                            animate={isInView ? { opacity: 1, y: 0 } : {}}
-                            transition={{ duration: 0.5, delay: i * 0.1 }}
                             className="group relative bg-white rounded-2xl border border-gray-100 p-6 shadow-lg hover:shadow-2xl transition-all duration-300"
                         >
                             <Quote className="absolute top-4 right-4 h-8 w-8 text-primary/10 group-hover:text-primary/20 transition-colors" />

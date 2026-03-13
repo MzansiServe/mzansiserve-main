@@ -18,12 +18,19 @@ class PaymentService:
     @staticmethod
     def _get_provider(provider_name: str = 'yoco'):
         """Factory method to get the correct payment provider"""
+        provider = None
         if provider_name == 'yoco':
-            return YocoProvider()
+            provider = YocoProvider()
         elif provider_name == 'paypal':
-            return PayPalProvider()
+            provider = PayPalProvider()
         else:
             raise ValueError(f"Unsupported payment provider: {provider_name}")
+            
+        if not getattr(provider, 'enabled', False):
+            logger.warning(f"Payment provider {provider_name} is disabled.")
+            raise ValueError(f"Payment provider {provider_name} is currently disabled.")
+            
+        return provider
 
     @staticmethod
     def create_checkout(amount, currency, external_id, success_url=None, cancel_url=None, failure_url=None, provider='yoco'):

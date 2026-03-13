@@ -79,10 +79,6 @@ export const MobileAppPromo = () => {
                     {/* Phone mockup */}
                     <div className="flex-1 relative flex justify-center lg:justify-end">
                         <motion.div
-                            initial={{ opacity: 0, rotate: 12, y: 100 }}
-                            whileInView={{ opacity: 1, rotate: -6, y: 0 }}
-                            transition={{ duration: 0.8, ease: "easeOut" }}
-                            viewport={{ once: true }}
                             className="relative z-10"
                         >
                             <div className="w-[280px] h-[580px] bg-[#0F172A] rounded-[3rem] border-[8px] border-[#222] shadow-[0_32px_80px_rgba(0,0,0,0.25)] overflow-hidden relative mx-auto">

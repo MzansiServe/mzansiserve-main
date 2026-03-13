@@ -426,6 +426,8 @@ def update_user(user_id):
             field_mappings = {
                 'full_name': 'full_name',
                 'surname': 'surname',
+                'first_name': 'full_name',
+                'last_name': 'surname',
                 'phone': 'phone',
                 'gender': 'gender',
                 'sa_citizen': 'sa_citizen',
@@ -2627,6 +2629,53 @@ def get_affiliate_stats():
         current_app.logger.error(f"Affiliate stats error: {str(e)}")
         return error_response('INTERNAL_ERROR', 'Failed to get affiliate stats', None, 500)
 
+@bp.route('/settings/payment', methods=['GET'])
+@require_admin
+def get_payment_settings():
+    """Get all payment gateway settings"""
+    try:
+        paypal = AppSetting.query.get('payment_paypal')
+        yoco = AppSetting.query.get('payment_yoco')
+        
+        return success_response({
+            'paypal': paypal.value if paypal else {
+                'enabled': False,
+                'client_id': '',
+                'client_secret': '',
+                'mode': 'sandbox'
+            },
+            'yoco': yoco.value if yoco else {
+                'enabled': False,
+                'secret_key': '',
+                'api_url': 'https://payments.yoco.com'
+            }
+        })
+    except Exception as e:
+        current_app.logger.error(f"Get payment settings error: {str(e)}")
+        return error_response('INTERNAL_ERROR', 'Failed to get payment settings', None, 500)
 
-
-
+@bp.route('/settings/payment', methods=['PATCH'])
+@require_admin
+def update_payment_settings():
+    """Update payment gateway settings"""
+    try:
+        data = request.get_json() or {}
+        
+        for key in ['paypal', 'yoco']:
+            if key in data:
+                gateway_key = f'payment_{key}'
+                setting = AppSetting.query.get(gateway_key)
+                if not setting:
+                    setting = AppSetting(key=gateway_key)
+                    db.session.add(setting)
+                
+                # Merge existing value with new data if partially updated
+                current_val = setting.value or {}
+                current_val.update(data[key])
+                setting.value = current_val
+        
+        db.session.commit()
+        return success_response(None, 'Payment settings updated successfully')
+    except Exception as e:
+        current_app.logger.error(f"Update payment settings error: {str(e)}")
+        return error_response('INTERNAL_ERROR', 'Failed to update payment settings', None, 500)

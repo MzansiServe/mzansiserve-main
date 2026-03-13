@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { ArrowLeft, CreditCard, Lock, Check, ShieldCheck, ChevronRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -18,7 +18,39 @@ const Checkout = () => {
     const navigate = useNavigate();
     const { toast } = useToast();
     const [isProcessing, setIsProcessing] = useState(false);
-    const [selectedProvider, setSelectedProvider] = useState<"paypal" | "yoco">("paypal");
+    const [selectedProvider, setSelectedProvider] = useState<"paypal" | "yoco">("yoco");
+    const [enabledGateways, setEnabledGateways] = useState<{paypal: boolean, yoco: boolean}>({ paypal: true, yoco: true });
+
+    useEffect(() => {
+        const fetchGateways = async () => {
+            try {
+                const response = await apiFetch("/api/public/payment-gateways");
+                if (response.success && response.data) {
+                    const gateways = {
+                        paypal: response.data.paypal?.enabled ?? false,
+                        yoco: response.data.yoco?.enabled ?? false
+                    };
+                    setEnabledGateways(gateways);
+                    
+                    // Set default selection based on what's enabled
+                    if (!gateways.paypal && gateways.yoco) {
+                        setSelectedProvider("yoco");
+                    } else if (gateways.paypal && !gateways.yoco) {
+                        setSelectedProvider("paypal");
+                    } else if (gateways.paypal && gateways.yoco) {
+                        // If both are enabled, default to paypal or keep current if already set
+                        setSelectedProvider("paypal");
+                    } else {
+                        // If neither is enabled, clear selection or handle as needed
+                        setSelectedProvider(null); // Or some default "none" state
+                    }
+                }
+            } catch (error) {
+                console.error("Failed to fetch payment gateways:", error);
+            }
+        };
+        fetchGateways();
+    }, []);
 
     const [formData, setFormData] = useState({
         firstName: user?.name ? user.name.split(" ")[0] : "",
@@ -212,51 +244,61 @@ const Checkout = () => {
                                 </div>
                                 
                                 <div className="grid gap-6 sm:grid-cols-2 mb-10">
-                                    <div 
-                                        onClick={() => setSelectedProvider("paypal")}
-                                        className={cn(
-                                            "relative overflow-hidden cursor-pointer rounded-2xl border-2 p-6 transition-all",
-                                            selectedProvider === "paypal" 
-                                                ? "border-primary bg-primary/5 shadow-md ring-1 ring-primary/20" 
-                                                : "border-slate-100 hover:border-slate-200 bg-white"
-                                        )}
-                                    >
-                                        <div className="flex items-center justify-between mb-4">
-                                            <div className="h-10 w-24 bg-contain bg-no-repeat bg-left" 
-                                                style={{ backgroundImage: "url('https://www.paypalobjects.com/webstatic/mktg/logo/pp_cc_mark_111x69.jpg')" }} 
-                                            />
-                                            {selectedProvider === "paypal" && (
-                                                <div className="h-6 w-6 bg-primary rounded-full flex items-center justify-center">
-                                                    <Check className="h-3.5 w-3.5 text-white" strokeWidth={3} />
-                                                </div>
+                                    {enabledGateways.paypal && (
+                                        <div 
+                                            onClick={() => setSelectedProvider("paypal")}
+                                            className={cn(
+                                                "relative overflow-hidden cursor-pointer rounded-2xl border-2 p-6 transition-all",
+                                                selectedProvider === "paypal" 
+                                                    ? "border-primary bg-primary/5 shadow-md ring-1 ring-primary/20" 
+                                                    : "border-slate-100 hover:border-slate-200 bg-white"
                                             )}
+                                        >
+                                            <div className="flex items-center justify-between mb-4">
+                                                <div className="h-10 w-24 bg-contain bg-no-repeat bg-left" 
+                                                    style={{ backgroundImage: "url('https://www.paypalobjects.com/webstatic/mktg/logo/pp_cc_mark_111x69.jpg')" }} 
+                                                />
+                                                {selectedProvider === "paypal" && (
+                                                    <div className="h-6 w-6 bg-primary rounded-full flex items-center justify-center">
+                                                        <Check className="h-3.5 w-3.5 text-white" strokeWidth={3} />
+                                                    </div>
+                                                )}
+                                            </div>
+                                            <p className="text-base font-bold text-[#222222]">PayPal / Card</p>
+                                            <p className="text-xs text-slate-500 font-medium mt-1">International & Local methods</p>
                                         </div>
-                                        <p className="text-base font-bold text-[#222222]">PayPal / Card</p>
-                                        <p className="text-xs text-slate-500 font-medium mt-1">International & Local methods</p>
-                                    </div>
+                                    )}
 
-                                    <div 
-                                        onClick={() => setSelectedProvider("yoco")}
-                                        className={cn(
-                                            "relative overflow-hidden cursor-pointer rounded-2xl border-2 p-6 transition-all",
-                                            selectedProvider === "yoco" 
-                                                ? "border-primary bg-primary/5 shadow-md ring-1 ring-primary/20" 
-                                                : "border-slate-100 hover:border-slate-200 bg-white"
-                                        )}
-                                    >
-                                        <div className="flex items-center justify-between mb-4">
-                                            <div className="h-8 w-16 bg-contain bg-no-repeat bg-left" 
-                                                style={{ backgroundImage: "url('https://cdn.yoco.com/images/yoco-logo-dark.svg')" }} 
-                                            />
-                                            {selectedProvider === "yoco" && (
-                                                <div className="h-6 w-6 bg-primary rounded-full flex items-center justify-center">
-                                                    <Check className="h-3.5 w-3.5 text-white" strokeWidth={3} />
-                                                </div>
+                                    {enabledGateways.yoco && (
+                                        <div 
+                                            onClick={() => setSelectedProvider("yoco")}
+                                            className={cn(
+                                                "relative overflow-hidden cursor-pointer rounded-2xl border-2 p-6 transition-all",
+                                                selectedProvider === "yoco" 
+                                                    ? "border-primary bg-primary/5 shadow-md ring-1 ring-primary/20" 
+                                                    : "border-slate-100 hover:border-slate-200 bg-white"
                                             )}
+                                        >
+                                            <div className="flex items-center justify-between mb-4">
+                                                <div className="h-8 w-16 bg-contain bg-no-repeat bg-left" 
+                                                    style={{ backgroundImage: "url('https://cdn.yoco.com/images/yoco-logo-dark.svg')" }} 
+                                                />
+                                                {selectedProvider === "yoco" && (
+                                                    <div className="h-6 w-6 bg-primary rounded-full flex items-center justify-center">
+                                                        <Check className="h-3.5 w-3.5 text-white" strokeWidth={3} />
+                                                    </div>
+                                                )}
+                                            </div>
+                                            <p className="text-base font-bold text-[#222222]">Yoco</p>
+                                            <p className="text-xs text-slate-500 font-medium mt-1">Local SA Cards / Instant EFT</p>
                                         </div>
-                                        <p className="text-base font-bold text-[#222222]">Yoco</p>
-                                        <p className="text-xs text-slate-500 font-medium mt-1">Local SA Cards / Instant EFT</p>
-                                    </div>
+                                    )}
+
+                                    {!enabledGateways.paypal && !enabledGateways.yoco && (
+                                        <div className="col-span-full p-6 bg-slate-50 rounded-2xl border border-slate-100 text-center">
+                                            <p className="text-slate-500 font-medium">No payment methods currently available.</p>
+                                        </div>
+                                    )}
                                 </div>
 
                                 <div className="flex items-center gap-3 text-sm font-bold text-emerald-600 bg-emerald-50 p-6 rounded-2xl border border-emerald-100">

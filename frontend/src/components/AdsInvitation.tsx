@@ -13,9 +13,6 @@ const AdsInvitation = () => {
         <section ref={ref} className="py-24 bg-slate-50">
             <div className="container mx-auto px-6">
                 <motion.div
-                    initial={{ opacity: 0, scale: 0.95 }}
-                    animate={isInView ? { opacity: 1, scale: 1 } : {}}
-                    transition={{ duration: 0.8, ease: "easeOut" }}
                     className="relative overflow-hidden rounded-[2.5rem] bg-[#1a1a1a] p-12 lg:p-20 text-white shadow-2xl"
                 >
                     {/* Subtle Gradient Overlay */}

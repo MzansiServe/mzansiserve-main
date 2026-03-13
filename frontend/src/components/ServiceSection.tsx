@@ -79,9 +79,6 @@ const SectionBlock = ({ section, index }: { section: ServiceSectionProps; index:
     >
       <div className="container mx-auto px-4 lg:px-8">
         <motion.div
-          initial={{ opacity: 0, y: 30 }}
-          animate={isInView ? { opacity: 1, y: 0 } : {}}
-          transition={{ duration: 0.6 }}
           className="mb-6 flex items-end justify-between"
         >
           <div className="max-w-2xl">
@@ -100,9 +97,6 @@ const SectionBlock = ({ section, index }: { section: ServiceSectionProps; index:
           {section.cards.map((card, i) => (
             <motion.div
               key={card.title}
-              initial={{ opacity: 0, y: 30 }}
-              animate={isInView ? { opacity: 1, y: 0 } : {}}
-              transition={{ duration: 0.5, delay: i * 0.1 }}
               className="group relative cursor-pointer overflow-hidden rounded-[2rem] border border-slate-50 bg-white p-8 shadow-sm shadow-slate-200/50 transition-all duration-500 hover:shadow-2xl hover:shadow-slate-200/80 hover:-translate-y-2"
               onClick={() => navigate(section.link)}
             >

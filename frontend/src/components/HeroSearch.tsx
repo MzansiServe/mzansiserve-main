@@ -46,9 +46,6 @@ const HeroSearch = () => {
       <div className="container mx-auto px-6 relative z-10">
         <div className="max-w-4xl mx-auto text-center mb-12">
           <motion.h1
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.6 }}
             className="text-5xl md:text-7xl font-semibold text-[#222222] tracking-tight leading-[1.1] mb-6"
           >
             Find exactly <br className="hidden md:block" />
@@ -57,9 +54,6 @@ const HeroSearch = () => {
             </span>
           </motion.h1>
           <motion.p
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.6, delay: 0.1 }}
             className="text-xl md:text-2xl text-slate-500 font-normal max-w-2xl mx-auto leading-relaxed"
           >
             The all-in-one ads for South Africa. Book rides, hire experts, and shop local brands.
@@ -68,9 +62,6 @@ const HeroSearch = () => {
 
         {/* Search Interface */}
         <motion.div
-          initial={{ opacity: 0, y: 30 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.6, delay: 0.2 }}
           className="max-w-4xl mx-auto"
         >
           <div className="bg-white rounded-[3rem] shadow-2xl shadow-slate-200/60 border border-slate-50 p-2 lg:p-3">
@@ -147,9 +138,6 @@ const HeroSearch = () => {
 
         {/* Quick Tags */}
         <motion.div
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          transition={{ duration: 0.6, delay: 0.4 }}
           className="mt-10 flex flex-wrap justify-center gap-3"
         >
           <span className="text-sm font-bold text-[#717171] py-2">Popular:</span>

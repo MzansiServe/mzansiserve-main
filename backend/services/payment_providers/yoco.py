@@ -13,8 +13,13 @@ logger = logging.getLogger(__name__)
 
 class YocoProvider(PaymentProvider):
     def __init__(self):
-        self.secret_key = current_app.config.get('YOCO_SECRET_KEY')
-        self.api_url = current_app.config.get('YOCO_API_URL', 'https://payments.yoco.com')
+        from backend.models import AppSetting
+        setting = AppSetting.query.get('payment_yoco')
+        settings = setting.value if setting else {}
+        
+        self.enabled = settings.get('enabled', False)
+        self.secret_key = settings.get('secret_key') or current_app.config.get('YOCO_SECRET_KEY')
+        self.api_url = settings.get('api_url') or current_app.config.get('YOCO_API_URL', 'https://payments.yoco.com')
 
     def create_checkout(
         self,

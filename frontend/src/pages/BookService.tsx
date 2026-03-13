@@ -46,8 +46,33 @@ const BookService = () => {
   const [defaultCalloutFee, setDefaultCalloutFee] = useState<number>(150);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [step, setStep] = useState<"form" | "confirm" | "done">("form");
-  const [selectedProvider, setSelectedProvider] = useState<"paypal" | "yoco">("paypal");
+  const [selectedProvider, setSelectedProvider] = useState<"paypal" | "yoco">("yoco");
+  const [enabledGateways, setEnabledGateways] = useState<{paypal: boolean, yoco: boolean}>({ paypal: true, yoco: true });
   const [availableTimeSlots, setAvailableTimeSlots] = useState<string[]>(DEFAULT_TIME_SLOTS);
+
+  useEffect(() => {
+    const fetchGateways = async () => {
+      try {
+        const response = await apiFetch("/api/public/payment-gateways");
+        if (response.success && response.data) {
+          const gateways = {
+            paypal: response.data.paypal?.enabled ?? false,
+            yoco: response.data.yoco?.enabled ?? false
+          };
+          setEnabledGateways(gateways);
+          
+          if (!gateways.paypal && gateways.yoco) {
+            setSelectedProvider("yoco");
+          } else if (gateways.paypal && !gateways.yoco) {
+            setSelectedProvider("paypal");
+          }
+        }
+      } catch (error) {
+        console.error("Failed to fetch payment gateways:", error);
+      }
+    };
+    fetchGateways();
+  }, []);
 
   const autocompleteRef = useRef<google.maps.places.Autocomplete | null>(null);
 
@@ -527,35 +552,45 @@ const BookService = () => {
                         <div className="space-y-4 pt-4 border-t border-slate-50">
                           <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">Select Payment Method</p>
                           <div className="grid gap-4 sm:grid-cols-2">
-                            <div 
-                              onClick={() => setSelectedProvider("paypal")}
-                              className={cn(
-                                "cursor-pointer rounded-2xl border-2 p-4 transition-all flex flex-col gap-3",
-                                selectedProvider === "paypal" ? "border-primary bg-primary/5" : "border-slate-100 bg-white"
-                              )}
-                            >
-                              <div className="flex items-center justify-between w-full">
-                                <div className="h-6 w-12 bg-contain bg-no-repeat bg-left" 
-                                     style={{ backgroundImage: "url('https://www.paypalobjects.com/webstatic/mktg/logo/pp_cc_mark_111x69.jpg')" }} />
-                                {selectedProvider === "paypal" && <Check className="h-4 w-4 text-primary" strokeWidth={3} />}
+                            {enabledGateways.paypal && (
+                              <div 
+                                onClick={() => setSelectedProvider("paypal")}
+                                className={cn(
+                                  "cursor-pointer rounded-2xl border-2 p-4 transition-all flex flex-col gap-3",
+                                  selectedProvider === "paypal" ? "border-primary bg-primary/5" : "border-slate-100 bg-white"
+                                )}
+                              >
+                                <div className="flex items-center justify-between w-full">
+                                  <div className="h-6 w-12 bg-contain bg-no-repeat bg-left" 
+                                       style={{ backgroundImage: "url('https://www.paypalobjects.com/webstatic/mktg/logo/pp_cc_mark_111x69.jpg')" }} />
+                                  {selectedProvider === "paypal" && <Check className="h-4 w-4 text-primary" strokeWidth={3} />}
+                                </div>
+                                <span className="text-sm font-bold text-[#222222]">PayPal / Card</span>
                               </div>
-                              <span className="text-sm font-bold text-[#222222]">PayPal / Card</span>
-                            </div>
+                            )}
 
-                            <div 
-                              onClick={() => setSelectedProvider("yoco")}
-                              className={cn(
-                                "cursor-pointer rounded-2xl border-2 p-4 transition-all flex flex-col gap-3",
-                                selectedProvider === "yoco" ? "border-primary bg-primary/5" : "border-slate-100 bg-white"
-                              )}
-                            >
-                              <div className="flex items-center justify-between w-full">
-                                <div className="h-5 w-10 bg-contain bg-no-repeat bg-left" 
-                                     style={{ backgroundImage: "url('https://cdn.yoco.com/images/yoco-logo-dark.svg')" }} />
-                                {selectedProvider === "yoco" && <Check className="h-4 w-4 text-primary" strokeWidth={3} />}
+                            {enabledGateways.yoco && (
+                              <div 
+                                onClick={() => setSelectedProvider("yoco")}
+                                className={cn(
+                                  "cursor-pointer rounded-2xl border-2 p-4 transition-all flex flex-col gap-3",
+                                  selectedProvider === "yoco" ? "border-primary bg-primary/5" : "border-slate-100 bg-white"
+                                )}
+                              >
+                                <div className="flex items-center justify-between w-full">
+                                  <div className="h-5 w-10 bg-contain bg-no-repeat bg-left" 
+                                       style={{ backgroundImage: "url('https://cdn.yoco.com/images/yoco-logo-dark.svg')" }} />
+                                  {selectedProvider === "yoco" && <Check className="h-4 w-4 text-primary" strokeWidth={3} />}
+                                </div>
+                                <span className="text-sm font-bold text-[#222222]">Yoco</span>
                               </div>
-                              <span className="text-sm font-bold text-[#222222]">Yoco</span>
-                            </div>
+                            )}
+
+                            {!enabledGateways.paypal && !enabledGateways.yoco && (
+                              <div className="col-span-full p-4 bg-slate-50 rounded-2xl border border-slate-100 text-center">
+                                <p className="text-slate-500 text-sm font-medium">No payment methods currently available.</p>
+                              </div>
+                            )}
                           </div>
                           
                           <div className="flex items-center gap-2 text-xs font-bold text-emerald-600 bg-emerald-50/50 p-4 rounded-xl border border-emerald-100/50">

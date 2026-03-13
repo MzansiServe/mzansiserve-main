@@ -7,6 +7,7 @@ from backend.models import CarouselItem, User, ProfessionalRating, DriverRating,
 from backend.models.testimonial import Testimonial
 from backend.models.landing_feature import LandingFeature
 from backend.models.footer_cms import FooterContent
+from backend.models.setting import AppSetting
 from backend.models.service import ServiceType
 from backend.extensions import db
 from backend.utils.response import success_response, error_response
@@ -272,3 +273,21 @@ def get_service_options():
         current_app.logger.error(f"Get service options error: {str(e)}")
         return error_response('INTERNAL_ERROR', 'Failed to load service options', None, 500)
 
+@bp.route('/payment-gateways', methods=['GET'])
+def get_payment_gateways():
+    """Returns the enabled status of payment gateways (PayPal, Yoco)."""
+    try:
+        paypal_setting = AppSetting.query.get('payment_paypal')
+        yoco_setting = AppSetting.query.get('payment_yoco')
+        
+        # Fallback to current_app config if settings not in DB
+        paypal_enabled = paypal_setting.value.get('enabled', False) if paypal_setting else current_app.config.get('PAYPAL_CLIENT_ID') is not None
+        yoco_enabled = yoco_setting.value.get('enabled', False) if yoco_setting else current_app.config.get('YOCO_SECRET_KEY') is not None
+        
+        return success_response({
+            'paypal': {'enabled': paypal_enabled},
+            'yoco': {'enabled': yoco_enabled}
+        })
+    except Exception as e:
+        current_app.logger.error(f"Get payment gateways error: {str(e)}")
+        return error_response('INTERNAL_ERROR', 'Failed to load payment options', None, 500)
