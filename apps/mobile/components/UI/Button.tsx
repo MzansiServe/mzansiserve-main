@@ -4,12 +4,23 @@ import {
     Text,
     StyleSheet,
     ActivityIndicator,
+    View,
     ViewStyle,
     TextStyle,
     TouchableOpacityProps,
+    Platform,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
+import Animated, { 
+    useSharedValue, 
+    useAnimatedStyle, 
+    withSpring,
+    withTiming,
+    interpolate
+} from 'react-native-reanimated';
 import { COLORS, SPACING, SIZES, SHADOWS } from '../../constants/Theme';
+
+const AnimatedTouchableOpacity = Animated.createAnimatedComponent(TouchableOpacity);
 
 interface ButtonProps extends TouchableOpacityProps {
     title: string;
@@ -18,6 +29,7 @@ interface ButtonProps extends TouchableOpacityProps {
     loading?: boolean;
     icon?: React.ReactNode;
     fullWidth?: boolean;
+    rounded?: boolean;
 }
 
 export const Button: React.FC<ButtonProps> = ({
@@ -27,116 +39,168 @@ export const Button: React.FC<ButtonProps> = ({
     loading = false,
     icon,
     fullWidth = true,
+    rounded = true,
     style,
     disabled,
+    onPressIn,
+    onPressOut,
     ...props
 }) => {
+    const scale = useSharedValue(1);
+    const opacity = useSharedValue(1);
+
+    const animatedStyle = useAnimatedStyle(() => ({
+        transform: [{ scale: scale.value }],
+        opacity: opacity.value,
+    }));
+
+    const handlePressIn = (e: any) => {
+        scale.value = withSpring(0.96, { damping: 10, stiffness: 200 });
+        opacity.value = withTiming(0.9);
+        onPressIn?.(e);
+    };
+
+    const handlePressOut = (e: any) => {
+        scale.value = withSpring(1);
+        opacity.value = withTiming(1);
+        onPressOut?.(e);
+    };
+
     const getColors = () => {
         switch (variant) {
-            case 'primary': return [COLORS.primary, COLORS.primaryDark] as const;
-            case 'secondary': return [COLORS.secondary, '#059669'] as const;
-            case 'danger': return [COLORS.error, '#DC2626'] as const;
-            default: return [COLORS.white, COLORS.white] as const;
+            case 'primary': 
+                return [COLORS.primaryLight, COLORS.primary, COLORS.primaryDark] as const;
+            case 'secondary': 
+                return ['#34D399', COLORS.secondary, COLORS.secondaryDark] as const;
+            case 'danger': 
+                return ['#F87171', COLORS.error, '#B91C1C'] as const;
+            default: 
+                return [COLORS.white, COLORS.white] as const;
         }
     };
 
     const getTextStyle = (): TextStyle => {
         const baseStyle: TextStyle = {
-            fontWeight: 'bold',
+            fontWeight: '700',
             fontSize: size === 'sm' ? SIZES.font.sm : size === 'lg' ? SIZES.font.lg : SIZES.font.md,
+            letterSpacing: 0.5,
         };
 
         if (variant === 'primary' || variant === 'secondary' || variant === 'danger') {
             return { ...baseStyle, color: COLORS.white };
         }
-        if (variant === 'outline' || variant === 'ghost') {
-            return { ...baseStyle, color: COLORS.primary };
-        }
-        return baseStyle;
+        return { ...baseStyle, color: COLORS.primary };
     };
 
     const containerStyle: any[] = [
         styles.base,
         size === 'sm' ? styles.sm : size === 'lg' ? styles.lg : styles.md,
         fullWidth ? styles.fullWidth : styles.autoWidth,
-        variant === 'outline' ? styles.outline : null,
-        (disabled || loading) ? styles.disabled : null,
+        rounded ? styles.rounded : styles.standard,
+        variant === 'outline' && styles.outline,
+        variant === 'ghost' && styles.ghost,
+        (variant === 'primary' || variant === 'secondary') && SHADOWS.primary,
+        (disabled || loading) && styles.disabled,
         style,
     ];
 
     const renderContent = () => (
         <>
+            {/* Glossy Overlay/Shine */}
+            {(variant === 'primary' || variant === 'secondary' || variant === 'danger') && (
+                <View style={styles.shine} />
+            )}
+            
             {loading ? (
-                <ActivityIndicator color={variant === 'outline' ? COLORS.primary : COLORS.white} />
+                <ActivityIndicator color={variant === 'outline' || variant === 'ghost' ? COLORS.primary : COLORS.white} />
             ) : (
-                <>
-                    {icon}
-                    <Text style={[getTextStyle(), icon ? { marginLeft: SPACING.sm } : {}]}>{title}</Text>
-                </>
+                <View style={styles.content}>
+                    {icon && <View style={styles.iconContainer}>{icon}</View>}
+                    <Text style={getTextStyle()}>{title}</Text>
+                </View>
             )}
         </>
     );
 
-    if (variant === 'primary' || variant === 'secondary' || variant === 'danger') {
-        return (
-            <TouchableOpacity
-                activeOpacity={0.8}
-                disabled={disabled || loading}
-                style={containerStyle}
-                {...props}
-            >
+    const isGradient = variant === 'primary' || variant === 'secondary' || variant === 'danger';
+
+    return (
+        <AnimatedTouchableOpacity
+            activeOpacity={1}
+            disabled={disabled || loading}
+            onPressIn={handlePressIn}
+            onPressOut={handlePressOut}
+            style={[containerStyle, animatedStyle]}
+            {...props}
+        >
+            {isGradient ? (
                 <LinearGradient
                     colors={getColors()}
                     start={{ x: 0, y: 0 }}
-                    end={{ x: 1, y: 0 }}
+                    end={{ x: 1, y: 1 }}
                     style={styles.gradient}
                 >
                     {renderContent()}
                 </LinearGradient>
-            </TouchableOpacity>
-        );
-    }
-
-    return (
-        <TouchableOpacity
-            activeOpacity={0.7}
-            disabled={disabled || loading}
-            style={containerStyle}
-            {...props}
-        >
-            {renderContent()}
-        </TouchableOpacity>
+            ) : (
+                renderContent()
+            )}
+        </AnimatedTouchableOpacity>
     );
 };
 
 const styles = StyleSheet.create({
     base: {
-        borderRadius: SIZES.radius.md,
         overflow: 'hidden',
         alignItems: 'center',
         justifyContent: 'center',
-        flexDirection: 'row',
     },
-    sm: { paddingVertical: SPACING.xs, paddingHorizontal: SPACING.md, height: 40 },
-    md: { paddingVertical: SPACING.sm, paddingHorizontal: SPACING.lg, height: 52 },
-    lg: { paddingVertical: SPACING.md, paddingHorizontal: SPACING.xl, height: 60 },
+    rounded: {
+        borderRadius: SIZES.radius.full,
+    },
+    standard: {
+        borderRadius: SIZES.radius.lg,
+    },
+    sm: { height: 40 },
+    md: { height: 56 },
+    lg: { height: 64 },
     fullWidth: { width: '100%' },
-    autoWidth: { alignSelf: 'flex-start' },
+    autoWidth: { alignSelf: 'flex-start', paddingHorizontal: SPACING.lg },
+    content: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'center',
+    },
+    iconContainer: {
+        marginRight: SPACING.sm,
+    },
     gradient: {
         width: '100%',
         height: '100%',
         alignItems: 'center',
         justifyContent: 'center',
-        flexDirection: 'row',
         paddingHorizontal: SPACING.lg,
     },
+    shine: {
+        position: 'absolute',
+        top: 0,
+        left: 0,
+        right: 0,
+        height: '50%',
+        backgroundColor: 'rgba(255, 255, 255, 0.15)',
+        borderTopLeftRadius: SIZES.radius.full,
+        borderTopRightRadius: SIZES.radius.full,
+    },
     outline: {
-        borderWidth: 1.5,
+        borderWidth: 2,
         borderColor: COLORS.primary,
         backgroundColor: 'transparent',
     },
+    ghost: {
+        backgroundColor: 'transparent',
+    },
     disabled: {
-        opacity: 0.6,
+        opacity: 0.5,
     },
 });
 

@@ -1,0 +1,486 @@
+"""
+Admin Service - Encapsulates logic for administrative operations.
+"""
+import uuid
+import logging
+from datetime import datetime
+from flask import current_app
+from backend.extensions import db
+from backend.models import User, ServiceRequest, ServiceType, UserSelectedService, Payment, PendingProfileUpdate, AppSetting, Agent
+from backend.services.email_service import EmailService
+
+logger = logging.getLogger(__name__)
+
+class AdminService:
+    @staticmethod
+    def list_users(filters=None, limit=50, offset=0):
+        """List users with optional filters"""
+        filters = filters or {}
+        query = User.query
+        
+        if filters.get('role'):
+            query = query.filter_by(role=filters['role'])
+        if filters.get('is_paid') is not None:
+            query = query.filter_by(is_paid=filters['is_paid'])
+        if filters.get('is_approved') is not None:
+            query = query.filter_by(is_approved=filters['is_approved'])
+            
+        total = query.count()
+        users = query.order_by(User.created_at.desc()).limit(limit).offset(offset).all()
+        
+        return {
+            'users': [u.to_dict() for u in users],
+            'total': total
+        }
+
+    @staticmethod
+    def create_user(data):
+        """Create a user from admin panel"""
+        email = data.get('email', '').strip().lower()
+        if not email or not data.get('password'):
+            return None, "MISSING_FIELDS"
+            
+        if User.query.filter_by(email=email).first():
+            return None, "ALREADY_EXISTS"
+            
+        role = data.get('role', 'user')
+        user = User(
+            email=email,
+            role=role,
+            is_active=data.get('is_active', True),
+            is_approved=data.get('is_approved', True),
+            is_paid=data.get('is_paid', False),
+            email_verified=data.get('email_verified', True)
+        )
+        user.set_password(data['password'])
+        
+        # Profile data mapping
+        profile_data = {}
+        mappings = {
+            'first_name': 'full_name', 'last_name': 'surname', 'phone': 'phone',
+            'gender': 'gender', 'sa_id_number': 'sa_id', 'is_sa_citizen': 'sa_citizen',
+            'highest_qualification': 'highest_qualification', 'professional_body': 'professional_body',
+            'professional_services': 'professional_services', 'driver_vehicles': 'driver_services'
+        }
+        for k, target in mappings.items():
+            if k in data: profile_data[target] = data[k]
+            
+        nok = {}
+        for k, target in [('next_of_kin_name', 'full_name'), ('next_of_kin_phone', 'contact_number'), ('next_of_kin_email', 'contact_email')]:
+            if data.get(k): nok[target] = data[k]
+        if nok: profile_data['next_of_kin'] = nok
+        
+        user.data = profile_data
+        db.session.add(user)
+        db.session.commit()
+        return user.to_dict(), None
+
+    @staticmethod
+    def approve_user(user_id):
+        """Approve user and setup their services"""
+        user = User.query.get(user_id)
+        if not user:
+            return None, "NOT_FOUND"
+            
+        user.is_approved = True
+        if user.role in ('professional', 'service-provider'):
+            user.is_active = True
+            AdminService._setup_user_services(user)
+            
+        db.session.commit()
+        
+        try:
+            EmailService.send_user_approval_notification(user)
+        except Exception as e:
+            logger.error(f"Approval email failed: {e}")
+            
+        return user.to_dict(), None
+
+    @staticmethod
+    def verify_id(user_id, status, reason=None):
+        """Verify or reject ID documents"""
+        user = User.query.get(user_id)
+        if not user:
+            return None, "NOT_FOUND"
+            
+        if status not in ('verified', 'rejected'):
+            return None, "INVALID_STATUS"
+            
+        if status == 'rejected' and not reason:
+            return None, "MISSING_REASON"
+            
+        user.id_verification_status = status
+        if status == 'rejected':
+            user.id_rejection_reason = reason
+            
+        db.session.commit()
+        
+        try:
+            EmailService.send_id_verification_notification(user, status, reason)
+        except Exception as e:
+            logger.error(f"ID verification email failed: {e}")
+            
+        return user.to_dict(), None
+
+    @staticmethod
+    def _setup_user_services(user):
+        """Internal helper to convert JSON services to UserSelectedService models"""
+        services = []
+        if user.data:
+            if user.role == 'professional':
+                services = user.data.get('professional_services', [])
+            elif user.role == 'service-provider':
+                services = user.data.get('provider_services', [])
+                
+        for s in services:
+            service_name = s.get('name', '').strip()
+            if not service_name: continue
+            
+            # Find or create ServiceType
+            stype = ServiceType.query.filter(
+                db.func.lower(ServiceType.name) == service_name.lower(),
+                ServiceType.category == user.role
+            ).first()
+            
+            if not stype:
+                stype = ServiceType(
+                    name=service_name,
+                    description=s.get('description', ''),
+                    category=user.role,
+                    is_active=True
+                )
+                db.session.add(stype)
+                db.session.flush()
+                
+            if not UserSelectedService.query.filter_by(user_id=user.id, service_type_id=stype.id).first():
+                db.session.add(UserSelectedService(
+                    user_id=user.id,
+                    service_type_id=stype.id,
+                    personalized_description=s.get('personalized_description', '')
+                ))
+
+    @staticmethod
+    def get_stats():
+        """Retrieve dashboard statistics"""
+        total_users = User.query.count()
+        total_revenue = db.session.query(db.func.sum(Payment.amount)).filter(Payment.status == 'completed').scalar() or 0
+        total_requests = ServiceRequest.query.count()
+        pending_withdrawals = WithdrawalRequest.query.filter_by(status='pending').count()
+        
+        return {
+            'total_users': total_users,
+            'total_revenue': float(total_revenue),
+            'total_requests': total_requests,
+            'pending_withdrawals': pending_withdrawals
+        }, None
+
+    @staticmethod
+    def get_withdrawal_requests(status=None):
+        """Get list of withdrawal requests"""
+        from backend.models.withdrawal_request import WithdrawalRequest
+        query = WithdrawalRequest.query
+        if status:
+            query = query.filter_by(status=status)
+        
+        requests = query.order_by(WithdrawalRequest.created_at.desc()).all()
+        return [r.to_dict() for r in requests], None
+
+    @staticmethod
+    def handle_withdrawal(withdrawal_id, action, reason=None):
+        """Approve or reject a withdrawal request"""
+        from backend.models.withdrawal_request import WithdrawalRequest
+        req = WithdrawalRequest.query.get(withdrawal_id)
+        if not req:
+            return None, "NOT_FOUND"
+            
+        if req.status != 'pending':
+            return None, "ALREADY_PROCESSED"
+            
+        if action == 'approve':
+            req.status = 'approved'
+            req.processed_at = datetime.utcnow()
+        elif action == 'reject':
+            req.status = 'rejected'
+            req.rejection_reason = reason
+            req.processed_at = datetime.utcnow()
+            
+            # Refund wallet
+            from backend.services.wallet_service import WalletService
+            WalletService.add_transaction(
+                wallet_id=req.wallet_id,
+                user_id=req.user_id,
+                transaction_type='refund',
+                amount=req.amount,
+                currency=req.currency,
+                description=f"Withdrawal rejected: {reason}"
+            )
+        else:
+            return None, "INVALID_ACTION"
+            
+        db.session.commit()
+        return req.to_dict(), None
+
+    @staticmethod
+    def get_global_stats():
+        """Consolidated view of all system activity"""
+        from backend.models.chat import ChatMessage
+        from backend.models.report import Report
+        from backend.models.driver_rating import DriverRating
+        from backend.models.professional_rating import ProfessionalRating
+        from backend.models.provider_rating import ProviderRating
+        from backend.models.shop import Order
+        from sqlalchemy import func
+        from datetime import timedelta
+        
+        shop_revenue = db.session.query(func.sum(Order.total)).filter(Order.status == 'paid').scalar() or 0
+        service_revenue = db.session.query(func.sum(ServiceRequest.payment_amount)).filter(ServiceRequest.status == 'completed').scalar() or 0
+        total_revenue = float(shop_revenue) + float(service_revenue)
+        
+        seven_days_ago = datetime.utcnow() - timedelta(days=7)
+        user_growth = []
+        for i in range(7):
+            day = seven_days_ago + timedelta(days=i+1)
+            start_of_day = datetime(day.year, day.month, day.day)
+            end_of_day = start_of_day + timedelta(days=1)
+            count = User.query.filter(User.created_at >= start_of_day, User.created_at < end_of_day).count()
+            user_growth.append({'date': start_of_day.strftime('%b %d'), 'count': count})
+
+        return {
+            'users': {
+                'total': User.query.count(),
+                'drivers': User.query.filter_by(role='driver').count(),
+                'professionals': User.query.filter_by(role='professional').count(),
+                'providers': User.query.filter_by(role='service-provider').count(),
+                'clients': User.query.filter_by(role='client').count(),
+                'growth': user_growth
+            },
+            'requests': {
+                'total': ServiceRequest.query.count(),
+                'pending': ServiceRequest.query.filter_by(status='pending').count(),
+                'completed': ServiceRequest.query.filter_by(status='completed').count()
+            },
+            'revenue': {
+                'total': total_revenue,
+                'shop': float(shop_revenue),
+                'service': float(service_revenue)
+            },
+            'feedback': {
+                'total_ratings': DriverRating.query.count() + ProfessionalRating.query.count() + ProviderRating.query.count(),
+                'total_reports': Report.query.count(),
+                'pending_reports': Report.query.filter_by(status='pending').count()
+            },
+            'activity': {
+                'total_chats': ChatMessage.query.count()
+            }
+        }, None
+
+    @staticmethod
+    def get_payment_settings():
+        """Get all payment gateway settings"""
+        paypal = AppSetting.query.get('payment_paypal')
+        yoco = AppSetting.query.get('payment_yoco')
+        
+        return {
+            'paypal': paypal.value if paypal else {
+                'enabled': False,
+                'client_id': '',
+                'client_secret': '',
+                'mode': 'sandbox'
+            },
+            'yoco': yoco.value if yoco else {
+                'enabled': False,
+                'secret_key': '',
+                'api_url': 'https://payments.yoco.com'
+            }
+        }, None
+
+    @staticmethod
+    def update_payment_settings(data):
+        """Update payment gateway settings"""
+        for key in ['paypal', 'yoco']:
+            if key in data:
+                gateway_key = f'payment_{key}'
+                setting = AppSetting.query.get(gateway_key)
+                if not setting:
+                    setting = AppSetting(key=gateway_key)
+                    db.session.add(setting)
+                
+                current_val = setting.value or {}
+                # Update but preserve existing fields if not provided
+                if isinstance(data[key], dict):
+                    current_val.update(data[key])
+                setting.value = current_val
+        
+        db.session.commit()
+        return True, None
+
+    @staticmethod
+    def suspend_user(user_id):
+        """Suspend a user"""
+        user = User.query.get(user_id)
+        if not user:
+            return None, "NOT_FOUND"
+        user.is_active = False
+        db.session.commit()
+        try:
+            EmailService.send_user_suspension_notification(user)
+        except Exception as e:
+            logger.error(f"Suspension email failed: {e}")
+        return user.to_dict(), None
+
+    @staticmethod
+    def unsuspend_user(user_id):
+        """Unsuspend a user"""
+        user = User.query.get(user_id)
+        if not user:
+            return None, "NOT_FOUND"
+        user.is_active = True
+        db.session.commit()
+        return user.to_dict(), None
+
+    @staticmethod
+    def delete_user(user_id):
+        """Permanently delete a user"""
+        user = User.query.get(user_id)
+        if not user:
+            return None, "NOT_FOUND"
+        db.session.delete(user)
+        db.session.commit()
+        return True, None
+
+    @staticmethod
+    def get_user(user_id):
+        """Get detailed user info for admin"""
+        user = User.query.get(user_id)
+        if not user:
+            return None, "NOT_FOUND"
+            
+        data = user.to_dict()
+        data['profile_data'] = user.data
+        
+        # Add ID URL
+        if user.id_document_url:
+            data['id_document_url'] = user.id_document_url
+            
+        # Pending updates
+        pending = PendingProfileUpdate.query.filter_by(user_id=user_id, status='pending').first()
+        data['pending_updates'] = pending.payload if pending else None
+        
+        return data, None
+
+    @staticmethod
+    def get_user_vehicle_images(user_id):
+        """Get vehicle images for a user"""
+        from backend.models.vehicle_image import VehicleImage
+        images = VehicleImage.query.filter_by(user_id=user_id).all()
+        return [img.to_dict() for img in images], None
+
+    @staticmethod
+    def list_pending_profile_updates():
+        """List all pending profile update requests."""
+        from backend.models.pending_profile_update import PendingProfileUpdate
+        pending = PendingProfileUpdate.query.filter_by(status='pending').order_by(
+            PendingProfileUpdate.created_at.desc()
+        ).all()
+        out = []
+        for p in pending:
+            user = User.query.get(p.user_id)
+            d = p.to_dict()
+            d['user_email'] = user.email if user else None
+            d['user_role'] = user.role if user else None
+            ud = user.data or {}
+            # Fix Potential "Unknown" by checking both key patterns
+            fn = (ud.get('full_name') or ud.get('first_name') or ud.get('name', '')).strip()
+            sn = (ud.get('surname') or ud.get('last_name', '')).strip()
+            d['user_full_name'] = (fn + (' ' + sn if sn else '')).strip() or '—'
+            out.append(d)
+        return {'pending_updates': out}, None
+
+    @staticmethod
+    def approve_pending_profile_update(pending_id):
+        """Apply pending profile changes to user"""
+        from backend.models.pending_profile_update import PendingProfileUpdate
+        pending = PendingProfileUpdate.query.get(pending_id)
+        if not pending:
+            return None, "NOT_FOUND"
+        if pending.status != 'pending':
+            return None, "INVALID_STATUS"
+        user = User.query.get(pending.user_id)
+        if not user:
+            return None, "NOT_FOUND"
+            
+        payload = pending.payload or {}
+        updated_data = dict(user.data) if user.data else {}
+        for key, value in payload.items():
+            if key in ('phone', 'next_of_kin', 'driver_services', 'professional_services', 'provider_services',
+                       'highest_qualification', 'professional_body', 'proof_of_residence_url', 'driver_license_url', 'qualification_urls', 'operating_areas', 'availability'):
+                if value is None and key in updated_data:
+                    del updated_data[key]
+                else:
+                    updated_data[key] = value
+
+            if key in ('professional_services', 'provider_services') and isinstance(value, list):
+                category = 'professional' if key == 'professional_services' else 'service-provider'
+                for service in value:
+                    s_name = service.get('name', '').strip()
+                    if not s_name: continue
+                    existing = ServiceType.query.filter(ServiceType.name.ilike(s_name)).first()
+                    if not existing:
+                        db.session.add(ServiceType(name=s_name, category=category, is_active=True, description=service.get('description', '')))
+
+        user.data = updated_data
+        db.session.delete(pending)
+        db.session.commit()
+        return user.to_dict(), None
+
+    @staticmethod
+    def reject_pending_profile_update(pending_id, admin_id, reason=None):
+        """Reject a pending profile update"""
+        from backend.models.pending_profile_update import PendingProfileUpdate
+        pending = PendingProfileUpdate.query.get(pending_id)
+        if not pending:
+            return None, "NOT_FOUND"
+        if pending.status != 'pending':
+            return None, "INVALID_STATUS"
+            
+        pending.status = 'rejected'
+        pending.reviewed_at = datetime.utcnow()
+        pending.reviewed_by_id = admin_id
+        pending.rejection_reason = reason
+        db.session.commit()
+        return True, None
+
+    @staticmethod
+    def list_all_chats():
+        """List all chat messages for monitoring"""
+        from backend.models.chat import ChatMessage
+        messages = ChatMessage.query.order_by(ChatMessage.created_at.desc()).limit(200).all()
+        return [m.to_dict() for m in messages], None
+
+    @staticmethod
+    def list_global_commissions():
+        """List all agent commissions"""
+        from backend.models.agent_commission import AgentCommission
+        commissions = AgentCommission.query.order_by(AgentCommission.created_at.desc()).limit(100).all()
+        out = []
+        for c in commissions:
+            d = c.to_dict()
+            if c.agent:
+                d['agent_email'] = c.agent.email
+            out.append(d)
+        return {'commissions': out}, None
+
+    @staticmethod
+    def get_affiliate_stats():
+        """Get aggregate affiliate metrics"""
+        from backend.models.agent_commission import AgentCommission
+        from sqlalchemy import func
+        total_payout = db.session.query(func.sum(AgentCommission.amount)).filter(AgentCommission.status == 'paid_out').scalar() or 0.0
+        active_agents_count = db.session.query(func.count(func.distinct(AgentCommission.agent_id))).scalar() or 0
+        total_commissions = db.session.query(func.count(AgentCommission.id)).scalar() or 0
+
+        return {
+            'total_paid_out': float(total_payout),
+            'active_agents_count': active_agents_count,
+            'total_commissions': total_commissions
+        }, None

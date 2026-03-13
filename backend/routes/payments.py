@@ -291,92 +291,36 @@ def paypal_callback():
 
 @bp.route('/order-callback', methods=['GET'])
 def order_payment_callback():
-    """Handle order payment callback from Yoco"""
+    """Handle order payment callback"""
     try:
-        from backend.models import Order
-        
         callback_status = request.args.get('callback_status')
         external_id = request.args.get('external_id')
         order_id = request.args.get('order_id')
         
-        current_app.logger.info(f"Order payment callback received: status={callback_status}, external_id={external_id}, order_id={order_id}")
-        
-        if not external_id or not order_id:
-            frontend_url = current_app.config.get('FRONTEND_URL', 'http://localhost:8080')
-            return current_app.make_response((
-                f'<html><body><script>window.location.href="{frontend_url}/shopping-history?payment=error";</script></body></html>',
-                302
-            ))
-        
-        # Find order and payment
-        order = Order.query.get(order_id)
-        payment = Payment.query.filter_by(external_id=external_id).first()
-        
         frontend_url = current_app.config.get('FRONTEND_URL', 'http://localhost:8080')
-        if not order:
-            current_app.logger.error(f"Order not found: {order_id}")
-            return current_app.make_response((
-                f'<html><body><script>window.location.href="{frontend_url}/shopping-history?payment=error";</script></body></html>',
-                302
-            ))
         
-        # Verify payment status with provider
-        verified_status = PaymentService.get_payment_status(external_id)
-        
-        if verified_status == 'completed':
-            if order.status != 'paid': # Only update if not already processed
-                # Update order status to 'paid'
-                order.status = 'paid'
-                if payment:
-                    payment.status = 'completed'
-                    order.payment_id = str(payment.id)
-                db.session.commit()
-                
-                # Update inventory quantities for purchased products
-                from backend.services.inventory_service import update_inventory_on_order_payment
-                inventory_success, inventory_message = update_inventory_on_order_payment(order)
-                if not inventory_success:
-                    current_app.logger.error(f"Inventory update failed for order {order_id}: {inventory_message}")
-                    # Payment is already processed, so we continue but log the error
-                else:
-                    current_app.logger.info(f"Inventory updated successfully for order {order_id}")
-                
-                current_app.logger.info(f"Order {order_id} payment successful: R{payment.amount:.2f}")
-                
-                # Send shop purchase confirmation email
-                try:
-                    from backend.models import User
-                    from backend.services.email_service import EmailService
-                    user = User.query.get(order.customer_id)
-                    if user:
-                        EmailService.send_shop_purchase_confirmation(user, order)
-                except Exception as e:
-                    current_app.logger.error(f"Failed to send shop purchase email: {str(e)}")
-                
-                return current_app.make_response((
-                    f'<html><body><script>window.location.href="{frontend_url}/shopping-history?payment=success";</script></body></html>',
-                    302
-                ))
-            else:
-                current_app.logger.warning(f"Payment verification failed for order {order_id}")
-        
-        # Handle cancel - order remains pending, payment marked as cancelled
         if callback_status == 'cancel':
-            if payment:
-                payment.status = 'cancelled'
-                # Order status remains 'pending' so user can retry payment
-                db.session.commit()
             return current_app.make_response((
-                f'<html><body><script>window.location.href="{frontend_url}/shopping-history?payment=cancelled";</script></body></html>',
+                f'<html><body><script>window.location.href="{frontend_url}/shopping-history?payment=cancelled&external_id=' + (external_id or '') + '";</script></body></html>',
                 302
             ))
+
+        success, error = PaymentService.handle_order_payment(order_id, external_id)
         
-        # Failure case - order remains pending, payment marked as failed
-        if payment:
-            payment.status = 'failed'
-            # Order status remains 'pending' so user can retry payment
-            db.session.commit()
-        
+        if success:
+            return current_app.make_response((
+                f'<html><body><script>window.location.href="{frontend_url}/shopping-history?payment=success&external_id=' + (external_id or '') + '";</script></body></html>',
+                302
+            ))
+        else:
+            return current_app.make_response((
+                f'<html><body><script>window.location.href="{frontend_url}/shopping-history?payment=error&reason=' + (error or 'unknown') + '&external_id=' + (external_id or '') + '";</script></body></html>',
+                302
+            ))
+            
+    except Exception as e:
+        current_app.logger.error(f"Order payment callback error: {str(e)}")
+        frontend_url = current_app.config.get('FRONTEND_URL', 'http://localhost:8080')
         return current_app.make_response((
             f'<html><body><script>window.location.href="{frontend_url}/shopping-history?payment=error";</script></body></html>',
             302
@@ -392,93 +336,26 @@ def order_payment_callback():
 
 @bp.route('/wallet-topup-callback', methods=['GET'])
 def wallet_topup_callback():
-    """Handle wallet top-up payment callback from Yoco"""
+    """Handle wallet top-up payment callback"""
     try:
         external_id = request.args.get('external_id')
-        
-        # Verify payment status with provider
-        verified_status = PaymentService.get_payment_status(external_id)
-        
-        current_app.logger.info(f"Wallet top-up callback received: status={verified_status}, external_id={external_id}")
-        
-        # Only process success callbacks
-        if verified_status != 'completed':
-            frontend_url = current_app.config.get('FRONTEND_URL', 'http://localhost:8080')
-            return current_app.make_response((
-                f'<html><body><script>window.location.href="{frontend_url}/wallet?payment=error";</script></body></html>',
-                302
-            ))
-        
-        if not external_id:
-            frontend_url = current_app.config.get('FRONTEND_URL', 'http://localhost:8080')
-            return current_app.make_response((
-                f'<html><body><script>window.location.href="{frontend_url}/wallet?payment=error";</script></body></html>',
-                302
-            ))
-        
-        # Find payment by external_id
-        payment = Payment.query.filter_by(external_id=external_id).first()
         frontend_url = current_app.config.get('FRONTEND_URL', 'http://localhost:8080')
-        if not payment:
-            current_app.logger.error(f"Payment not found for external_id: {external_id}")
+        
+        success, error = PaymentService.handle_wallet_topup(external_id)
+        
+        if success:
             return current_app.make_response((
-                f'<html><body><script>window.location.href="{frontend_url}/wallet?payment=error";</script></body></html>',
+                f'<html><body><script>window.location.href="{frontend_url}/wallet?payment=success&external_id=' + (external_id or '') + '";</script></body></html>',
                 302
             ))
-        
-        # Extract user_id and wallet_id from external_id (format: topup_{user_id_hex}_{random_hex})
-        if external_id.startswith('topup_'):
-            # Extract user_id_hex
-            parts = external_id.split('_')
-            if len(parts) >= 3:
-                user_id_hex = parts[1]
-                
-                try:
-                    # Convert hex string back to UUID
-                    user_id_hex_clean = user_id_hex.replace('-', '')
-                    if len(user_id_hex_clean) == 32:
-                        user_id_str = f"{user_id_hex_clean[:8]}-{user_id_hex_clean[8:12]}-{user_id_hex_clean[12:16]}-{user_id_hex_clean[16:20]}-{user_id_hex_clean[20:32]}"
-                        user_id = uuid.UUID(user_id_str)
-                        user = User.query.get(user_id)
-                        
-                        if user:
-                            # Get wallet
-                            wallet = Wallet.query.filter_by(user_id=user_id).first()
-                            if not wallet:
-                                wallet = WalletService.get_or_create_wallet(user_id)
-                            
-                            # Verify payment and update wallet
-                            if payment.status == 'pending' and payment.amount > 0:
-                                # Add top-up transaction to wallet
-                                top_up_amount = float(payment.amount)
-                                WalletService.add_transaction(
-                                    wallet_id=wallet.id,
-                                    user_id=user_id,
-                                    transaction_type='top-up',
-                                    amount=top_up_amount,
-                                    currency=payment.currency,
-                                    external_id=external_id,
-                                    description=f'Wallet top-up of R{top_up_amount:.2f}',
-                                    metadata={'payment_id': str(payment.id)}
-                                )
-                                
-                                # Update payment status
-                                payment.status = 'completed'
-                                db.session.commit()
-                                
-                                current_app.logger.info(f"User {user.id} wallet top-up successful: R{top_up_amount:.2f}")
-                                
-                                # Redirect to wallet with success message
-                                return current_app.make_response((
-                                    f'<html><body><script>window.location.href="{frontend_url}/wallet?payment=success";</script></body></html>',
-                                    302
-                                ))
-                            else:
-                                current_app.logger.warning(f"Payment verification failed for user {user.id}")
-                except (ValueError, IndexError) as e:
-                    current_app.logger.error(f"Error parsing user_id from external_id: {e}")
-        
-        # Redirect to wallet with error message
+        else:
+            return current_app.make_response((
+                f'<html><body><script>window.location.href="{frontend_url}/wallet?payment=error&reason=' + (error or 'unknown') + '&external_id=' + (external_id or '') + '";</script></body></html>',
+                302
+            ))
+            
+    except Exception as e:
+        current_app.logger.error(f"Wallet top-up callback error: {str(e)}")
         frontend_url = current_app.config.get('FRONTEND_URL', 'http://localhost:8080')
         return current_app.make_response((
             f'<html><body><script>window.location.href="{frontend_url}/wallet?payment=error";</script></body></html>',
@@ -496,72 +373,15 @@ def wallet_topup_callback():
 
 @bp.route('/request-callback', methods=['GET'])
 def request_payment_callback():
-    """
-    Handle cab service request payment callback from Yoco.
-
-    On success, mark the associated service request payment_status as 'paid'
-    and show a brief message before redirecting the user to /requested-services.
-    """
+    """Handle cab service request payment callback"""
     try:
-        callback_status = request.args.get('callback_status')
         external_id = request.args.get('external_id')
         request_id = request.args.get('request_id')
-
-        current_app.logger.info(
-            f"Request payment callback received: status={callback_status}, "
-            f"external_id={external_id}, request_id={request_id}"
-        )
-
-        if not external_id or not request_id:
-            frontend_url = current_app.config.get('FRONTEND_URL', 'http://localhost:8080')
-            # Missing data – redirect to requested-services with error
-            return current_app.make_response((
-                f'<html><body><script>window.location.href="{frontend_url}/my-bookings?payment=error";</script></body></html>',
-                302
-            ))
-
-        service_request = ServiceRequest.query.get(request_id)
-        payment = Payment.query.filter_by(external_id=external_id).first()
-
-        if not service_request or not payment:
-            frontend_url = current_app.config.get('FRONTEND_URL', 'http://localhost:8080')
-            current_app.logger.error(
-                f"Request or payment not found for request_id={request_id}, external_id={external_id}"
-            )
-            return current_app.make_response((
-                f'<html><body><script>window.location.href="{frontend_url}/my-bookings?payment=error";</script></body></html>',
-                302
-            ))
-
-        # Verify payment status with provider
-        verified_status = PaymentService.get_payment_status(external_id)
+        frontend_url = current_app.config.get('FRONTEND_URL', 'http://localhost:8080')
         
-        # Only handle success with a 3-second information screen
-        if verified_status == 'completed':
-            try:
-                # Update request/payment if not already processed
-                if service_request.payment_status != 'paid':
-                    service_request.payment_status = 'paid'
-                    service_request.status = 'pending'  # unpaid -> pending so providers can see it
-                    if payment:
-                        payment.status = 'completed'
-                    db.session.commit()
-                    current_app.logger.info(
-                        f"Service request {request_id} payment successful: R{float(payment.amount):.2f}"
-                    )
-                    
-                    # Send call-out payment confirmation email
-                    try:
-                        from backend.models import User
-                        from backend.services.email_service import EmailService
-                        user = User.query.get(service_request.requester_id)
-                        if user:
-                            EmailService.send_callout_payment_confirmation(user, service_request, float(payment.amount))
-                    except Exception as e:
-                        current_app.logger.error(f"Failed to send call-out payment email: {str(e)}")
-            except Exception as e:
-                current_app.logger.error(f"Error finalizing request payment: {e}")
-
+        success, error = PaymentService.handle_service_request_payment(request_id, external_id)
+        
+        if success:
             # Show brief message then redirect after 3 seconds
             html = """
                 <html>
@@ -607,10 +427,15 @@ def request_payment_callback():
                   </body>
                 </html>
             """
-            frontend_url = current_app.config.get('FRONTEND_URL', 'http://localhost:8080')
             return current_app.make_response((html % frontend_url, 200))
-
-        # Cancel or failure - just redirect back with an error flag
+        else:
+            return current_app.make_response((
+                f'<html><body><script>window.location.href="{frontend_url}/my-bookings?payment=error&reason=' + (error or 'unknown') + '&external_id=' + (external_id or '') + '";</script></body></html>',
+                302
+            ))
+            
+    except Exception as e:
+        current_app.logger.error(f"Request payment callback error: {str(e)}")
         frontend_url = current_app.config.get('FRONTEND_URL', 'http://localhost:8080')
         return current_app.make_response((
             f'<html><body><script>window.location.href="{frontend_url}/my-bookings?payment=error";</script></body></html>',
